@@ -1,0 +1,42 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { AppLayout } from '@/components/AppLayout';
+import { LoginPage } from '@/pages/LoginPage';
+import { CalculatorPage } from '@/pages/CalculatorPage';
+import { AIInputPage } from '@/pages/AIInputPage';
+import { HistoryPage } from '@/pages/HistoryPage';
+import { InvoicePage } from '@/pages/InvoicePage';
+import type { ReactNode } from 'react';
+
+function ProtectedRoute({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+function PublicRoute({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (user) return <Navigate to="/calculator" replace />;
+  return <>{children}</>;
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+          <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+            <Route path="/calculator" element={<CalculatorPage />} />
+            <Route path="/ai-input" element={<AIInputPage />} />
+            <Route path="/history" element={<HistoryPage />} />
+            <Route path="/invoices" element={<InvoicePage />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/calculator" replace />} />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}
