@@ -71,16 +71,17 @@ export function InvoicePage() {
       .order('work_date', { ascending: true })
       .then(({ data }) => {
         if (data) {
-          setAllDays(data as ProjectDay[]);
+          const days = data as unknown as ProjectDay[];
+          setAllDays(days);
 
           // If navigated here with a pre-selected day id, find its project and select all days from it
           const preselect = (location.state as { dayId?: string } | null)?.dayId;
           if (preselect) {
-            const preselectDay = (data as ProjectDay[]).find(d => d.id === preselect);
+            const preselectDay = days.find(d => d.id === preselect);
             if (preselectDay) {
               const projId = preselectDay.project_id;
               setSelectedProjectId(projId);
-              const projDays = (data as ProjectDay[]).filter(d => d.project_id === projId);
+              const projDays = days.filter(d => d.project_id === projId);
               setSelected(projDays.map(d => d.id));
               if (preselectDay.projects?.client_name) {
                 setClientName(preselectDay.projects.client_name);
