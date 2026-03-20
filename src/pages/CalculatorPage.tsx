@@ -45,6 +45,26 @@ function dateToDayOfWeek(dateStr: string): DayOfWeek {
   return JS_DAY_TO_DOW[getDay(date)];
 }
 
+function addHoursToTime(time: string, hours: number): string {
+  const [h, m] = time.split(':').map(Number);
+  const totalMins = h * 60 + m + Math.round(hours * 60);
+  const newH = Math.floor(totalMins / 60) % 24;
+  const newM = totalMins % 60;
+  return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
+}
+
+// Default day duration for each type, used to auto-set wrap time on day type change
+const DEFAULT_WRAP_HOURS: Partial<Record<DayType, number>> = {
+  basic_working: 11,     // 10h working + 1h lunch
+  continuous_working: 9, // 9h continuous (no lunch)
+  prep: 8,               // 8h base
+  recce: 8,
+  build_strike: 8,
+  pre_light: 9,          // 8h + 1h lunch included
+  travel: 5,             // min 5h per APA S.3.1 / S.2.4(xiii)(xiv)
+  // rest: no default — flat fee, times irrelevant
+};
+
 const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
 const MINUTES = ['00', '15', '30', '45'];
 
@@ -556,6 +576,15 @@ export function CalculatorPage() {
     }
   };
 
+  const handleDayTypeChange = (newType: DayType) => {
+    setDayType(newType);
+    // Auto-set wrap time to the standard duration for the selected day type
+    const defaultHours = DEFAULT_WRAP_HOURS[newType];
+    if (defaultHours !== undefined) {
+      setWrapTime(addHoursToTime(callTime, defaultHours));
+    }
+  };
+
   const loadDayIntoForm = (day: FullProjectDay) => {
     suppressDirtyRef.current = true;
     setIsDirty(false);
@@ -931,7 +960,7 @@ export function CalculatorPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Day Type</Label>
-                <Select value={dayType} onValueChange={v => setDayType(v as DayType)}>
+                <Select value={dayType} onValueChange={v => handleDayTypeChange(v as DayType)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -960,22 +989,42 @@ export function CalculatorPage() {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-[1fr_auto_1fr] gap-4 items-end">
-              <TimePicker label="Call Time" value={callTime} onChange={setCallTime} />
+              <TimePicker
+                label={dayType === 'travel' ? 'Departure Time' : 'Call Time'}
+                value={callTime}
+                onChange={setCallTime}
+              />
               <div className="hidden md:flex items-center pb-2 text-muted-foreground text-sm">→</div>
-              <TimePicker label="Wrap Time" value={wrapTime} onChange={setWrapTime} />
+              <TimePicker
+                label={dayType === 'travel' ? 'Arrival Time' : 'Wrap Time'}
+                value={wrapTime}
+                onChange={setWrapTime}
+              />
             </div>
+            {dayType === 'travel' && (
+              <div className="flex items-center gap-2 rounded-md bg-blue-50 border border-blue-200 px-3 py-2 text-sm text-blue-800">
+                <span>Minimum 5 hours · Paid at BHR (single time, any day) · Not applicable to PM/PA/Runners</span>
+              </div>
+            )}
             {callTime && wrapTime && (() => {
               let callMins = parseInt(callTime.split(':')[0]) * 60 + parseInt(callTime.split(':')[1]);
               let wrapMins = parseInt(wrapTime.split(':')[0]) * 60 + parseInt(wrapTime.split(':')[1]);
               if (wrapMins <= callMins) wrapMins += 24 * 60;
               const totalHrs = (wrapMins - callMins) / 60;
+              const effectiveHrs = dayType === 'travel' ? Math.max(totalHrs, 5) : totalHrs;
               const hrs = Math.floor(totalHrs);
               const mins = Math.round((totalHrs - hrs) * 60);
+              const isUnderMin = dayType === 'travel' && totalHrs < 5;
               return (
-                <div className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm">
-                  <span className="text-muted-foreground">Day length:</span>
+                <div className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm ${isUnderMin ? 'bg-amber-50 border border-amber-200' : 'bg-muted/50'}`}>
+                  <span className="text-muted-foreground">{dayType === 'travel' ? 'Travel duration:' : 'Day length:'}</span>
                   <span className="font-medium">{hrs}h {mins > 0 ? `${mins}m` : ''}</span>
-                  <span className="text-muted-foreground">({totalHrs} hours)</span>
+                  {isUnderMin && (
+                    <span className="text-amber-700">— charged at minimum 5h ({effectiveHrs}h billed)</span>
+                  )}
+                  {!isUnderMin && dayType !== 'travel' && (
+                    <span className="text-muted-foreground">({totalHrs} hours)</span>
+                  )}
                 </div>
               );
             })()}
@@ -1088,37 +1137,40 @@ export function CalculatorPage() {
             <div className="space-y-4">
               <h3 className="font-medium">Travel & Mileage</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Total Travel Time</Label>
-                  <div className="flex items-center gap-2">
-                    <Select value={String(Math.floor(parseFloat(travelHours) || 0))} onValueChange={v => {
-                      const mins = (parseFloat(travelHours) || 0) % 1;
-                      setTravelHours(String(parseInt(v) + mins));
-                    }}>
-                      <SelectTrigger className="w-24">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: 13 }, (_, i) => (
-                          <SelectItem key={i} value={String(i)}>{i} hrs</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select value={String(Math.round(((parseFloat(travelHours) || 0) % 1) * 60))} onValueChange={v => {
-                      const hrs = Math.floor(parseFloat(travelHours) || 0);
-                      setTravelHours(String(hrs + parseInt(v) / 60));
-                    }}>
-                      <SelectTrigger className="w-24">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="0">0 min</SelectItem>
-                        <SelectItem value="30">30 min</SelectItem>
-                      </SelectContent>
-                    </Select>
+                {/* Travel time on working days only — hidden on Travel Day (times already capture it) */}
+                {dayType !== 'travel' && (
+                  <div className="space-y-2">
+                    <Label>Additional Travel Time</Label>
+                    <div className="flex items-center gap-2">
+                      <Select value={String(Math.floor(parseFloat(travelHours) || 0))} onValueChange={v => {
+                        const mins = (parseFloat(travelHours) || 0) % 1;
+                        setTravelHours(String(parseInt(v) + mins));
+                      }}>
+                        <SelectTrigger className="w-24">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 13 }, (_, i) => (
+                            <SelectItem key={i} value={String(i)}>{i} hrs</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={String(Math.round(((parseFloat(travelHours) || 0) % 1) * 60))} onValueChange={v => {
+                        const hrs = Math.floor(parseFloat(travelHours) || 0);
+                        setTravelHours(String(hrs + parseInt(v) / 60));
+                      }}>
+                        <SelectTrigger className="w-24">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">0 min</SelectItem>
+                          <SelectItem value="30">30 min</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Paid at BHR. Only payable if travel + work ≥ 11hrs</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">Paid at BHR. Only payable if travel + work ≥ 11hrs</p>
-                </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="mileage">Miles outside M25</Label>
                   <div className="relative">
