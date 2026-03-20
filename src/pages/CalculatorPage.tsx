@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -263,6 +263,7 @@ export function CalculatorPage() {
   const [currentDayId, setCurrentDayId] = useState<string | null>(null);
   const [projectDays, setProjectDays] = useState<ProjectDaySummary[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const formTopRef = useRef<HTMLDivElement>(null);
 
   // Load favourites
   useEffect(() => {
@@ -403,6 +404,30 @@ export function CalculatorPage() {
     setPreviousWrap('');
   };
 
+  // Start a fresh day for a given date, carrying role/rate/project across
+  const handleAddNewDay = (date: string) => {
+    setCurrentDayId(null);
+    setWorkDate(date);
+    setIsBankHoliday(false);
+    setDayType('basic_working');
+    setCallTime('08:00');
+    setWrapTime('19:00');
+    setFirstBreakGiven(true);
+    setFirstBreakTime('13:00');
+    setFirstBreakDuration('60');
+    setSecondBreakGiven(true);
+    setSecondBreakTime('18:30');
+    setSecondBreakDuration('30');
+    setContinuousFirstBreakGiven(true);
+    setContinuousAdditionalBreakGiven(true);
+    setTravelHours('0');
+    setMileage('0');
+    setPreviousWrap('');
+    setSaveSuccess(false);
+    // Scroll form back to top
+    setTimeout(() => formTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  };
+
   const handleSave = async (): Promise<string | null> => {
     if (!result || !user || !selectedRole) return null;
     setSaving(true);
@@ -478,17 +503,14 @@ export function CalculatorPage() {
   const handleAddDay = async () => {
     if (!result || !user || !selectedRole) return;
     await handleSave();
-    // Clear editing state and advance to next day
-    setCurrentDayId(null);
-    const nextDate = format(addDays(parseISO(workDate), 1), 'yyyy-MM-dd');
-    setWorkDate(nextDate);
-    setSaveSuccess(false);
+    // Fresh form for next date, carrying role/rate/project
+    handleAddNewDay(format(addDays(parseISO(workDate), 1), 'yyyy-MM-dd'));
   };
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Input Form */}
-      <div className="lg:col-span-2 space-y-6">
+      <div className="lg:col-span-2 space-y-6" ref={formTopRef}>
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -832,11 +854,7 @@ export function CalculatorPage() {
                 calendarMonth={calendarMonth}
                 onMonthChange={setCalendarMonth}
                 onSelectDay={loadDayById}
-                onAddDate={(date) => {
-                  setCurrentDayId(null);
-                  setWorkDate(date);
-                  setSaveSuccess(false);
-                }}
+                onAddDate={handleAddNewDay}
               />
             </CardContent>
           </Card>
