@@ -291,15 +291,6 @@ export function CalculatorPage() {
     });
   };
 
-  // Mark dirty whenever the calculated result changes (but not during load/reset)
-  useEffect(() => {
-    if (suppressDirtyRef.current) {
-      suppressDirtyRef.current = false;
-      return;
-    }
-    if (result !== null) setIsDirty(true);
-  }, [result]);
-
   // Warn on browser refresh/close when dirty
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -381,6 +372,15 @@ export function CalculatorPage() {
       previousWrapTime: previousWrap || undefined,
     });
   }, [selectedRole, agreedRate, dayType, dayOfWeek, callTime, wrapTime, firstBreakGiven, firstBreakTime, firstBreakDuration, secondBreakGiven, secondBreakTime, secondBreakDuration, continuousFirstBreakGiven, continuousAdditionalBreakGiven, travelHours, mileage, previousWrap, workDate, isBankHoliday]);
+
+  // Mark dirty whenever the calculated result changes (but not during load/reset)
+  useEffect(() => {
+    if (suppressDirtyRef.current) {
+      suppressDirtyRef.current = false;
+      return;
+    }
+    if (result !== null) setIsDirty(true);
+  }, [result]);
 
   const handleRoleChange = (roleName: string) => {
     const role = APA_CREW_ROLES.find(r => r.role === roleName);
