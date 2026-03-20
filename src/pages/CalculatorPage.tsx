@@ -700,7 +700,7 @@ export function CalculatorPage() {
     }
 
     setSaving(false);
-    if (savedId) {
+    if (savedId && resolvedProjectId) {
       setSaveSuccess(true);
       setIsDirty(false);
       await refreshProjectDays(resolvedProjectId);
