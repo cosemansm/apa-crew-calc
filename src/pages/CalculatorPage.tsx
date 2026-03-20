@@ -83,12 +83,22 @@ function TimePicker({ value, onChange, label }: { value: string; onChange: (v: s
   );
 }
 
+interface DayResultJson {
+  lineItems?: { description: string; total: number }[];
+  penalties?: { description: string; total: number }[];
+  subtotal?: number;
+  travelPay?: number;
+  mileage?: number;
+  mileageMiles?: number;
+}
+
 interface ProjectDaySummary {
   id: string;
   work_date: string;
   role_name: string;
   grand_total: number;
   day_number: number;
+  result_json?: DayResultJson;
 }
 
 interface FullProjectDay {
@@ -263,7 +273,17 @@ export function CalculatorPage() {
   const [currentDayId, setCurrentDayId] = useState<string | null>(null);
   const [projectDays, setProjectDays] = useState<ProjectDaySummary[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set(['__current__']));
   const formTopRef = useRef<HTMLDivElement>(null);
+
+  const toggleDayExpanded = (id: string) => {
+    setExpandedDays(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   // Load favourites
   useEffect(() => {
@@ -277,12 +297,12 @@ export function CalculatorPage() {
   useEffect(() => {
     if (projectId) {
       supabase.from('project_days')
-        .select('id, work_date, role_name, grand_total, day_number')
+        .select('id, work_date, role_name, grand_total, day_number, result_json')
         .eq('project_id', projectId)
         .order('day_number', { ascending: true })
         .then(({ data }) => {
           if (data) {
-            setProjectDays(data);
+            setProjectDays(data as ProjectDaySummary[]);
             // If there are saved days, auto-load the most recent one
             if (data.length > 0) {
               const lastDay = data[data.length - 1];
@@ -376,10 +396,10 @@ export function CalculatorPage() {
 
   const refreshProjectDays = async (projId: string) => {
     const { data } = await supabase.from('project_days')
-      .select('id, work_date, role_name, grand_total, day_number')
+      .select('id, work_date, role_name, grand_total, day_number, result_json')
       .eq('project_id', projId)
       .order('day_number', { ascending: true });
-    if (data) setProjectDays(data);
+    if (data) setProjectDays(data as ProjectDaySummary[]);
   };
 
   const handleReset = () => {
@@ -871,112 +891,174 @@ export function CalculatorPage() {
         <Card className="sticky top-20">
           <CardHeader>
             <CardTitle>Cost Breakdown</CardTitle>
-            {result && <Badge variant="secondary">{result.dayDescription}</Badge>}
           </CardHeader>
           <CardContent>
             {!result ? (
               <p className="text-muted-foreground text-sm">Select a role and enter rate details to see the cost breakdown.</p>
             ) : (() => {
-              // Other saved days (exclude the one currently being edited)
-              const otherDays = projectDays.filter(d => d.id !== currentDayId);
-              const otherDaysTotal = otherDays.reduce((s, d) => s + (d.grand_total || 0), 0);
-              const hasMultipleDays = otherDays.length > 0;
-              const projectTotal = otherDaysTotal + result.grandTotal;
+              // Build unified chronological list of all days
+              const currentKey = currentDayId ?? '__new__';
+              const savedOthers = projectDays.filter(d => d.id !== currentDayId);
+              const currentDaySaved = projectDays.find(d => d.id === currentDayId);
+              const currentDayNum = currentDaySaved?.day_number ?? (projectDays.length + 1);
+
+              const allDays: Array<{
+                key: string;
+                day_number: number;
+                work_date: string;
+                role_name: string;
+                grand_total: number;
+                isCurrent: boolean;
+                rj?: DayResultJson;
+              }> = [
+                ...savedOthers.map(d => ({
+                  key: d.id,
+                  day_number: d.day_number,
+                  work_date: d.work_date,
+                  role_name: d.role_name,
+                  grand_total: d.grand_total,
+                  isCurrent: false,
+                  rj: d.result_json,
+                })),
+                {
+                  key: currentKey,
+                  day_number: currentDayNum,
+                  work_date: workDate,
+                  role_name: selectedRole?.role ?? '—',
+                  grand_total: result.grandTotal,
+                  isCurrent: true,
+                  rj: {
+                    lineItems: result.lineItems,
+                    penalties: result.penalties,
+                    subtotal: result.subtotal,
+                    travelPay: result.travelPay,
+                    mileage: result.mileage,
+                    mileageMiles: result.mileageMiles,
+                  },
+                },
+              ].sort((a, b) => a.work_date.localeCompare(b.work_date));
+
+              const projectTotal = allDays.reduce((s, d) => s + (d.grand_total || 0), 0);
+              const isMultiDay = allDays.length > 1;
 
               return (
-                <div className="space-y-4">
-                  {/* Other saved days summary */}
-                  {hasMultipleDays && (
-                    <>
-                      <div className="space-y-1.5">
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Saved Days</p>
-                        {otherDays.map(pd => (
-                          <div
-                            key={pd.id}
-                            className="flex items-center justify-between text-sm cursor-pointer hover:bg-muted/50 rounded-lg px-2 py-1 -mx-2 transition-colors"
-                            onClick={() => loadDayById(pd.id)}
-                            title="Click to edit this day"
-                          >
-                            <span className="text-muted-foreground">
-                              Day {pd.day_number}
-                              {pd.work_date && ` · ${format(parseISO(pd.work_date), 'dd MMM')}`}
-                              {pd.role_name && ` · ${pd.role_name}`}
-                            </span>
-                            <span className="font-mono text-xs">£{(pd.grand_total || 0).toFixed(2)}</span>
+                <div className="space-y-3">
+                  {allDays.map((day, idx) => {
+                    const isExpanded = expandedDays.has(day.key);
+                    const rj = day.rj;
+                    const hasDetail = rj && (
+                      (rj.lineItems?.length ?? 0) > 0 ||
+                      (rj.penalties?.length ?? 0) > 0 ||
+                      (rj.travelPay ?? 0) > 0 ||
+                      (rj.mileage ?? 0) > 0
+                    );
+
+                    return (
+                      <div key={day.key}>
+                        {idx > 0 && <Separator className="mb-3" />}
+
+                        {/* Day header row */}
+                        <div
+                          className={cn(
+                            'flex items-center justify-between rounded-xl px-3 py-2 -mx-1 transition-colors',
+                            day.isCurrent ? 'bg-primary/8 ring-1 ring-primary/20' : 'hover:bg-muted/40 cursor-pointer',
+                          )}
+                          onClick={() => { if (!day.isCurrent) loadDayById(day.key); }}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            {hasDetail && (
+                              <button
+                                onClick={e => { e.stopPropagation(); toggleDayExpanded(day.key); }}
+                                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                <ChevronRight className={cn('h-3.5 w-3.5 transition-transform', isExpanded && 'rotate-90')} />
+                              </button>
+                            )}
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium leading-tight">
+                                Day {day.day_number}
+                                {day.isCurrent && <span className="ml-1.5 text-xs text-primary font-normal">(editing)</span>}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {day.work_date ? format(parseISO(day.work_date), 'EEE dd MMM') : '—'}
+                                {day.role_name && ` · ${day.role_name}`}
+                              </p>
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                      <Separator />
-                    </>
-                  )}
+                          <span className="font-mono text-sm font-semibold shrink-0 ml-2">
+                            £{(day.grand_total || 0).toFixed(2)}
+                          </span>
+                        </div>
 
-                  {/* Current day detail */}
-                  {hasMultipleDays && (
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                      {currentDayId ? 'Current Day' : 'New Day'}
-                    </p>
-                  )}
+                        {/* Expandable detail */}
+                        {isExpanded && hasDetail && rj && (
+                          <div className="mt-2 ml-5 space-y-1.5 text-sm">
+                            {/* Basic line items */}
+                            {rj.lineItems?.map((item, i) => (
+                              <div key={i} className="flex justify-between">
+                                <span className="text-muted-foreground">{item.description}</span>
+                                <span className="font-mono text-xs">£{item.total.toFixed(2)}</span>
+                              </div>
+                            ))}
 
-                  <div className="space-y-2">
-                    {result.lineItems.map((item, i) => (
-                      <div key={i} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{item.description}</span>
-                        <span className="font-mono">£{item.total.toFixed(2)}</span>
-                      </div>
-                    ))}
-                  </div>
+                            {/* Penalties / OT */}
+                            {(rj.penalties?.length ?? 0) > 0 && (
+                              <>
+                                <div className="pt-1 border-t border-border/60" />
+                                <p className="text-xs font-medium text-orange-600">Penalties & OT</p>
+                                {rj.penalties!.map((p, i) => (
+                                  <div key={i} className="flex justify-between text-orange-700">
+                                    <span>{p.description}</span>
+                                    <span className="font-mono text-xs">£{p.total.toFixed(2)}</span>
+                                  </div>
+                                ))}
+                              </>
+                            )}
 
-                  {result.lineItems.length > 0 && <Separator />}
+                            {/* Travel */}
+                            {(rj.travelPay ?? 0) > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Travel</span>
+                                <span className="font-mono text-xs">£{(rj.travelPay ?? 0).toFixed(2)}</span>
+                              </div>
+                            )}
 
-                  <div className="flex justify-between text-sm font-medium">
-                    <span>Subtotal</span>
-                    <span className="font-mono">£{result.subtotal.toFixed(2)}</span>
-                  </div>
+                            {/* Mileage */}
+                            {(rj.mileage ?? 0) > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Mileage ({rj.mileageMiles} mi @ 50p)</span>
+                                <span className="font-mono text-xs">£{(rj.mileage ?? 0).toFixed(2)}</span>
+                              </div>
+                            )}
 
-                  {result.penalties.length > 0 && (
-                    <>
-                      <Separator />
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium text-orange-600">Penalties</p>
-                        {result.penalties.map((p, i) => (
-                          <div key={i} className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">{p.description}</span>
-                            <span className="font-mono">£{p.total.toFixed(2)}</span>
+                            {/* Day total inside expanded */}
+                            <div className="flex justify-between font-semibold pt-1 border-t border-border/60">
+                              <span>Day Total</span>
+                              <span className="font-mono text-xs text-primary">£{(day.grand_total || 0).toFixed(2)}</span>
+                            </div>
                           </div>
-                        ))}
+                        )}
                       </div>
-                    </>
-                  )}
+                    );
+                  })}
 
-                  {result.travelPay > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Travel</span>
-                      <span className="font-mono">£{result.travelPay.toFixed(2)}</span>
-                    </div>
-                  )}
-
-                  {result.mileage > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Mileage ({result.mileageMiles} miles @ 50p)</span>
-                      <span className="font-mono">£{result.mileage.toFixed(2)}</span>
-                    </div>
-                  )}
-
-                  <Separator />
-
-                  {/* Day total */}
-                  <div className="flex justify-between text-sm font-semibold">
-                    <span>{hasMultipleDays ? 'Day Total' : 'Total'}</span>
-                    <span className="font-mono text-primary">£{result.grandTotal.toFixed(2)}</span>
-                  </div>
-
-                  {/* Project total — only shown when multiple days exist */}
-                  {hasMultipleDays && (
+                  {/* Project total */}
+                  {isMultiDay && (
                     <>
                       <Separator />
-                      <div className="flex justify-between text-base font-bold">
+                      <div className="flex justify-between text-base font-bold px-1">
                         <span>Project Total</span>
                         <span className="font-mono text-primary">£{projectTotal.toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
+
+                  {!isMultiDay && (
+                    <>
+                      <Separator />
+                      <div className="flex justify-between text-base font-bold px-1">
+                        <span>Total</span>
+                        <span className="font-mono text-primary">£{result.grandTotal.toFixed(2)}</span>
                       </div>
                     </>
                   )}
@@ -984,7 +1066,7 @@ export function CalculatorPage() {
                   {saveSuccess && (
                     <Button
                       variant="outline"
-                      className="w-full"
+                      className="w-full mt-1"
                       onClick={() => navigate('/invoices', { state: { dayId: currentDayId } })}
                     >
                       <InvoiceIcon className="h-4 w-4 mr-2" /> Convert to Invoice
