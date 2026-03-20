@@ -439,7 +439,7 @@ export function CalculatorPage() {
       .order('created_at', { ascending: true })
       .then(({ data }) => {
         if (data) {
-          setCustomRoles(data.map(r => ({
+          const mapped: CrewRole[] = data.map(r => ({
             role: r.role_name,
             department: 'Custom',
             minRate: r.daily_rate,
@@ -449,7 +449,17 @@ export function CalculatorPage() {
             customBhr: r.custom_bhr ?? undefined,
             isCustom: true,
             customId: r.id,
-          })));
+          }));
+          setCustomRoles(mapped);
+          // If session had a custom role selected that wasn't found at mount time, restore it now
+          const sessionRoleName = sessionRef.current?.selectedRoleName;
+          if (sessionRoleName && !selectedRole) {
+            const found = mapped.find(r => r.role === sessionRoleName);
+            if (found) {
+              suppressDirtyRef.current = true;
+              setSelectedRole(found);
+            }
+          }
         }
       });
   }, [user]);
@@ -567,7 +577,7 @@ export function CalculatorPage() {
     setTravelHours(String(day.travel_hours ?? 0));
     setMileage(String(day.mileage ?? 0));
     setPreviousWrap(day.previous_wrap ?? '');
-    const role = APA_CREW_ROLES.find(r => r.role === day.role_name);
+    const role = customRoles.find(r => r.role === day.role_name) ?? APA_CREW_ROLES.find(r => r.role === day.role_name);
     if (role) {
       setSelectedRole(role);
       setAgreedRate(String(day.agreed_rate));
@@ -848,7 +858,7 @@ export function CalculatorPage() {
                     {customRoles.length > 0 && (
                       <SelectGroup>
                         <SelectLabel className="flex items-center gap-1">
-                          <Star className="h-3 w-3 fill-primary text-primary" /> My Grades
+                          <Star className="h-3 w-3 fill-primary text-primary" /> Custom Rates
                         </SelectLabel>
                         {customRoles.map(role => (
                           <SelectItem key={`custom-${role.customId}`} value={role.role}>

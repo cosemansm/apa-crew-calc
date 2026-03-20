@@ -379,7 +379,7 @@ export function SettingsPage() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Briefcase className="h-5 w-5" />
-                Custom Grades
+                Custom Rates
               </CardTitle>
               <CardDescription>Create your own job roles with custom rates and overtime rules</CardDescription>
             </div>
