@@ -243,16 +243,32 @@ export function CalculatorPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-[1fr_auto_1fr] gap-4 items-end">
               <div className="space-y-2">
                 <Label htmlFor="call">Call Time</Label>
                 <Input id="call" type="time" value={callTime} onChange={e => setCallTime(e.target.value)} />
               </div>
+              <div className="hidden md:flex items-center pb-2 text-muted-foreground text-sm">→</div>
               <div className="space-y-2">
                 <Label htmlFor="wrap">Wrap Time</Label>
                 <Input id="wrap" type="time" value={wrapTime} onChange={e => setWrapTime(e.target.value)} />
               </div>
             </div>
+            {callTime && wrapTime && (() => {
+              let callMins = parseInt(callTime.split(':')[0]) * 60 + parseInt(callTime.split(':')[1]);
+              let wrapMins = parseInt(wrapTime.split(':')[0]) * 60 + parseInt(wrapTime.split(':')[1]);
+              if (wrapMins <= callMins) wrapMins += 24 * 60;
+              const totalHrs = (wrapMins - callMins) / 60;
+              const hrs = Math.floor(totalHrs);
+              const mins = Math.round((totalHrs - hrs) * 60);
+              return (
+                <div className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm">
+                  <span className="text-muted-foreground">Day length:</span>
+                  <span className="font-medium">{hrs}h {mins > 0 ? `${mins}m` : ''}</span>
+                  <span className="text-muted-foreground">({totalHrs} hours)</span>
+                </div>
+              );
+            })()}
 
             <Separator />
 
@@ -274,12 +290,24 @@ export function CalculatorPage() {
                             <div className="space-y-2">
                               <Label htmlFor="break1time">Break started at</Label>
                               <Input id="break1time" type="time" value={firstBreakTime} onChange={e => setFirstBreakTime(e.target.value)} />
-                              <p className="text-xs text-muted-foreground">Must start within 5½ hrs of call. Delayed after 5½ hrs = £10 penalty. After 6½ hrs = missed.</p>
+                              <p className="text-xs text-muted-foreground">Must start within 5½ hrs of call</p>
                             </div>
                             <div className="space-y-2">
-                              <Label htmlFor="break1dur">Actual duration (mins)</Label>
-                              <Input id="break1dur" type="number" className="w-24" value={firstBreakDuration} onChange={e => setFirstBreakDuration(e.target.value)} min="0" max="60" />
-                              <p className="text-xs text-muted-foreground">Standard: 60 mins. Shorter = curtailed penalty.</p>
+                              <Label>Duration given</Label>
+                              <Select value={firstBreakDuration} onValueChange={setFirstBreakDuration}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="60">60 mins (full)</SelectItem>
+                                  <SelectItem value="45">45 mins (curtailed)</SelectItem>
+                                  <SelectItem value="30">30 mins (curtailed)</SelectItem>
+                                  <SelectItem value="15">15 mins (curtailed)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              {parseInt(firstBreakDuration) < 60 && (
+                                <p className="text-xs text-orange-600">Curtailed by {60 - parseInt(firstBreakDuration)} mins — penalty applies</p>
+                              )}
                             </div>
                           </div>
                         )}
@@ -298,12 +326,23 @@ export function CalculatorPage() {
                             <div className="space-y-2">
                               <Label htmlFor="break2time">Break started at</Label>
                               <Input id="break2time" type="time" value={secondBreakTime} onChange={e => setSecondBreakTime(e.target.value)} />
-                              <p className="text-xs text-muted-foreground">Must start within 5½ hrs after first break ended. Can't be delayed — late = missed.</p>
+                              <p className="text-xs text-muted-foreground">Within 5½ hrs after first break ended</p>
                             </div>
                             <div className="space-y-2">
-                              <Label htmlFor="break2dur">Actual duration (mins)</Label>
-                              <Input id="break2dur" type="number" className="w-24" value={secondBreakDuration} onChange={e => setSecondBreakDuration(e.target.value)} min="0" max="30" />
-                              <p className="text-xs text-muted-foreground">Standard: 30 mins. Shorter = curtailed penalty.</p>
+                              <Label>Duration given</Label>
+                              <Select value={secondBreakDuration} onValueChange={setSecondBreakDuration}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="30">30 mins (full)</SelectItem>
+                                  <SelectItem value="20">20 mins (curtailed)</SelectItem>
+                                  <SelectItem value="15">15 mins (curtailed)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              {parseInt(secondBreakDuration) < 30 && (
+                                <p className="text-xs text-orange-600">Curtailed by {30 - parseInt(secondBreakDuration)} mins — penalty applies</p>
+                              )}
                             </div>
                           </div>
                         )}
@@ -338,23 +377,73 @@ export function CalculatorPage() {
             )}
 
             {/* Travel & Mileage */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="travel">Travel Time (hours, at BHR)</Label>
-                <Input id="travel" type="number" step="0.5" value={travelHours} onChange={e => setTravelHours(e.target.value)} min="0" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="mileage">Mileage outside M25 (miles)</Label>
-                <Input id="mileage" type="number" value={mileage} onChange={e => setMileage(e.target.value)} min="0" />
-                <p className="text-xs text-muted-foreground">50p per mile</p>
+            <div className="space-y-4">
+              <h3 className="font-medium">Travel & Mileage</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Total Travel Time</Label>
+                  <div className="flex items-center gap-2">
+                    <Select value={String(Math.floor(parseFloat(travelHours) || 0))} onValueChange={v => {
+                      const mins = (parseFloat(travelHours) || 0) % 1;
+                      setTravelHours(String(parseInt(v) + mins));
+                    }}>
+                      <SelectTrigger className="w-24">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 13 }, (_, i) => (
+                          <SelectItem key={i} value={String(i)}>{i} hrs</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={String(Math.round(((parseFloat(travelHours) || 0) % 1) * 60))} onValueChange={v => {
+                      const hrs = Math.floor(parseFloat(travelHours) || 0);
+                      setTravelHours(String(hrs + parseInt(v) / 60));
+                    }}>
+                      <SelectTrigger className="w-24">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">0 min</SelectItem>
+                        <SelectItem value="30">30 min</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Paid at BHR. Only payable if travel + work ≥ 11hrs</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="mileage">Miles outside M25</Label>
+                  <div className="relative">
+                    <Input id="mileage" type="number" value={mileage} onChange={e => setMileage(e.target.value)} min="0" placeholder="0" />
+                  </div>
+                  <p className="text-xs text-muted-foreground">50p per mile — W1F 9SE to location and back</p>
+                </div>
               </div>
             </div>
 
             {/* Time Off The Clock */}
             <div className="space-y-2">
-              <Label htmlFor="prevWrap">Previous Day Wrap Time (for TOC calculation)</Label>
-              <Input id="prevWrap" type="time" value={previousWrap} onChange={e => setPreviousWrap(e.target.value)} />
-              <p className="text-xs text-muted-foreground">Leave empty if not applicable. Min 11 hours between wrap and next call.</p>
+              <h3 className="font-medium">Time Off The Clock</h3>
+              <div className="space-y-2">
+                <Label htmlFor="prevWrap">Previous day's wrap time</Label>
+                <Input id="prevWrap" type="time" value={previousWrap} onChange={e => setPreviousWrap(e.target.value)} />
+                <p className="text-xs text-muted-foreground">Leave empty if first day. Penalty applies if gap &lt; 11 hours.</p>
+              </div>
+              {previousWrap && callTime && (() => {
+                let prevMins = parseInt(previousWrap.split(':')[0]) * 60 + parseInt(previousWrap.split(':')[1]);
+                let callMins = parseInt(callTime.split(':')[0]) * 60 + parseInt(callTime.split(':')[1]);
+                let gap = callMins - prevMins;
+                if (gap < 0) gap += 24 * 60;
+                const gapHrs = Math.floor(gap / 60);
+                const gapMins = gap % 60;
+                const isTOC = gap / 60 < 11;
+                return (
+                  <div className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm ${isTOC ? 'bg-orange-50 text-orange-700' : 'bg-muted/50'}`}>
+                    <span>Rest gap: <strong>{gapHrs}h {gapMins > 0 ? `${gapMins}m` : ''}</strong></span>
+                    {isTOC && <span>— TOC penalty applies (1hr at OT rate)</span>}
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="flex gap-2">
