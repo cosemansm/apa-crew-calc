@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useBlocker } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -275,6 +275,12 @@ export function CalculatorPage() {
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set(['__current__']));
   const formTopRef = useRef<HTMLDivElement>(null);
+  const suppressDirtyRef = useRef(false);
+
+  // Unsaved changes tracking
+  const [isDirty, setIsDirty] = useState(false);
+  // Pending within-page navigation when user has unsaved changes
+  const [pendingDayId, setPendingDayId] = useState<string | null>(null);
 
   const toggleDayExpanded = (id: string) => {
     setExpandedDays(prev => {
@@ -284,6 +290,20 @@ export function CalculatorPage() {
       return next;
     });
   };
+
+  // Mark dirty whenever the calculated result changes (but not during load/reset)
+  useEffect(() => {
+    if (suppressDirtyRef.current) {
+      suppressDirtyRef.current = false;
+      return;
+    }
+    if (result !== null) setIsDirty(true);
+  }, [result]);
+
+  // Block React Router navigation when there are unsaved changes
+  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
+    isDirty && currentLocation.pathname !== nextLocation.pathname
+  );
 
   // Load favourites
   useEffect(() => {
@@ -364,6 +384,9 @@ export function CalculatorPage() {
   };
 
   const loadDayIntoForm = (day: FullProjectDay) => {
+    suppressDirtyRef.current = true;
+    setIsDirty(false);
+    setPendingDayId(null);
     setCurrentDayId(day.id);
     setWorkDate(day.work_date);
     setIsBankHoliday(day.is_bank_holiday ?? false);
@@ -390,7 +413,20 @@ export function CalculatorPage() {
   };
 
   const loadDayById = async (dayId: string) => {
+    if (isDirty) {
+      setPendingDayId(dayId);
+      return;
+    }
     const { data } = await supabase.from('project_days').select('*').eq('id', dayId).single();
+    if (data) loadDayIntoForm(data as FullProjectDay);
+  };
+
+  const confirmSwitchDay = async () => {
+    if (!pendingDayId) return;
+    const id = pendingDayId;
+    setPendingDayId(null);
+    setIsDirty(false);
+    const { data } = await supabase.from('project_days').select('*').eq('id', id).single();
     if (data) loadDayIntoForm(data as FullProjectDay);
   };
 
@@ -403,6 +439,8 @@ export function CalculatorPage() {
   };
 
   const handleReset = () => {
+    suppressDirtyRef.current = true;
+    setIsDirty(false);
     setCurrentDayId(null);
     setSelectedRole(null);
     setAgreedRate('');
@@ -426,6 +464,9 @@ export function CalculatorPage() {
 
   // Start a fresh day for a given date, carrying role/rate/project across
   const handleAddNewDay = (date: string) => {
+    suppressDirtyRef.current = true;
+    setIsDirty(false);
+    setPendingDayId(null);
     setCurrentDayId(null);
     setWorkDate(date);
     setIsBankHoliday(false);
@@ -522,6 +563,7 @@ export function CalculatorPage() {
     setSaving(false);
     if (savedId) {
       setSaveSuccess(true);
+      setIsDirty(false);
       await refreshProjectDays(resolvedProjectId);
     }
     return savedId;
@@ -535,6 +577,43 @@ export function CalculatorPage() {
   };
 
   return (
+    <>
+    {/* Within-page unsaved warning (switching days in calendar) */}
+    {pendingDayId && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30 p-6 max-w-sm w-full mx-4 space-y-4">
+          <div className="space-y-1">
+            <h2 className="text-base font-semibold">Unsaved changes</h2>
+            <p className="text-sm text-muted-foreground">
+              You have unsaved changes on this day. If you switch now, your changes will be lost.
+            </p>
+          </div>
+          <div className="flex gap-3 justify-end">
+            <Button variant="outline" onClick={() => setPendingDayId(null)}>Stay</Button>
+            <Button variant="destructive" onClick={confirmSwitchDay}>Discard & switch</Button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Cross-page navigation blocker */}
+    {blocker.state === 'blocked' && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30 p-6 max-w-sm w-full mx-4 space-y-4">
+          <div className="space-y-1">
+            <h2 className="text-base font-semibold">Unsaved changes</h2>
+            <p className="text-sm text-muted-foreground">
+              You have unsaved changes that will be lost if you leave this page.
+            </p>
+          </div>
+          <div className="flex gap-3 justify-end">
+            <Button variant="outline" onClick={() => blocker.reset()}>Stay</Button>
+            <Button variant="destructive" onClick={() => blocker.proceed()}>Leave anyway</Button>
+          </div>
+        </div>
+      </div>
+    )}
+
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Input Form */}
       <div className="lg:col-span-2 space-y-6" ref={formTopRef}>
@@ -1075,5 +1154,6 @@ export function CalculatorPage() {
         </Card>
       </div>
     </div>
+    </>
   );
 }
