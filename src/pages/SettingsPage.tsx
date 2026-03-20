@@ -1,13 +1,182 @@
 import { useState, useEffect } from 'react';
-import { Settings, User, Building2, CreditCard, Plug, Save, Eye, EyeOff } from 'lucide-react';
+import { Settings, User, Building2, CreditCard, Plug, Save, Eye, EyeOff, Briefcase, Plus, Trash2, Pencil, X, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
+
+interface CustomRole {
+  id: string;
+  role_name: string;
+  daily_rate: number;
+  ot_coefficient: number;
+  custom_bhr: number | null;
+}
+
+const OT_PRESETS = [
+  { label: 'None (N/A)', value: '0' },
+  { label: 'Grade III (x1.0)', value: '1.0' },
+  { label: 'Grade II (x1.25)', value: '1.25' },
+  { label: 'Grade I (x1.5)', value: '1.5' },
+  { label: 'Custom', value: 'custom' },
+];
+
+function CustomRoleForm({
+  initial,
+  onSave,
+  onCancel,
+}: {
+  initial?: Partial<CustomRole>;
+  onSave: (role: Omit<CustomRole, 'id'>) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [roleName, setRoleName] = useState(initial?.role_name ?? '');
+  const [dailyRate, setDailyRate] = useState(String(initial?.daily_rate ?? ''));
+  const [otPreset, setOtPreset] = useState(() => {
+    const v = initial?.ot_coefficient;
+    if (v === undefined) return '1.5';
+    if (v === 0) return '0';
+    if ([1.0, 1.25, 1.5].includes(v)) return String(v);
+    return 'custom';
+  });
+  const [otCustom, setOtCustom] = useState(
+    initial?.ot_coefficient && ![0, 1.0, 1.25, 1.5].includes(initial.ot_coefficient)
+      ? String(initial.ot_coefficient)
+      : ''
+  );
+  const [customBhr, setCustomBhr] = useState(
+    initial?.custom_bhr != null ? String(initial.custom_bhr) : ''
+  );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const rate = parseFloat(dailyRate) || 0;
+  const otCoefficient = otPreset === 'custom' ? parseFloat(otCustom) || 0 : parseFloat(otPreset);
+  const bhr = customBhr ? parseFloat(customBhr) : Math.round(rate / 10);
+  const otRate = Math.round(bhr * otCoefficient);
+
+  const handleSubmit = async () => {
+    if (!roleName.trim()) { setError('Role name is required'); return; }
+    if (rate <= 0) { setError('Daily rate must be greater than 0'); return; }
+    setError('');
+    setSaving(true);
+    await onSave({
+      role_name: roleName.trim(),
+      daily_rate: Math.round(rate),
+      ot_coefficient: otCoefficient,
+      custom_bhr: customBhr ? Math.round(parseFloat(customBhr)) : null,
+    });
+    setSaving(false);
+  };
+
+  return (
+    <div className="space-y-4 p-4 rounded-xl border border-primary/20 bg-primary/5">
+      <div className="space-y-2">
+        <Label>Role / Grade Name</Label>
+        <Input
+          value={roleName}
+          onChange={e => setRoleName(e.target.value)}
+          placeholder="e.g. Senior Colourist, VFX Supervisor"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label>Default Daily Rate (£)</Label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">£</span>
+            <Input
+              type="number"
+              className="pl-7"
+              value={dailyRate}
+              onChange={e => setDailyRate(e.target.value)}
+              placeholder="500"
+              min={0}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Overtime Coefficient</Label>
+          <Select value={otPreset} onValueChange={setOtPreset}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {OT_PRESETS.map(p => (
+                <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {otPreset === 'custom' && (
+            <Input
+              type="number"
+              step="0.05"
+              value={otCustom}
+              onChange={e => setOtCustom(e.target.value)}
+              placeholder="e.g. 1.33"
+              min={0}
+            />
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label>Basic Hourly Rate (BHR) override</Label>
+          <span className="text-xs text-muted-foreground">Leave blank to use daily rate ÷ 10</span>
+        </div>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">£</span>
+          <Input
+            type="number"
+            className="pl-7"
+            value={customBhr}
+            onChange={e => setCustomBhr(e.target.value)}
+            placeholder={rate > 0 ? `${Math.round(rate / 10)} (auto)` : 'Auto'}
+            min={0}
+          />
+        </div>
+      </div>
+
+      {/* Derived rates summary */}
+      {rate > 0 && (
+        <div className="grid grid-cols-3 gap-2 rounded-lg bg-muted/50 p-3 text-sm">
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground">BHR</p>
+            <p className="font-mono font-semibold">£{bhr}/hr</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground">OT coefficient</p>
+            <p className="font-mono font-semibold">x{otCoefficient || '—'}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground">OT rate</p>
+            <p className="font-mono font-semibold">{otCoefficient ? `£${otRate}/hr` : '—'}</p>
+          </div>
+        </div>
+      )}
+
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      <div className="flex gap-2 justify-end">
+        <Button variant="outline" size="sm" onClick={onCancel} disabled={saving}>
+          <X className="h-3.5 w-3.5 mr-1" /> Cancel
+        </Button>
+        <Button size="sm" onClick={handleSubmit} disabled={saving}>
+          <Check className="h-3.5 w-3.5 mr-1" />
+          {saving ? 'Saving…' : 'Save Grade'}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function SettingsPage() {
   const { user } = useAuth();
@@ -25,6 +194,11 @@ export function SettingsPage() {
   const [bankSortCode, setBankSortCode] = useState('');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
 
+  // Custom roles
+  const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
   useEffect(() => {
     if (!user) return;
     supabase.from('user_settings').select('*').eq('user_id', user.id).single().then(({ data }) => {
@@ -39,7 +213,18 @@ export function SettingsPage() {
         setBankAccountNumber(data.bank_account_number ?? '');
       }
     });
+    loadCustomRoles();
   }, [user]);
+
+  const loadCustomRoles = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('custom_roles')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true });
+    if (data) setCustomRoles(data as CustomRole[]);
+  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -61,6 +246,24 @@ export function SettingsPage() {
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
+  };
+
+  const handleAddCustomRole = async (role: Omit<CustomRole, 'id'>) => {
+    if (!user) return;
+    await supabase.from('custom_roles').insert({ ...role, user_id: user.id });
+    setShowAddForm(false);
+    await loadCustomRoles();
+  };
+
+  const handleUpdateCustomRole = async (id: string, role: Omit<CustomRole, 'id'>) => {
+    await supabase.from('custom_roles').update({ ...role, updated_at: new Date().toISOString() }).eq('id', id);
+    setEditingId(null);
+    await loadCustomRoles();
+  };
+
+  const handleDeleteCustomRole = async (id: string) => {
+    await supabase.from('custom_roles').delete().eq('id', id);
+    await loadCustomRoles();
   };
 
   return (
@@ -149,6 +352,97 @@ export function SettingsPage() {
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Custom Grades */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Briefcase className="h-5 w-5" />
+                Custom Grades
+              </CardTitle>
+              <CardDescription>Create your own job roles with custom rates and overtime rules</CardDescription>
+            </div>
+            {!showAddForm && (
+              <Button size="sm" variant="outline" onClick={() => { setShowAddForm(true); setEditingId(null); }}>
+                <Plus className="h-4 w-4 mr-1" /> Add Grade
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {showAddForm && (
+            <CustomRoleForm
+              onSave={handleAddCustomRole}
+              onCancel={() => setShowAddForm(false)}
+            />
+          )}
+
+          {customRoles.length === 0 && !showAddForm && (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No custom grades yet. Click "Add Grade" to create one.
+            </p>
+          )}
+
+          {customRoles.map(role => (
+            <div key={role.id}>
+              {editingId === role.id ? (
+                <CustomRoleForm
+                  initial={role}
+                  onSave={r => handleUpdateCustomRole(role.id, r)}
+                  onCancel={() => setEditingId(null)}
+                />
+              ) : (
+                <div className={cn(
+                  'flex items-center justify-between gap-3 p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors'
+                )}>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm">{role.role_name}</span>
+                      <Badge variant="secondary" className="text-xs">Custom</Badge>
+                    </div>
+                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
+                      <span className="font-mono">£{role.daily_rate}/day</span>
+                      <span>·</span>
+                      <span className="font-mono">
+                        BHR £{role.custom_bhr ?? Math.round(role.daily_rate / 10)}/hr
+                      </span>
+                      <span>·</span>
+                      <span>
+                        OT x{role.ot_coefficient}
+                        {role.ot_coefficient > 0 && (
+                          <span className="font-mono ml-1">
+                            (£{Math.round((role.custom_bhr ?? Math.round(role.daily_rate / 10)) * role.ot_coefficient)}/hr)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => { setEditingId(role.id); setShowAddForm(false); }}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      onClick={() => handleDeleteCustomRole(role.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
         </CardContent>
       </Card>
 

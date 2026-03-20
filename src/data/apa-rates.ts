@@ -8,6 +8,12 @@ export interface CrewRole {
   otGrade: OTGrade;
   otCoefficient: number;
   specialRules?: string;
+  /** Optional override for Basic Hourly Rate (default: agreedDailyRate / 10) */
+  customBhr?: number;
+  /** True for user-created roles stored in Supabase */
+  isCustom?: boolean;
+  /** Supabase row ID for custom roles */
+  customId?: string;
 }
 
 // All rates from APA Appendix 1 (Effective 1 Sept 2025)

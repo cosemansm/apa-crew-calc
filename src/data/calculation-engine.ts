@@ -120,7 +120,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
   const { role, agreedDailyRate, dayOfWeek, callTime, wrapTime } = input;
   let { dayType } = input;
   const bdr = agreedDailyRate;
-  const bhr = Math.round(bdr / 10);
+  const bhr = role.customBhr ?? Math.round(bdr / 10);
   const dayLength = calculateDayLengthHours(callTime, wrapTime);
   const lineItems: CalculationLineItem[] = [];
   const penalties: CalculationLineItem[] = [];

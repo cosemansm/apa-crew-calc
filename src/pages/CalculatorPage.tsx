@@ -321,6 +321,7 @@ export function CalculatorPage() {
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [favouriteRoles, setFavouriteRoles] = useState<string[]>([]);
+  const [customRoles, setCustomRoles] = useState<CrewRole[]>([]);
 
   // Track which saved day we're currently editing (null = new day)
   const [currentDayId, setCurrentDayId] = useState<string | null>(ss?.currentDayId ?? null);
@@ -429,12 +430,28 @@ export function CalculatorPage() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [isDirty]);
 
-  // Load favourites
+  // Load favourites and custom roles
   useEffect(() => {
-    if (user) {
-      supabase.from('favourite_roles').select('role_name').eq('user_id', user.id)
-        .then(({ data }) => { if (data) setFavouriteRoles(data.map(f => f.role_name)); });
-    }
+    if (!user) return;
+    supabase.from('favourite_roles').select('role_name').eq('user_id', user.id)
+      .then(({ data }) => { if (data) setFavouriteRoles(data.map(f => f.role_name)); });
+    supabase.from('custom_roles').select('*').eq('user_id', user.id)
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        if (data) {
+          setCustomRoles(data.map(r => ({
+            role: r.role_name,
+            department: 'Custom',
+            minRate: r.daily_rate,
+            maxRate: r.daily_rate,
+            otGrade: 'N/A' as const,
+            otCoefficient: r.ot_coefficient,
+            customBhr: r.custom_bhr ?? undefined,
+            isCustom: true,
+            customId: r.id,
+          })));
+        }
+      });
   }, [user]);
 
   // Load project days & auto-load last day when entering a project
@@ -515,6 +532,13 @@ export function CalculatorPage() {
   }, [result]);
 
   const handleRoleChange = (roleName: string) => {
+    // Search custom roles first, then APA roles
+    const custom = customRoles.find(r => r.role === roleName);
+    if (custom) {
+      setSelectedRole(custom);
+      if (custom.maxRate) setAgreedRate(custom.maxRate.toString());
+      return;
+    }
     const role = APA_CREW_ROLES.find(r => r.role === roleName);
     setSelectedRole(role || null);
     if (role?.maxRate) {
@@ -821,6 +845,18 @@ export function CalculatorPage() {
                     <SelectValue placeholder="Select a role..." />
                   </SelectTrigger>
                   <SelectContent>
+                    {customRoles.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel className="flex items-center gap-1">
+                          <Star className="h-3 w-3 fill-primary text-primary" /> My Grades
+                        </SelectLabel>
+                        {customRoles.map(role => (
+                          <SelectItem key={`custom-${role.customId}`} value={role.role}>
+                            {role.role}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
                     {favouriteRoles.length > 0 && (
                       <SelectGroup>
                         <SelectLabel className="flex items-center gap-1">
@@ -862,8 +898,18 @@ export function CalculatorPage() {
                 </div>
                 {selectedRole && (
                   <p className="text-xs text-muted-foreground">
-                    APA range: £{selectedRole.minRate || 'N/A'} – £{selectedRole.maxRate || 'N/A'}
-                    {selectedRole.otGrade !== 'N/A' && ` | OT Grade ${selectedRole.otGrade} (x${selectedRole.otCoefficient})`}
+                    {selectedRole.isCustom ? (
+                      <>
+                        Custom grade · OT x{selectedRole.otCoefficient}
+                        {agreedRate && ` | BHR £${selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)}/hr`}
+                        {agreedRate && selectedRole.otCoefficient > 0 && ` | OT £${Math.round((selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)) * selectedRole.otCoefficient)}/hr`}
+                      </>
+                    ) : (
+                      <>
+                        APA range: £{selectedRole.minRate || 'N/A'} – £{selectedRole.maxRate || 'N/A'}
+                        {selectedRole.otGrade !== 'N/A' && ` | OT Grade ${selectedRole.otGrade} (x${selectedRole.otCoefficient})`}
+                      </>
+                    )}
                   </p>
                 )}
               </div>
