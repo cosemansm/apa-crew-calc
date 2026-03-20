@@ -33,7 +33,7 @@ function CustomRoleForm({
   onCancel,
 }: {
   initial?: Partial<CustomRole>;
-  onSave: (role: Omit<CustomRole, 'id'>) => Promise<void>;
+  onSave: (role: Omit<CustomRole, 'id'>) => Promise<string | null>;
   onCancel: () => void;
 }) {
   const [roleName, setRoleName] = useState(initial?.role_name ?? '');
@@ -66,13 +66,14 @@ function CustomRoleForm({
     if (rate <= 0) { setError('Daily rate must be greater than 0'); return; }
     setError('');
     setSaving(true);
-    await onSave({
+    const err = await onSave({
       role_name: roleName.trim(),
       daily_rate: Math.round(rate),
       ot_coefficient: otCoefficient,
       custom_bhr: customBhr ? Math.round(parseFloat(customBhr)) : null,
     });
     setSaving(false);
+    if (err) setError(err);
   };
 
   return (
@@ -216,14 +217,21 @@ export function SettingsPage() {
     loadCustomRoles();
   }, [user]);
 
+  const [customRolesError, setCustomRolesError] = useState<string | null>(null);
+
   const loadCustomRoles = async () => {
     if (!user) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('custom_roles')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: true });
-    if (data) setCustomRoles(data as CustomRole[]);
+    if (error) {
+      setCustomRolesError(error.message);
+    } else {
+      setCustomRolesError(null);
+      if (data) setCustomRoles(data as CustomRole[]);
+    }
   };
 
   const handleSave = async () => {
@@ -248,17 +256,26 @@ export function SettingsPage() {
     setTimeout(() => setSaved(false), 3000);
   };
 
-  const handleAddCustomRole = async (role: Omit<CustomRole, 'id'>) => {
-    if (!user) return;
-    await supabase.from('custom_roles').insert({ ...role, user_id: user.id });
+  const handleAddCustomRole = async (role: Omit<CustomRole, 'id'>): Promise<string | null> => {
+    if (!user) return 'Not logged in';
+    const { error } = await supabase
+      .from('custom_roles')
+      .insert({ ...role, user_id: user.id });
+    if (error) return error.message;
     setShowAddForm(false);
     await loadCustomRoles();
+    return null;
   };
 
-  const handleUpdateCustomRole = async (id: string, role: Omit<CustomRole, 'id'>) => {
-    await supabase.from('custom_roles').update({ ...role, updated_at: new Date().toISOString() }).eq('id', id);
+  const handleUpdateCustomRole = async (id: string, role: Omit<CustomRole, 'id'>): Promise<string | null> => {
+    const { error } = await supabase
+      .from('custom_roles')
+      .update({ ...role, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) return error.message;
     setEditingId(null);
     await loadCustomRoles();
+    return null;
   };
 
   const handleDeleteCustomRole = async (id: string) => {
@@ -374,6 +391,14 @@ export function SettingsPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-3">
+          {customRolesError && (
+            <div className="rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive space-y-1">
+              <p className="font-medium">Could not load custom grades</p>
+              <p className="text-xs opacity-80">{customRolesError}</p>
+              <p className="text-xs opacity-70">If this table is missing, run the SQL from the setup instructions in Supabase.</p>
+            </div>
+          )}
+
           {showAddForm && (
             <CustomRoleForm
               onSave={handleAddCustomRole}
@@ -381,7 +406,7 @@ export function SettingsPage() {
             />
           )}
 
-          {customRoles.length === 0 && !showAddForm && (
+          {customRoles.length === 0 && !showAddForm && !customRolesError && (
             <p className="text-sm text-muted-foreground text-center py-4">
               No custom grades yet. Click "Add Grade" to create one.
             </p>
@@ -392,7 +417,7 @@ export function SettingsPage() {
               {editingId === role.id ? (
                 <CustomRoleForm
                   initial={role}
-                  onSave={r => handleUpdateCustomRole(role.id, r)}
+                  onSave={(r) => handleUpdateCustomRole(role.id, r)}
                   onCancel={() => setEditingId(null)}
                 />
               ) : (
