@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useSearchParams, useNavigate, useBlocker } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -300,10 +300,17 @@ export function CalculatorPage() {
     if (result !== null) setIsDirty(true);
   }, [result]);
 
-  // Block React Router navigation when there are unsaved changes
-  const blocker = useBlocker(({ currentLocation, nextLocation }) =>
-    isDirty && currentLocation.pathname !== nextLocation.pathname
-  );
+  // Warn on browser refresh/close when dirty
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isDirty]);
 
   // Load favourites
   useEffect(() => {
@@ -596,27 +603,18 @@ export function CalculatorPage() {
       </div>
     )}
 
-    {/* Cross-page navigation blocker */}
-    {blocker.state === 'blocked' && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30 p-6 max-w-sm w-full mx-4 space-y-4">
-          <div className="space-y-1">
-            <h2 className="text-base font-semibold">Unsaved changes</h2>
-            <p className="text-sm text-muted-foreground">
-              You have unsaved changes that will be lost if you leave this page.
-            </p>
-          </div>
-          <div className="flex gap-3 justify-end">
-            <Button variant="outline" onClick={() => blocker.reset()}>Stay</Button>
-            <Button variant="destructive" onClick={() => blocker.proceed()}>Leave anyway</Button>
-          </div>
-        </div>
-      </div>
-    )}
 
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Input Form */}
       <div className="lg:col-span-2 space-y-6" ref={formTopRef}>
+        {isDirty && (
+          <div className="flex items-center justify-between rounded-xl bg-amber-50 border border-amber-200 px-4 py-2.5 text-sm text-amber-800">
+            <span>⚠ Unsaved changes</span>
+            <Button size="sm" onClick={handleSave} disabled={saving || !result} className="h-7 text-xs">
+              {saving ? 'Saving…' : 'Save now'}
+            </Button>
+          </div>
+        )}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
