@@ -876,74 +876,123 @@ export function CalculatorPage() {
           <CardContent>
             {!result ? (
               <p className="text-muted-foreground text-sm">Select a role and enter rate details to see the cost breakdown.</p>
-            ) : (
-              <div className="space-y-4">
-                {/* Line Items */}
-                <div className="space-y-2">
-                  {result.lineItems.map((item, i) => (
-                    <div key={i} className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">{item.description}</span>
-                      <span className="font-mono">£{item.total.toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
+            ) : (() => {
+              // Other saved days (exclude the one currently being edited)
+              const otherDays = projectDays.filter(d => d.id !== currentDayId);
+              const otherDaysTotal = otherDays.reduce((s, d) => s + (d.grand_total || 0), 0);
+              const hasMultipleDays = otherDays.length > 0;
+              const projectTotal = otherDaysTotal + result.grandTotal;
 
-                {result.lineItems.length > 0 && <Separator />}
+              return (
+                <div className="space-y-4">
+                  {/* Other saved days summary */}
+                  {hasMultipleDays && (
+                    <>
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Saved Days</p>
+                        {otherDays.map(pd => (
+                          <div
+                            key={pd.id}
+                            className="flex items-center justify-between text-sm cursor-pointer hover:bg-muted/50 rounded-lg px-2 py-1 -mx-2 transition-colors"
+                            onClick={() => loadDayById(pd.id)}
+                            title="Click to edit this day"
+                          >
+                            <span className="text-muted-foreground">
+                              Day {pd.day_number}
+                              {pd.work_date && ` · ${format(parseISO(pd.work_date), 'dd MMM')}`}
+                              {pd.role_name && ` · ${pd.role_name}`}
+                            </span>
+                            <span className="font-mono text-xs">£{(pd.grand_total || 0).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <Separator />
+                    </>
+                  )}
 
-                <div className="flex justify-between text-sm font-medium">
-                  <span>Subtotal</span>
-                  <span className="font-mono">£{result.subtotal.toFixed(2)}</span>
-                </div>
+                  {/* Current day detail */}
+                  {hasMultipleDays && (
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      {currentDayId ? 'Current Day' : 'New Day'}
+                    </p>
+                  )}
 
-                {/* Penalties */}
-                {result.penalties.length > 0 && (
-                  <>
-                    <Separator />
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium text-orange-600">Penalties</p>
-                      {result.penalties.map((p, i) => (
-                        <div key={i} className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">{p.description}</span>
-                          <span className="font-mono">£{p.total.toFixed(2)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-
-                {/* Travel */}
-                {result.travelPay > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Travel</span>
-                    <span className="font-mono">£{result.travelPay.toFixed(2)}</span>
+                  <div className="space-y-2">
+                    {result.lineItems.map((item, i) => (
+                      <div key={i} className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{item.description}</span>
+                        <span className="font-mono">£{item.total.toFixed(2)}</span>
+                      </div>
+                    ))}
                   </div>
-                )}
 
-                {result.mileage > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Mileage ({result.mileageMiles} miles @ 50p)</span>
-                    <span className="font-mono">£{result.mileage.toFixed(2)}</span>
+                  {result.lineItems.length > 0 && <Separator />}
+
+                  <div className="flex justify-between text-sm font-medium">
+                    <span>Subtotal</span>
+                    <span className="font-mono">£{result.subtotal.toFixed(2)}</span>
                   </div>
-                )}
 
-                <Separator />
+                  {result.penalties.length > 0 && (
+                    <>
+                      <Separator />
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-orange-600">Penalties</p>
+                        {result.penalties.map((p, i) => (
+                          <div key={i} className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">{p.description}</span>
+                            <span className="font-mono">£{p.total.toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
 
-                <div className="flex justify-between text-lg font-bold">
-                  <span>Total</span>
-                  <span className="font-mono text-primary">£{result.grandTotal.toFixed(2)}</span>
+                  {result.travelPay > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Travel</span>
+                      <span className="font-mono">£{result.travelPay.toFixed(2)}</span>
+                    </div>
+                  )}
+
+                  {result.mileage > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Mileage ({result.mileageMiles} miles @ 50p)</span>
+                      <span className="font-mono">£{result.mileage.toFixed(2)}</span>
+                    </div>
+                  )}
+
+                  <Separator />
+
+                  {/* Day total */}
+                  <div className="flex justify-between text-sm font-semibold">
+                    <span>{hasMultipleDays ? 'Day Total' : 'Total'}</span>
+                    <span className="font-mono text-primary">£{result.grandTotal.toFixed(2)}</span>
+                  </div>
+
+                  {/* Project total — only shown when multiple days exist */}
+                  {hasMultipleDays && (
+                    <>
+                      <Separator />
+                      <div className="flex justify-between text-base font-bold">
+                        <span>Project Total</span>
+                        <span className="font-mono text-primary">£{projectTotal.toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
+
+                  {saveSuccess && (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => navigate('/invoices', { state: { dayId: currentDayId } })}
+                    >
+                      <InvoiceIcon className="h-4 w-4 mr-2" /> Convert to Invoice
+                    </Button>
+                  )}
                 </div>
-
-                {saveSuccess && (
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => navigate('/invoices', { state: { dayId: currentDayId } })}
-                  >
-                    <InvoiceIcon className="h-4 w-4 mr-2" /> Convert to Invoice
-                  </Button>
-                )}
-              </div>
-            )}
+              );
+            })()}
           </CardContent>
         </Card>
       </div>
