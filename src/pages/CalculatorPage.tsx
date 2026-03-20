@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
+import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen } from 'lucide-react';
 import { format, getDay, addDays, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek, type CalculationResult } from '@/data/calculation-engine';
@@ -239,48 +239,174 @@ function ProjectCalendar({
   );
 }
 
+const SESSION_KEY = 'crewrate-calc-state';
+
+interface SessionState {
+  projectId: string | null;
+  projectName: string;
+  selectedRoleName: string | null;
+  agreedRate: string;
+  dayType: string;
+  workDate: string;
+  isBankHoliday: boolean;
+  callTime: string;
+  wrapTime: string;
+  firstBreakGiven: boolean;
+  firstBreakTime: string;
+  firstBreakDuration: string;
+  secondBreakGiven: boolean;
+  secondBreakTime: string;
+  secondBreakDuration: string;
+  continuousFirstBreakGiven: boolean;
+  continuousAdditionalBreakGiven: boolean;
+  travelHours: string;
+  mileage: string;
+  previousWrap: string;
+  currentDayId: string | null;
+  isDirty: boolean;
+}
+
+function loadSession(): SessionState | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function saveSession(s: SessionState) {
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(s)); } catch {}
+}
+
+interface UserProject {
+  id: string;
+  name: string;
+  client_name: string | null;
+}
+
 export function CalculatorPage() {
   const { user } = useAuth();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const projectId = searchParams.get('project');
   const projectNameFromUrl = searchParams.get('name');
   const navigate = useNavigate();
 
-  const [selectedRole, setSelectedRole] = useState<CrewRole | null>(null);
-  const [agreedRate, setAgreedRate] = useState<string>('');
-  const [dayType, setDayType] = useState<DayType>('basic_working');
-  const [workDate, setWorkDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
-  const [isBankHoliday, setIsBankHoliday] = useState(false);
-  const [callTime, setCallTime] = useState('08:00');
-  const [wrapTime, setWrapTime] = useState('19:00');
-  const [firstBreakGiven, setFirstBreakGiven] = useState(true);
-  const [firstBreakTime, setFirstBreakTime] = useState('13:00');
-  const [firstBreakDuration, setFirstBreakDuration] = useState('60');
-  const [secondBreakGiven, setSecondBreakGiven] = useState(true);
-  const [secondBreakTime, setSecondBreakTime] = useState('18:30');
-  const [secondBreakDuration, setSecondBreakDuration] = useState('30');
-  const [continuousFirstBreakGiven, setContinuousFirstBreakGiven] = useState(true);
-  const [continuousAdditionalBreakGiven, setContinuousAdditionalBreakGiven] = useState(true);
-  const [travelHours, setTravelHours] = useState('0');
-  const [mileage, setMileage] = useState('0');
-  const [previousWrap, setPreviousWrap] = useState('');
-  const [projectName, setProjectName] = useState('');
+  // Try to restore from session on first mount (only when no URL params override)
+  const sessionRef = useRef(loadSession());
+  const hasUrlProject = !!searchParams.get('project');
+  const ss = (!hasUrlProject && sessionRef.current) ? sessionRef.current : null;
+  const restoredFromSession = useRef(!!ss);
+
+  const [selectedRole, setSelectedRole] = useState<CrewRole | null>(() => {
+    const name = ss?.selectedRoleName;
+    return name ? APA_CREW_ROLES.find(r => r.role === name) ?? null : null;
+  });
+  const [agreedRate, setAgreedRate] = useState<string>(ss?.agreedRate ?? '');
+  const [dayType, setDayType] = useState<DayType>((ss?.dayType as DayType) ?? 'basic_working');
+  const [workDate, setWorkDate] = useState(ss?.workDate ?? format(new Date(), 'yyyy-MM-dd'));
+  const [isBankHoliday, setIsBankHoliday] = useState(ss?.isBankHoliday ?? false);
+  const [callTime, setCallTime] = useState(ss?.callTime ?? '08:00');
+  const [wrapTime, setWrapTime] = useState(ss?.wrapTime ?? '19:00');
+  const [firstBreakGiven, setFirstBreakGiven] = useState(ss?.firstBreakGiven ?? true);
+  const [firstBreakTime, setFirstBreakTime] = useState(ss?.firstBreakTime ?? '13:00');
+  const [firstBreakDuration, setFirstBreakDuration] = useState(ss?.firstBreakDuration ?? '60');
+  const [secondBreakGiven, setSecondBreakGiven] = useState(ss?.secondBreakGiven ?? true);
+  const [secondBreakTime, setSecondBreakTime] = useState(ss?.secondBreakTime ?? '18:30');
+  const [secondBreakDuration, setSecondBreakDuration] = useState(ss?.secondBreakDuration ?? '30');
+  const [continuousFirstBreakGiven, setContinuousFirstBreakGiven] = useState(ss?.continuousFirstBreakGiven ?? true);
+  const [continuousAdditionalBreakGiven, setContinuousAdditionalBreakGiven] = useState(ss?.continuousAdditionalBreakGiven ?? true);
+  const [travelHours, setTravelHours] = useState(ss?.travelHours ?? '0');
+  const [mileage, setMileage] = useState(ss?.mileage ?? '0');
+  const [previousWrap, setPreviousWrap] = useState(ss?.previousWrap ?? '');
+  const [projectName, setProjectName] = useState(ss?.projectName ?? '');
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [favouriteRoles, setFavouriteRoles] = useState<string[]>([]);
 
   // Track which saved day we're currently editing (null = new day)
-  const [currentDayId, setCurrentDayId] = useState<string | null>(null);
+  const [currentDayId, setCurrentDayId] = useState<string | null>(ss?.currentDayId ?? null);
   const [projectDays, setProjectDays] = useState<ProjectDaySummary[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set(['__current__']));
   const formTopRef = useRef<HTMLDivElement>(null);
-  const suppressDirtyRef = useRef(false);
+  const suppressDirtyRef = useRef(!!ss); // Suppress initial dirty flag when restoring from session
 
   // Unsaved changes tracking
-  const [isDirty, setIsDirty] = useState(false);
+  const [isDirty, setIsDirty] = useState(ss?.isDirty ?? false);
   // Pending within-page navigation when user has unsaved changes
   const [pendingDayId, setPendingDayId] = useState<string | null>(null);
+
+  // Change Project picker
+  const [allProjects, setAllProjects] = useState<UserProject[]>([]);
+  const [showProjectPicker, setShowProjectPicker] = useState(false);
+  const projectPickerRef = useRef<HTMLDivElement>(null);
+
+  // If restored from session with a projectId, update URL to match
+  useEffect(() => {
+    if (!hasUrlProject && ss?.projectId) {
+      setSearchParams({ project: ss.projectId }, { replace: true });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist form state to sessionStorage whenever it changes
+  useEffect(() => {
+    saveSession({
+      projectId,
+      projectName,
+      selectedRoleName: selectedRole?.role ?? null,
+      agreedRate,
+      dayType,
+      workDate,
+      isBankHoliday,
+      callTime,
+      wrapTime,
+      firstBreakGiven,
+      firstBreakTime,
+      firstBreakDuration,
+      secondBreakGiven,
+      secondBreakTime,
+      secondBreakDuration,
+      continuousFirstBreakGiven,
+      continuousAdditionalBreakGiven,
+      travelHours,
+      mileage,
+      previousWrap,
+      currentDayId,
+      isDirty,
+    });
+  }, [projectId, projectName, selectedRole, agreedRate, dayType, workDate, isBankHoliday, callTime, wrapTime, firstBreakGiven, firstBreakTime, firstBreakDuration, secondBreakGiven, secondBreakTime, secondBreakDuration, continuousFirstBreakGiven, continuousAdditionalBreakGiven, travelHours, mileage, previousWrap, currentDayId, isDirty]);
+
+  // Load projects list for the picker
+  useEffect(() => {
+    if (user) {
+      supabase.from('projects').select('id, name, client_name')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false })
+        .then(({ data }) => { if (data) setAllProjects(data); });
+    }
+  }, [user]);
+
+  // Close project picker on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (projectPickerRef.current && !projectPickerRef.current.contains(e.target as Node)) {
+        setShowProjectPicker(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSwitchProject = (proj: UserProject) => {
+    setShowProjectPicker(false);
+    setProjectName(proj.name);
+    // Navigate to this project — the useEffect on projectId will load its days
+    setSearchParams({ project: proj.id, name: proj.name }, { replace: true });
+    // Reset form for the new project (days will auto-load)
+    suppressDirtyRef.current = true;
+    setIsDirty(false);
+    setCurrentDayId(null);
+    setSaveSuccess(false);
+  };
 
   const toggleDayExpanded = (id: string) => {
     setExpandedDays(prev => {
@@ -321,6 +447,11 @@ export function CalculatorPage() {
         .then(({ data }) => {
           if (data) {
             setProjectDays(data as ProjectDaySummary[]);
+            // Skip auto-load if we restored form state from session (user was mid-edit)
+            if (restoredFromSession.current) {
+              restoredFromSession.current = false;
+              return;
+            }
             // If there are saved days, auto-load the most recent one
             if (data.length > 0) {
               const lastDay = data[data.length - 1];
@@ -331,11 +462,12 @@ export function CalculatorPage() {
     }
   }, [projectId]);
 
-  // Load project name
+  // Load project name (skip if already set from session restore)
   useEffect(() => {
-    if (projectNameFromUrl && !projectName) {
+    if (projectName) return; // Already set (e.g. from session)
+    if (projectNameFromUrl) {
       setProjectName(decodeURIComponent(projectNameFromUrl));
-    } else if (projectId && !projectNameFromUrl && !projectName) {
+    } else if (projectId) {
       supabase.from('projects').select('name').eq('id', projectId).single().then(({ data }) => {
         if (data) setProjectName(data.name);
       });
@@ -629,7 +761,53 @@ export function CalculatorPage() {
             {/* Project Name */}
             <div className="space-y-2">
               <Label htmlFor="project">Project Name</Label>
-              <Input id="project" placeholder="e.g. Nike Summer Campaign" value={projectName} onChange={e => setProjectName(e.target.value)} />
+              <div className="flex gap-2">
+                <Input id="project" placeholder="e.g. Nike Summer Campaign" value={projectName} onChange={e => setProjectName(e.target.value)} className="flex-1" />
+                <div className="relative" ref={projectPickerRef}>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    type="button"
+                    title="Change project"
+                    onClick={() => setShowProjectPicker(!showProjectPicker)}
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                  </Button>
+                  {showProjectPicker && (
+                    <div className="absolute right-0 top-11 w-72 rounded-2xl border border-white/20 bg-white/90 backdrop-blur-xl shadow-xl z-50 overflow-hidden">
+                      <div className="px-4 py-2.5 border-b border-border/40">
+                        <p className="text-xs font-semibold text-muted-foreground">Switch to project</p>
+                      </div>
+                      {allProjects.length === 0 ? (
+                        <div className="px-4 py-6 text-sm text-muted-foreground text-center">No projects yet</div>
+                      ) : (
+                        <div className="max-h-60 overflow-y-auto py-1">
+                          {allProjects.map(proj => (
+                            <button
+                              key={proj.id}
+                              onClick={() => handleSwitchProject(proj)}
+                              className={cn(
+                                'w-full text-left px-4 py-2.5 text-sm hover:bg-primary/5 transition-colors flex items-center justify-between gap-2',
+                                proj.id === projectId && 'bg-primary/10 font-medium',
+                              )}
+                            >
+                              <div className="min-w-0">
+                                <p className="truncate font-medium">{proj.name}</p>
+                                {proj.client_name && (
+                                  <p className="text-xs text-muted-foreground truncate">{proj.client_name}</p>
+                                )}
+                              </div>
+                              {proj.id === projectId && (
+                                <Badge variant="outline" className="text-[10px] shrink-0">Current</Badge>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             <Separator />
