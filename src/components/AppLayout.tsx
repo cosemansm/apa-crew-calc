@@ -41,21 +41,26 @@ export function AppLayout() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-1 rounded-2xl bg-white/30 backdrop-blur-sm p-1 border border-white/20">
-            {navItems.map(({ path, label, icon: Icon }) => (
-              <Link key={path} to={path}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "rounded-xl transition-all duration-200",
-                    location.pathname === path && "bg-white/60 shadow-sm backdrop-blur-sm"
-                  )}
-                >
-                  <Icon className="h-4 w-4 mr-1" />
-                  {label}
-                </Button>
-              </Link>
-            ))}
+            {navItems.map(({ path, label, icon: Icon }) => {
+              const isActive = location.pathname === path;
+              return (
+                <Link key={path} to={path}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      "rounded-xl transition-all duration-200 font-medium",
+                      isActive
+                        ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90"
+                        : "text-muted-foreground hover:text-foreground hover:bg-white/50"
+                    )}
+                  >
+                    <Icon className={cn("h-4 w-4 mr-1.5", isActive ? "text-primary-foreground" : "")} />
+                    {label}
+                  </Button>
+                </Link>
+              );
+            })}
           </nav>
 
           <div className="flex items-center gap-2">
@@ -109,19 +114,35 @@ export function AppLayout() {
 
         {mobileMenuOpen && (
           <div className="md:hidden p-4 space-y-1 border-t border-white/20">
-            {navItems.map(({ path, label, icon: Icon }) => (
-              <Link key={path} to={path} onClick={() => setMobileMenuOpen(false)}>
-                <Button
-                  variant={location.pathname === path ? 'secondary' : 'ghost'}
-                  className="w-full justify-start rounded-xl"
-                >
-                  <Icon className="h-4 w-4 mr-2" />
-                  {label}
-                </Button>
-              </Link>
-            ))}
+            {navItems.map(({ path, label, icon: Icon }) => {
+              const isActive = location.pathname === path;
+              return (
+                <Link key={path} to={path} onClick={() => setMobileMenuOpen(false)}>
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "w-full justify-start rounded-xl font-medium",
+                      isActive
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    <Icon className="h-4 w-4 mr-2" />
+                    {label}
+                  </Button>
+                </Link>
+              );
+            })}
             <Link to="/settings" onClick={() => setMobileMenuOpen(false)}>
-              <Button variant="ghost" className="w-full justify-start rounded-xl">
+              <Button
+                variant="ghost"
+                className={cn(
+                  "w-full justify-start rounded-xl font-medium",
+                  location.pathname === '/settings'
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
                 <Settings className="h-4 w-4 mr-2" />
                 Settings
               </Button>
