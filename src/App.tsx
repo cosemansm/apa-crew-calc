@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/components/AppLayout';
 import { LoginPage } from '@/pages/LoginPage';
+import { DashboardPage } from '@/pages/DashboardPage';
 import { CalculatorPage } from '@/pages/CalculatorPage';
 import { AIInputPage } from '@/pages/AIInputPage';
 import { HistoryPage } from '@/pages/HistoryPage';
@@ -18,7 +19,7 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 function PublicRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
-  if (user) return <Navigate to="/calculator" replace />;
+  if (user) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
@@ -29,12 +30,13 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
           <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/calculator" element={<CalculatorPage />} />
             <Route path="/ai-input" element={<AIInputPage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/invoices" element={<InvoicePage />} />
           </Route>
-          <Route path="*" element={<Navigate to="/calculator" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

@@ -43,6 +43,45 @@ function dateToDayOfWeek(dateStr: string): DayOfWeek {
   return JS_DAY_TO_DOW[getDay(date)];
 }
 
+const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTES = ['00', '15', '30', '45'];
+
+function TimePicker({ value, onChange, label }: { value: string; onChange: (v: string) => void; label?: string }) {
+  const [h, m] = value.split(':');
+  // Snap minute to nearest 15
+  const snappedMin = MINUTES.reduce((prev, curr) =>
+    Math.abs(parseInt(curr) - parseInt(m)) < Math.abs(parseInt(prev) - parseInt(m)) ? curr : prev
+  );
+  return (
+    <div className="space-y-2">
+      {label && <Label>{label}</Label>}
+      <div className="flex items-center gap-1">
+        <Select value={h} onValueChange={v => onChange(`${v}:${snappedMin}`)}>
+          <SelectTrigger className="w-[72px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {HOURS.map(hr => (
+              <SelectItem key={hr} value={hr}>{hr}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-muted-foreground font-medium">:</span>
+        <Select value={snappedMin} onValueChange={v => onChange(`${h}:${v}`)}>
+          <SelectTrigger className="w-[68px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {MINUTES.map(min => (
+              <SelectItem key={min} value={min}>{min}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
+
 export function CalculatorPage() {
   const { user } = useAuth();
   const [selectedRole, setSelectedRole] = useState<CrewRole | null>(null);
@@ -244,15 +283,9 @@ export function CalculatorPage() {
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-[1fr_auto_1fr] gap-4 items-end">
-              <div className="space-y-2">
-                <Label htmlFor="call">Call Time</Label>
-                <Input id="call" type="time" value={callTime} onChange={e => setCallTime(e.target.value)} />
-              </div>
+              <TimePicker label="Call Time" value={callTime} onChange={setCallTime} />
               <div className="hidden md:flex items-center pb-2 text-muted-foreground text-sm">→</div>
-              <div className="space-y-2">
-                <Label htmlFor="wrap">Wrap Time</Label>
-                <Input id="wrap" type="time" value={wrapTime} onChange={e => setWrapTime(e.target.value)} />
-              </div>
+              <TimePicker label="Wrap Time" value={wrapTime} onChange={setWrapTime} />
             </div>
             {callTime && wrapTime && (() => {
               let callMins = parseInt(callTime.split(':')[0]) * 60 + parseInt(callTime.split(':')[1]);
@@ -288,8 +321,7 @@ export function CalculatorPage() {
                         {firstBreakGiven && (
                           <div className="ml-7 grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <Label htmlFor="break1time">Break started at</Label>
-                              <Input id="break1time" type="time" value={firstBreakTime} onChange={e => setFirstBreakTime(e.target.value)} />
+                              <TimePicker label="Break started at" value={firstBreakTime} onChange={setFirstBreakTime} />
                               <p className="text-xs text-muted-foreground">Must start within 5½ hrs of call</p>
                             </div>
                             <div className="space-y-2">
@@ -324,8 +356,7 @@ export function CalculatorPage() {
                         {secondBreakGiven && (
                           <div className="ml-7 grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <Label htmlFor="break2time">Break started at</Label>
-                              <Input id="break2time" type="time" value={secondBreakTime} onChange={e => setSecondBreakTime(e.target.value)} />
+                              <TimePicker label="Break started at" value={secondBreakTime} onChange={setSecondBreakTime} />
                               <p className="text-xs text-muted-foreground">Within 5½ hrs after first break ended</p>
                             </div>
                             <div className="space-y-2">
@@ -425,8 +456,7 @@ export function CalculatorPage() {
             <div className="space-y-2">
               <h3 className="font-medium">Time Off The Clock</h3>
               <div className="space-y-2">
-                <Label htmlFor="prevWrap">Previous day's wrap time</Label>
-                <Input id="prevWrap" type="time" value={previousWrap} onChange={e => setPreviousWrap(e.target.value)} />
+                <TimePicker label="Previous day's wrap time" value={previousWrap || '00:00'} onChange={setPreviousWrap} />
                 <p className="text-xs text-muted-foreground">Leave empty if first day. Penalty applies if gap &lt; 11 hours.</p>
               </div>
               {previousWrap && callTime && (() => {
