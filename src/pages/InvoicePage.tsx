@@ -23,7 +23,6 @@ interface SavedCalc {
   result_json: {
     lineItems?: { description: string; total: number }[];
     penalties?: { description: string; total: number }[];
-    holidayPay?: number;
     travelPay?: number;
     mileage?: number;
   };

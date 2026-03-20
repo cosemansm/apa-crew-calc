@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Save, RotateCcw, PoundSterling } from 'lucide-react';
+import { Save, RotateCcw, PoundSterling, CalendarDays } from 'lucide-react';
+import { format, getDay } from 'date-fns';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek, type CalculationResult } from '@/data/calculation-engine';
 import { supabase } from '@/lib/supabase';
@@ -24,37 +25,52 @@ const DAY_TYPES: { value: DayType; label: string }[] = [
   { value: 'travel', label: 'Travel Day' },
 ];
 
-const DAYS_OF_WEEK: { value: DayOfWeek; label: string }[] = [
-  { value: 'monday', label: 'Monday' },
-  { value: 'tuesday', label: 'Tuesday' },
-  { value: 'wednesday', label: 'Wednesday' },
-  { value: 'thursday', label: 'Thursday' },
-  { value: 'friday', label: 'Friday' },
-  { value: 'saturday', label: 'Saturday' },
-  { value: 'sunday', label: 'Sunday' },
-  { value: 'bank_holiday', label: 'Bank Holiday' },
-];
+const JS_DAY_TO_DOW: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+const DAY_LABELS: Record<DayOfWeek, string> = {
+  monday: 'Monday',
+  tuesday: 'Tuesday',
+  wednesday: 'Wednesday',
+  thursday: 'Thursday',
+  friday: 'Friday',
+  saturday: 'Saturday',
+  sunday: 'Sunday',
+  bank_holiday: 'Bank Holiday',
+};
+
+function dateToDayOfWeek(dateStr: string): DayOfWeek {
+  const date = new Date(dateStr + 'T12:00:00');
+  return JS_DAY_TO_DOW[getDay(date)];
+}
 
 export function CalculatorPage() {
   const { user } = useAuth();
   const [selectedRole, setSelectedRole] = useState<CrewRole | null>(null);
   const [agreedRate, setAgreedRate] = useState<string>('');
   const [dayType, setDayType] = useState<DayType>('basic_working');
-  const [dayOfWeek, setDayOfWeek] = useState<DayOfWeek>('monday');
+  const [workDate, setWorkDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const [isBankHoliday, setIsBankHoliday] = useState(false);
   const [callTime, setCallTime] = useState('08:00');
   const [wrapTime, setWrapTime] = useState('19:00');
   const [firstBreakGiven, setFirstBreakGiven] = useState(true);
-  const [firstBreakDelayed, setFirstBreakDelayed] = useState(false);
-  const [firstBreakCurtailed, setFirstBreakCurtailed] = useState('0');
+  const [firstBreakTime, setFirstBreakTime] = useState('13:00');
+  const [firstBreakDuration, setFirstBreakDuration] = useState('60');
   const [secondBreakGiven, setSecondBreakGiven] = useState(true);
-  const [secondBreakCurtailed, setSecondBreakCurtailed] = useState('0');
-  const [continuousBreakGiven, setContinuousBreakGiven] = useState(true);
+  const [secondBreakTime, setSecondBreakTime] = useState('18:30');
+  const [secondBreakDuration, setSecondBreakDuration] = useState('30');
+  const [continuousFirstBreakGiven, setContinuousFirstBreakGiven] = useState(true);
+  const [continuousAdditionalBreakGiven, setContinuousAdditionalBreakGiven] = useState(true);
   const [travelHours, setTravelHours] = useState('0');
   const [mileage, setMileage] = useState('0');
   const [previousWrap, setPreviousWrap] = useState('');
   const [projectName, setProjectName] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  const dayOfWeek: DayOfWeek = useMemo(() => {
+    if (isBankHoliday) return 'bank_holiday';
+    return dateToDayOfWeek(workDate);
+  }, [workDate, isBankHoliday]);
 
   const result: CalculationResult | null = useMemo(() => {
     if (!selectedRole || !agreedRate) return null;
@@ -69,16 +85,18 @@ export function CalculatorPage() {
       callTime,
       wrapTime,
       firstBreakGiven,
-      firstBreakDelayed,
-      firstBreakCurtailedMins: parseInt(firstBreakCurtailed) || 0,
+      firstBreakTime: firstBreakGiven ? firstBreakTime : undefined,
+      firstBreakDurationMins: parseInt(firstBreakDuration) || 60,
       secondBreakGiven,
-      secondBreakCurtailedMins: parseInt(secondBreakCurtailed) || 0,
-      isContinuousBreakGiven: continuousBreakGiven,
+      secondBreakTime: secondBreakGiven ? secondBreakTime : undefined,
+      secondBreakDurationMins: parseInt(secondBreakDuration) || 30,
+      continuousFirstBreakGiven,
+      continuousAdditionalBreakGiven,
       travelHours: parseFloat(travelHours) || 0,
       mileageOutsideM25: parseFloat(mileage) || 0,
       previousWrapTime: previousWrap || undefined,
     });
-  }, [selectedRole, agreedRate, dayType, dayOfWeek, callTime, wrapTime, firstBreakGiven, firstBreakDelayed, firstBreakCurtailed, secondBreakGiven, secondBreakCurtailed, continuousBreakGiven, travelHours, mileage, previousWrap]);
+  }, [selectedRole, agreedRate, dayType, dayOfWeek, callTime, wrapTime, firstBreakGiven, firstBreakTime, firstBreakDuration, secondBreakGiven, secondBreakTime, secondBreakDuration, continuousFirstBreakGiven, continuousAdditionalBreakGiven, travelHours, mileage, previousWrap, workDate, isBankHoliday]);
 
   const handleRoleChange = (roleName: string) => {
     const role = APA_CREW_ROLES.find(r => r.role === roleName);
@@ -92,15 +110,18 @@ export function CalculatorPage() {
     setSelectedRole(null);
     setAgreedRate('');
     setDayType('basic_working');
-    setDayOfWeek('monday');
+    setWorkDate(format(new Date(), 'yyyy-MM-dd'));
+    setIsBankHoliday(false);
     setCallTime('08:00');
     setWrapTime('19:00');
     setFirstBreakGiven(true);
-    setFirstBreakDelayed(false);
-    setFirstBreakCurtailed('0');
+    setFirstBreakTime('13:00');
+    setFirstBreakDuration('60');
     setSecondBreakGiven(true);
-    setSecondBreakCurtailed('0');
-    setContinuousBreakGiven(true);
+    setSecondBreakTime('18:30');
+    setSecondBreakDuration('30');
+    setContinuousFirstBreakGiven(true);
+    setContinuousAdditionalBreakGiven(true);
     setTravelHours('0');
     setMileage('0');
     setPreviousWrap('');
@@ -207,17 +228,18 @@ export function CalculatorPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Day of Week</Label>
-                <Select value={dayOfWeek} onValueChange={v => setDayOfWeek(v as DayOfWeek)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DAYS_OF_WEEK.map(d => (
-                      <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="workDate">Date Worked</Label>
+                <div className="relative">
+                  <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input id="workDate" type="date" className="pl-10" value={workDate} onChange={e => setWorkDate(e.target.value)} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Badge variant="outline">{isBankHoliday ? 'Bank Holiday' : DAY_LABELS[dateToDayOfWeek(workDate)]}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="bankHol" checked={isBankHoliday} onCheckedChange={v => setIsBankHoliday(!!v)} />
+                    <Label htmlFor="bankHol" className="text-xs">Bank Holiday</Label>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -242,39 +264,72 @@ export function CalculatorPage() {
 
                   {dayType === 'basic_working' && (
                     <>
-                      <div className="flex items-center gap-3">
-                        <Checkbox id="break1" checked={firstBreakGiven} onCheckedChange={v => setFirstBreakGiven(!!v)} />
-                        <Label htmlFor="break1">First break given (1 hour)</Label>
+                      <div className="space-y-3 rounded-md border p-4">
+                        <div className="flex items-center gap-3">
+                          <Checkbox id="break1" checked={firstBreakGiven} onCheckedChange={v => setFirstBreakGiven(!!v)} />
+                          <Label htmlFor="break1" className="font-medium">First break given (1 hour)</Label>
+                        </div>
+                        {firstBreakGiven && (
+                          <div className="ml-7 grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="break1time">Break started at</Label>
+                              <Input id="break1time" type="time" value={firstBreakTime} onChange={e => setFirstBreakTime(e.target.value)} />
+                              <p className="text-xs text-muted-foreground">Must start within 5½ hrs of call. Delayed after 5½ hrs = £10 penalty. After 6½ hrs = missed.</p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="break1dur">Actual duration (mins)</Label>
+                              <Input id="break1dur" type="number" className="w-24" value={firstBreakDuration} onChange={e => setFirstBreakDuration(e.target.value)} min="0" max="60" />
+                              <p className="text-xs text-muted-foreground">Standard: 60 mins. Shorter = curtailed penalty.</p>
+                            </div>
+                          </div>
+                        )}
+                        {!firstBreakGiven && (
+                          <p className="ml-7 text-xs text-orange-600">Day treated as Continuous Working Day + £7.50 meal allowance</p>
+                        )}
                       </div>
-                      {firstBreakGiven && (
-                        <div className="flex items-center gap-3 ml-7">
-                          <Checkbox id="break1delayed" checked={firstBreakDelayed} onCheckedChange={v => setFirstBreakDelayed(!!v)} />
-                          <Label htmlFor="break1delayed">First break was delayed (£10 penalty)</Label>
+
+                      <div className="space-y-3 rounded-md border p-4">
+                        <div className="flex items-center gap-3">
+                          <Checkbox id="break2" checked={secondBreakGiven} onCheckedChange={v => setSecondBreakGiven(!!v)} />
+                          <Label htmlFor="break2" className="font-medium">Second break given (30 mins)</Label>
                         </div>
-                      )}
-                      {firstBreakGiven && (
-                        <div className="ml-7 space-y-2">
-                          <Label htmlFor="break1curtail">First break curtailed by (minutes)</Label>
-                          <Input id="break1curtail" type="number" className="w-24" value={firstBreakCurtailed} onChange={e => setFirstBreakCurtailed(e.target.value)} min="0" max="60" />
-                        </div>
-                      )}
-                      <div className="flex items-center gap-3">
-                        <Checkbox id="break2" checked={secondBreakGiven} onCheckedChange={v => setSecondBreakGiven(!!v)} />
-                        <Label htmlFor="break2">Second break given (30 mins)</Label>
+                        {secondBreakGiven && (
+                          <div className="ml-7 grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="break2time">Break started at</Label>
+                              <Input id="break2time" type="time" value={secondBreakTime} onChange={e => setSecondBreakTime(e.target.value)} />
+                              <p className="text-xs text-muted-foreground">Must start within 5½ hrs after first break ended. Can't be delayed — late = missed.</p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="break2dur">Actual duration (mins)</Label>
+                              <Input id="break2dur" type="number" className="w-24" value={secondBreakDuration} onChange={e => setSecondBreakDuration(e.target.value)} min="0" max="30" />
+                              <p className="text-xs text-muted-foreground">Standard: 30 mins. Shorter = curtailed penalty.</p>
+                            </div>
+                          </div>
+                        )}
+                        {!secondBreakGiven && (
+                          <p className="ml-7 text-xs text-orange-600">30 mins at BHR penalty applies</p>
+                        )}
                       </div>
-                      {secondBreakGiven && (
-                        <div className="ml-7 space-y-2">
-                          <Label htmlFor="break2curtail">Second break curtailed by (minutes)</Label>
-                          <Input id="break2curtail" type="number" className="w-24" value={secondBreakCurtailed} onChange={e => setSecondBreakCurtailed(e.target.value)} min="0" max="30" />
-                        </div>
-                      )}
                     </>
                   )}
 
                   {dayType === 'continuous_working' && (
-                    <div className="flex items-center gap-3">
-                      <Checkbox id="contBreak" checked={continuousBreakGiven} onCheckedChange={v => setContinuousBreakGiven(!!v)} />
-                      <Label htmlFor="contBreak">30-min break given (after 9 hrs)</Label>
+                    <div className="space-y-3 rounded-md border p-4">
+                      <div className="flex items-center gap-3">
+                        <Checkbox id="contBreak" checked={continuousFirstBreakGiven} onCheckedChange={v => setContinuousFirstBreakGiven(!!v)} />
+                        <Label htmlFor="contBreak">30-min break given after 9 hours</Label>
+                      </div>
+                      {!continuousFirstBreakGiven && (
+                        <p className="ml-7 text-xs text-orange-600">30 mins at BHR penalty applies</p>
+                      )}
+                      <div className="flex items-center gap-3">
+                        <Checkbox id="contBreak2" checked={continuousAdditionalBreakGiven} onCheckedChange={v => setContinuousAdditionalBreakGiven(!!v)} />
+                        <Label htmlFor="contBreak2">Additional 30-min break given after 12½ hours</Label>
+                      </div>
+                      {!continuousAdditionalBreakGiven && (
+                        <p className="ml-7 text-xs text-orange-600">30 mins at BHR penalty applies (if day exceeds 12½ hrs)</p>
+                      )}
                     </div>
                   )}
                 </div>
@@ -289,9 +344,9 @@ export function CalculatorPage() {
                 <Input id="travel" type="number" step="0.5" value={travelHours} onChange={e => setTravelHours(e.target.value)} min="0" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="mileage">Mileage outside M25 (one way, miles)</Label>
+                <Label htmlFor="mileage">Mileage outside M25 (miles)</Label>
                 <Input id="mileage" type="number" value={mileage} onChange={e => setMileage(e.target.value)} min="0" />
-                <p className="text-xs text-muted-foreground">50p/mile, return journey calculated automatically</p>
+                <p className="text-xs text-muted-foreground">50p per mile</p>
               </div>
             </div>
 
@@ -371,17 +426,10 @@ export function CalculatorPage() {
 
                 {result.mileage > 0 && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Mileage</span>
+                    <span className="text-muted-foreground">Mileage ({result.mileageMiles} miles @ 50p)</span>
                     <span className="font-mono">£{result.mileage.toFixed(2)}</span>
                   </div>
                 )}
-
-                <Separator />
-
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Holiday Pay (12.07%)</span>
-                  <span className="font-mono">£{result.holidayPay.toFixed(2)}</span>
-                </div>
 
                 <Separator />
 
