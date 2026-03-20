@@ -471,6 +471,13 @@ export function CalculatorPage() {
       is_bank_holiday: isBankHoliday,
     };
 
+    // Update project name if it has changed
+    if (resolvedProjectId && projectName) {
+      await supabase.from('projects')
+        .update({ name: projectName, updated_at: new Date().toISOString() })
+        .eq('id', resolvedProjectId);
+    }
+
     let savedId: string | null = null;
 
     if (currentDayId) {
