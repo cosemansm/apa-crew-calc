@@ -119,6 +119,8 @@ interface ProjectDaySummary {
   grand_total: number;
   day_number: number;
   result_json?: DayResultJson;
+  wrap_time?: string;
+  call_time?: string;
 }
 
 interface FullProjectDay {
@@ -488,7 +490,7 @@ export function CalculatorPage() {
   useEffect(() => {
     if (projectId) {
       supabase.from('project_days')
-        .select('id, work_date, role_name, grand_total, day_number, result_json')
+        .select('id, work_date, role_name, grand_total, day_number, result_json, wrap_time, call_time')
         .eq('project_id', projectId)
         .order('work_date', { ascending: true })
         .then(({ data }) => {
@@ -526,6 +528,27 @@ export function CalculatorPage() {
     return dateToDayOfWeek(workDate);
   }, [workDate, isBankHoliday]);
 
+  // Auto-detect previous day's wrap for TOC — only within the same project,
+  // only when work dates are consecutive (≤1 calendar day apart).
+  // TOC does NOT apply across different jobs (APA S.5).
+  const autoPreviousWrap = useMemo((): string => {
+    if (!projectDays.length || !workDate) return '';
+    // Exclude the day currently being edited so we don't compare a day to itself
+    const others = projectDays
+      .filter(d => d.id !== currentDayId)
+      .sort((a, b) => a.work_date.localeCompare(b.work_date));
+    const prevDays = others.filter(d => d.work_date < workDate);
+    if (prevDays.length === 0) return '';
+    const prevDay = prevDays[prevDays.length - 1];
+    if (!prevDay.wrap_time) return '';
+    // Only within consecutive calendar days (max 1 day gap)
+    const prevDate = new Date(prevDay.work_date + 'T12:00:00');
+    const currDate = new Date(workDate + 'T12:00:00');
+    const daysDiff = Math.round((currDate.getTime() - prevDate.getTime()) / 86_400_000);
+    if (daysDiff > 1) return '';
+    return prevDay.wrap_time;
+  }, [projectDays, workDate, currentDayId]);
+
   const result: CalculationResult | null = useMemo(() => {
     if (!selectedRole || !agreedRate) return null;
     const rate = parseInt(agreedRate);
@@ -548,9 +571,9 @@ export function CalculatorPage() {
       continuousAdditionalBreakGiven,
       travelHours: parseFloat(travelHours) || 0,
       mileageOutsideM25: parseFloat(mileage) || 0,
-      previousWrapTime: previousWrap || undefined,
+      previousWrapTime: autoPreviousWrap || undefined,
     });
-  }, [selectedRole, agreedRate, dayType, dayOfWeek, callTime, wrapTime, firstBreakGiven, firstBreakTime, firstBreakDuration, secondBreakGiven, secondBreakTime, secondBreakDuration, continuousFirstBreakGiven, continuousAdditionalBreakGiven, travelHours, mileage, previousWrap, workDate, isBankHoliday]);
+  }, [selectedRole, agreedRate, dayType, dayOfWeek, callTime, wrapTime, firstBreakGiven, firstBreakTime, firstBreakDuration, secondBreakGiven, secondBreakTime, secondBreakDuration, continuousFirstBreakGiven, continuousAdditionalBreakGiven, travelHours, mileage, autoPreviousWrap, workDate, isBankHoliday]);
 
   // Mark dirty whenever the calculated result changes (but not during load/reset)
   useEffect(() => {
@@ -634,7 +657,7 @@ export function CalculatorPage() {
 
   const refreshProjectDays = async (projId: string) => {
     const { data } = await supabase.from('project_days')
-      .select('id, work_date, role_name, grand_total, day_number, result_json')
+      .select('id, work_date, role_name, grand_total, day_number, result_json, wrap_time, call_time')
       .eq('project_id', projId)
       .order('work_date', { ascending: true });
     if (data) setProjectDays(data as ProjectDaySummary[]);
@@ -730,7 +753,7 @@ export function CalculatorPage() {
       continuous_additional_break_given: continuousAdditionalBreakGiven,
       travel_hours: parseFloat(travelHours),
       mileage: parseFloat(mileage),
-      previous_wrap: previousWrap || null,
+      previous_wrap: autoPreviousWrap || null,
       is_bank_holiday: isBankHoliday,
     };
 
@@ -1181,29 +1204,25 @@ export function CalculatorPage() {
               </div>
             </div>
 
-            {/* Time Off The Clock */}
-            <div className="space-y-2">
-              <h3 className="font-medium">Time Off The Clock</h3>
-              <div className="space-y-2">
-                <TimePicker label="Previous day's wrap time" value={previousWrap || '00:00'} onChange={setPreviousWrap} />
-                <p className="text-xs text-muted-foreground">Leave empty if first day. Penalty applies if gap &lt; 11 hours.</p>
-              </div>
-              {previousWrap && callTime && (() => {
-                let prevMins = parseInt(previousWrap.split(':')[0]) * 60 + parseInt(previousWrap.split(':')[1]);
-                let callMins = parseInt(callTime.split(':')[0]) * 60 + parseInt(callTime.split(':')[1]);
-                let gap = callMins - prevMins;
-                if (gap < 0) gap += 24 * 60;
-                const gapHrs = Math.floor(gap / 60);
-                const gapMins = gap % 60;
-                const isTOC = gap / 60 < 11;
-                return (
-                  <div className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm ${isTOC ? 'bg-orange-50 text-orange-700' : 'bg-muted/50'}`}>
-                    <span>Rest gap: <strong>{gapHrs}h {gapMins > 0 ? `${gapMins}m` : ''}</strong></span>
-                    {isTOC && <span>— TOC penalty applies (1hr at OT rate)</span>}
+            {/* Time Off The Clock — auto-calculated from project days */}
+            {autoPreviousWrap && callTime && (() => {
+              let prevMins = parseInt(autoPreviousWrap.split(':')[0]) * 60 + parseInt(autoPreviousWrap.split(':')[1]);
+              let callMins = parseInt(callTime.split(':')[0]) * 60 + parseInt(callTime.split(':')[1]);
+              let gap = callMins - prevMins;
+              if (gap < 0) gap += 24 * 60;
+              const gapHrs = Math.floor(gap / 60);
+              const gapMins = gap % 60;
+              const isTOC = gap / 60 < 11;
+              return (
+                <div className={`rounded-xl border px-4 py-3 text-sm space-y-1 ${isTOC ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-green-50 border-green-200 text-green-800'}`}>
+                  <div className="font-medium">{isTOC ? '⚠ Time Off The Clock penalty applies' : '✓ Rest gap OK'}</div>
+                  <div className="text-xs opacity-80">
+                    Previous wrap <strong>{autoPreviousWrap}</strong> → Today's call <strong>{callTime}</strong> = rest gap <strong>{gapHrs}h{gapMins > 0 ? ` ${gapMins}m` : ''}</strong>
+                    {isTOC && ` (minimum 11h required — TOC: 1hr at OT rate added automatically)`}
                   </div>
-                );
-              })()}
-            </div>
+                </div>
+              );
+            })()}
 
             <div className="flex gap-2 flex-wrap">
               <Button variant="outline" onClick={handleReset}>
