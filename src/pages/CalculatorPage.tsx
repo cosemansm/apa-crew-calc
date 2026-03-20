@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -84,6 +85,10 @@ function TimePicker({ value, onChange, label }: { value: string; onChange: (v: s
 
 export function CalculatorPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const projectId = searchParams.get('project');
+  const projectNameFromUrl = searchParams.get('name');
+
   const [selectedRole, setSelectedRole] = useState<CrewRole | null>(null);
   const [agreedRate, setAgreedRate] = useState<string>('');
   const [dayType, setDayType] = useState<DayType>('basic_working');
@@ -105,6 +110,19 @@ export function CalculatorPage() {
   const [projectName, setProjectName] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Load project name from URL params
+  useEffect(() => {
+    if (projectNameFromUrl && !projectName) {
+      setProjectName(decodeURIComponent(projectNameFromUrl));
+    }
+    if (projectId && !projectNameFromUrl) {
+      // Load project name from Supabase
+      supabase.from('projects').select('name').eq('id', projectId).single().then(({ data }) => {
+        if (data && !projectName) setProjectName(data.name);
+      });
+    }
+  }, [projectId, projectNameFromUrl]);
 
   const dayOfWeek: DayOfWeek = useMemo(() => {
     if (isBankHoliday) return 'bank_holiday';

@@ -11,7 +11,7 @@ create table if not exists projects (
 
 alter table projects enable row level security;
 create policy "Users can manage own projects" on projects
-  for all using (auth.uid() = user_id);
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- Project days table
 create table if not exists project_days (
@@ -45,7 +45,9 @@ create table if not exists project_days (
 
 alter table project_days enable row level security;
 create policy "Users can manage own project days" on project_days
-  for all using (project_id in (select id from projects where user_id = auth.uid()));
+  for all
+  using (project_id in (select id from projects where user_id = auth.uid()))
+  with check (project_id in (select id from projects where user_id = auth.uid()));
 
 -- Favourite roles table
 create table if not exists favourite_roles (
@@ -59,4 +61,4 @@ create table if not exists favourite_roles (
 
 alter table favourite_roles enable row level security;
 create policy "Users can manage own favourites" on favourite_roles
-  for all using (auth.uid() = user_id);
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);

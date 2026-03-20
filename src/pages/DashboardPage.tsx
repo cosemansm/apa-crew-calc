@@ -92,31 +92,44 @@ export function DashboardPage() {
   const toggleFavourite = async (role: CrewRole) => {
     const existing = favourites.find(f => f.role_name === role.role);
     if (existing) {
-      await supabase.from('favourite_roles').delete().eq('id', existing.id);
-      setFavourites(prev => prev.filter(f => f.id !== existing.id));
+      const { error } = await supabase.from('favourite_roles').delete().eq('id', existing.id);
+      if (!error) {
+        setFavourites(prev => prev.filter(f => f.id !== existing.id));
+      } else {
+        console.error('Failed to remove favourite:', error);
+      }
     } else {
-      const { data } = await supabase.from('favourite_roles').insert({
+      const { data, error } = await supabase.from('favourite_roles').insert({
         user_id: user!.id,
         role_name: role.role,
         default_rate: role.maxRate,
       }).select().single();
-      if (data) setFavourites(prev => [...prev, data]);
+      if (error) {
+        console.error('Failed to add favourite:', error);
+      } else if (data) {
+        setFavourites(prev => [...prev, data]);
+      }
     }
   };
 
   const createProject = async () => {
     if (!newProjectName.trim()) return;
-    const { data } = await supabase.from('projects').insert({
+    const { data, error } = await supabase.from('projects').insert({
       user_id: user!.id,
       name: newProjectName.trim(),
       client_name: newClientName.trim() || null,
     }).select().single();
 
+    if (error) {
+      console.error('Failed to create project:', error);
+      return;
+    }
+
     if (data) {
       setShowNewProject(false);
       setNewProjectName('');
       setNewClientName('');
-      navigate(`/calculator?project=${data.id}`);
+      navigate(`/calculator?project=${data.id}&name=${encodeURIComponent(data.name)}`);
     }
   };
 
