@@ -299,7 +299,7 @@ export function CalculatorPage() {
       supabase.from('project_days')
         .select('id, work_date, role_name, grand_total, day_number, result_json')
         .eq('project_id', projectId)
-        .order('day_number', { ascending: true })
+        .order('work_date', { ascending: true })
         .then(({ data }) => {
           if (data) {
             setProjectDays(data as ProjectDaySummary[]);
@@ -398,7 +398,7 @@ export function CalculatorPage() {
     const { data } = await supabase.from('project_days')
       .select('id, work_date, role_name, grand_total, day_number, result_json')
       .eq('project_id', projId)
-      .order('day_number', { ascending: true });
+      .order('work_date', { ascending: true });
     if (data) setProjectDays(data as ProjectDaySummary[]);
   };
 
@@ -899,12 +899,9 @@ export function CalculatorPage() {
               // Build unified chronological list of all days
               const currentKey = currentDayId ?? '__new__';
               const savedOthers = projectDays.filter(d => d.id !== currentDayId);
-              const currentDaySaved = projectDays.find(d => d.id === currentDayId);
-              const currentDayNum = currentDaySaved?.day_number ?? (projectDays.length + 1);
 
               const allDays: Array<{
                 key: string;
-                day_number: number;
                 work_date: string;
                 role_name: string;
                 grand_total: number;
@@ -913,7 +910,6 @@ export function CalculatorPage() {
               }> = [
                 ...savedOthers.map(d => ({
                   key: d.id,
-                  day_number: d.day_number,
                   work_date: d.work_date,
                   role_name: d.role_name,
                   grand_total: d.grand_total,
@@ -922,7 +918,6 @@ export function CalculatorPage() {
                 })),
                 {
                   key: currentKey,
-                  day_number: currentDayNum,
                   work_date: workDate,
                   role_name: selectedRole?.role ?? '—',
                   grand_total: result.grandTotal,
@@ -937,6 +932,7 @@ export function CalculatorPage() {
                   },
                 },
               ].sort((a, b) => a.work_date.localeCompare(b.work_date));
+              // Day number = chronological position (1-based)
 
               const projectTotal = allDays.reduce((s, d) => s + (d.grand_total || 0), 0);
               const isMultiDay = allDays.length > 1;
@@ -976,7 +972,7 @@ export function CalculatorPage() {
                             )}
                             <div className="min-w-0">
                               <p className="text-sm font-medium leading-tight">
-                                Day {day.day_number}
+                                Day {idx + 1}
                                 {day.isCurrent && <span className="ml-1.5 text-xs text-primary font-normal">(editing)</span>}
                               </p>
                               <p className="text-xs text-muted-foreground truncate">
