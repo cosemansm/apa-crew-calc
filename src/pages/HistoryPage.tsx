@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react';
-import { format } from 'date-fns';
-import { History, Trash2, Eye } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { format, parseISO } from 'date-fns';
+import { History, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
-interface SavedCalculation {
+interface ProjectDay {
   id: string;
   created_at: string;
-  project_name: string;
+  work_date: string;
   role_name: string;
   department: string;
   agreed_rate: number;
@@ -19,40 +19,43 @@ interface SavedCalculation {
   call_time: string;
   wrap_time: string;
   grand_total: number;
-  result_json: Record<string, unknown>;
+  result_json: {
+    lineItems?: { description: string; total: number }[];
+    penalties?: { description: string; total: number }[];
+    travelPay?: number;
+    mileage?: number;
+    mileageMiles?: number;
+  };
+  projects: { name: string; client_name: string | null } | null;
 }
 
 export function HistoryPage() {
   const { user } = useAuth();
-  const [calculations, setCalculations] = useState<SavedCalculation[]>([]);
+  const [days, setDays] = useState<ProjectDay[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
-    loadCalculations();
+    loadDays();
   }, [user]);
 
-  const loadCalculations = async () => {
+  const loadDays = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('calculations')
-      .select('*')
-      .eq('user_id', user!.id)
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      setCalculations(data as SavedCalculation[]);
-    }
+    const { data } = await supabase
+      .from('project_days')
+      .select('*, projects(name, client_name)')
+      .order('work_date', { ascending: false });
+    if (data) setDays(data as ProjectDay[]);
     setLoading(false);
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from('calculations').delete().eq('id', id);
-    setCalculations(prev => prev.filter(c => c.id !== id));
+    await supabase.from('project_days').delete().eq('id', id);
+    setDays(prev => prev.filter(d => d.id !== id));
   };
 
-  const totalSpend = calculations.reduce((sum, c) => sum + c.grand_total, 0);
+  const totalSpend = days.reduce((sum, d) => sum + (d.grand_total || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -61,7 +64,7 @@ export function HistoryPage() {
           <History className="h-6 w-6" />
           Calculation History
         </h1>
-        {calculations.length > 0 && (
+        {days.length > 0 && (
           <Badge variant="outline" className="text-base px-4 py-1">
             Total: £{totalSpend.toFixed(2)}
           </Badge>
@@ -70,7 +73,7 @@ export function HistoryPage() {
 
       {loading ? (
         <div className="text-center py-12 text-muted-foreground">Loading...</div>
-      ) : calculations.length === 0 ? (
+      ) : days.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             No saved calculations yet. Use the calculator to create and save your first one.
@@ -78,37 +81,66 @@ export function HistoryPage() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {calculations.map(calc => (
-            <Card key={calc.id}>
+          {days.map(day => (
+            <Card key={day.id}>
               <CardContent className="py-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium">{calc.project_name}</span>
-                      <Badge variant="secondary">{calc.role_name}</Badge>
-                      <Badge variant="outline">{calc.day_type.replace(/_/g, ' ')}</Badge>
-                      <Badge variant="outline">{calc.day_of_week}</Badge>
+                      <span className="font-medium">{day.projects?.name ?? 'Untitled'}</span>
+                      {day.projects?.client_name && (
+                        <span className="text-sm text-muted-foreground">— {day.projects.client_name}</span>
+                      )}
+                      <Badge variant="secondary">{day.role_name}</Badge>
+                      <Badge variant="outline">{day.day_type.replace(/_/g, ' ')}</Badge>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {format(new Date(calc.created_at), 'dd MMM yyyy HH:mm')} | Call: {calc.call_time} - Wrap: {calc.wrap_time} | Rate: £{calc.agreed_rate}
+                      {day.work_date ? format(parseISO(day.work_date), 'dd MMM yyyy') : '—'} | Call: {day.call_time} – Wrap: {day.wrap_time} | Rate: £{day.agreed_rate}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-lg font-bold font-mono text-primary">
-                      £{calc.grand_total.toFixed(2)}
+                      £{(day.grand_total || 0).toFixed(2)}
                     </span>
-                    <Button variant="ghost" size="icon" onClick={() => setExpandedId(expandedId === calc.id ? null : calc.id)}>
-                      <Eye className="h-4 w-4" />
+                    <Button variant="ghost" size="icon" onClick={() => setExpandedId(expandedId === day.id ? null : day.id)}>
+                      {expandedId === day.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(calc.id)}>
+                    <Button variant="ghost" size="icon" onClick={() => handleDelete(day.id)}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
                 </div>
 
-                {expandedId === calc.id && calc.result_json && (
-                  <div className="mt-4 p-4 bg-muted rounded-md">
-                    <pre className="text-xs overflow-auto">{JSON.stringify(calc.result_json, null, 2)}</pre>
+                {expandedId === day.id && day.result_json && (
+                  <div className="mt-4 p-4 bg-muted/40 rounded-xl space-y-1 text-sm">
+                    {day.result_json.lineItems?.map((item, i) => (
+                      <div key={i} className="flex justify-between">
+                        <span className="text-muted-foreground">{item.description}</span>
+                        <span className="font-mono">£{item.total.toFixed(2)}</span>
+                      </div>
+                    ))}
+                    {day.result_json.penalties?.map((p, i) => (
+                      <div key={i} className="flex justify-between text-orange-600">
+                        <span>{p.description}</span>
+                        <span className="font-mono">£{p.total.toFixed(2)}</span>
+                      </div>
+                    ))}
+                    {(day.result_json.travelPay ?? 0) > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Travel</span>
+                        <span className="font-mono">£{(day.result_json.travelPay ?? 0).toFixed(2)}</span>
+                      </div>
+                    )}
+                    {(day.result_json.mileage ?? 0) > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Mileage ({day.result_json.mileageMiles} miles @ 50p)</span>
+                        <span className="font-mono">£{(day.result_json.mileage ?? 0).toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-bold pt-2 border-t border-border">
+                      <span>Total</span>
+                      <span className="font-mono text-primary">£{(day.grand_total || 0).toFixed(2)}</span>
+                    </div>
                   </div>
                 )}
               </CardContent>

@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -8,12 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Save, RotateCcw, PoundSterling, CalendarDays } from 'lucide-react';
-import { format, getDay } from 'date-fns';
+import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
+import { format, getDay, addDays, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek, type CalculationResult } from '@/data/calculation-engine';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { cn } from '@/lib/utils';
 
 const DAY_TYPES: { value: DayType; label: string }[] = [
   { value: 'basic_working', label: 'Basic Working Day (Shoot Day)' },
@@ -49,7 +50,6 @@ const MINUTES = ['00', '15', '30', '45'];
 
 function TimePicker({ value, onChange, label }: { value: string; onChange: (v: string) => void; label?: string }) {
   const [h, m] = value.split(':');
-  // Snap minute to nearest 15
   const snappedMin = MINUTES.reduce((prev, curr) =>
     Math.abs(parseInt(curr) - parseInt(m)) < Math.abs(parseInt(prev) - parseInt(m)) ? curr : prev
   );
@@ -83,11 +83,158 @@ function TimePicker({ value, onChange, label }: { value: string; onChange: (v: s
   );
 }
 
+interface ProjectDaySummary {
+  id: string;
+  work_date: string;
+  role_name: string;
+  grand_total: number;
+  day_number: number;
+}
+
+interface FullProjectDay {
+  id: string;
+  project_id: string;
+  day_number: number;
+  work_date: string;
+  role_name: string;
+  department: string;
+  agreed_rate: number;
+  day_type: string;
+  day_of_week: string;
+  call_time: string;
+  wrap_time: string;
+  result_json: Record<string, unknown>;
+  grand_total: number;
+  first_break_given: boolean;
+  first_break_time: string;
+  first_break_duration: number;
+  second_break_given: boolean;
+  second_break_time: string;
+  second_break_duration: number;
+  continuous_first_break_given: boolean;
+  continuous_additional_break_given: boolean;
+  travel_hours: number;
+  mileage: number;
+  previous_wrap: string | null;
+  is_bank_holiday: boolean;
+}
+
+function ProjectCalendar({
+  projectDays,
+  selectedDate,
+  calendarMonth,
+  onMonthChange,
+  onSelectDay,
+  onAddDate,
+}: {
+  projectDays: ProjectDaySummary[];
+  selectedDate: string;
+  calendarMonth: Date;
+  onMonthChange: (d: Date) => void;
+  onSelectDay: (dayId: string) => void;
+  onAddDate: (date: string) => void;
+}) {
+  const [hoveredDate, setHoveredDate] = useState<string | null>(null);
+
+  const monthStart = startOfMonth(calendarMonth);
+  const monthEnd = endOfMonth(calendarMonth);
+  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+  // Mon = 0, offset for Mon-start grid
+  const rawStart = getDay(monthStart);
+  const startPadding = rawStart === 0 ? 6 : rawStart - 1;
+
+  const bookedDates = new Set(projectDays.map(d => d.work_date));
+  const dayByDate = Object.fromEntries(projectDays.map(d => [d.work_date, d]));
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between mb-1">
+        <button
+          onClick={() => onMonthChange(subMonths(calendarMonth, 1))}
+          className="p-1 rounded-lg hover:bg-muted transition-colors"
+        >
+          <ChevronLeft className="h-3.5 w-3.5" />
+        </button>
+        <span className="text-xs font-semibold">{format(calendarMonth, 'MMMM yyyy')}</span>
+        <button
+          onClick={() => onMonthChange(addMonths(calendarMonth, 1))}
+          className="p-1 rounded-lg hover:bg-muted transition-colors"
+        >
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-px">
+        {['M','T','W','T','F','S','S'].map((d, i) => (
+          <div key={i} className="text-center text-[10px] text-muted-foreground py-0.5">{d}</div>
+        ))}
+        {Array.from({ length: startPadding }, (_, i) => <div key={`pad-${i}`} />)}
+        {days.map(day => {
+          const dateStr = format(day, 'yyyy-MM-dd');
+          const isBooked = bookedDates.has(dateStr);
+          const isSelected = dateStr === selectedDate;
+          const isHovered = hoveredDate === dateStr;
+
+          return (
+            <div
+              key={dateStr}
+              className="relative aspect-square flex items-center justify-center"
+              onMouseEnter={() => setHoveredDate(dateStr)}
+              onMouseLeave={() => setHoveredDate(null)}
+            >
+              <button
+                onClick={() => {
+                  if (isBooked) {
+                    onSelectDay(dayByDate[dateStr].id);
+                  } else {
+                    onAddDate(dateStr);
+                  }
+                }}
+                title={isBooked ? `${dayByDate[dateStr].role_name} — £${(dayByDate[dateStr].grand_total || 0).toFixed(0)}` : 'Add day'}
+                className={cn(
+                  'w-full h-full flex items-center justify-center rounded-full text-[11px] transition-all',
+                  isBooked && isSelected
+                    ? 'bg-primary text-primary-foreground ring-2 ring-primary ring-offset-1 font-bold'
+                    : isBooked
+                    ? 'bg-primary/80 text-primary-foreground font-semibold'
+                    : isSelected
+                    ? 'bg-muted font-semibold'
+                    : isHovered
+                    ? 'bg-muted/70'
+                    : '',
+                )}
+              >
+                {isBooked && isHovered ? (
+                  <Pencil className="h-2.5 w-2.5" />
+                ) : !isBooked && isHovered ? (
+                  <Plus className="h-3 w-3 text-primary" />
+                ) : (
+                  format(day, 'd')
+                )}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      {projectDays.length > 0 && (
+        <div className="mt-2 pt-2 border-t border-border text-xs text-muted-foreground flex justify-between">
+          <span>{projectDays.length} day{projectDays.length !== 1 ? 's' : ''} booked</span>
+          <span className="font-mono font-medium text-foreground">
+            £{projectDays.reduce((s, d) => s + (d.grand_total || 0), 0).toFixed(0)}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CalculatorPage() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const projectId = searchParams.get('project');
   const projectNameFromUrl = searchParams.get('name');
+  const navigate = useNavigate();
 
   const [selectedRole, setSelectedRole] = useState<CrewRole | null>(null);
   const [agreedRate, setAgreedRate] = useState<string>('');
@@ -110,16 +257,48 @@ export function CalculatorPage() {
   const [projectName, setProjectName] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [favouriteRoles, setFavouriteRoles] = useState<string[]>([]);
 
-  // Load project name from URL params
+  // Track which saved day we're currently editing (null = new day)
+  const [currentDayId, setCurrentDayId] = useState<string | null>(null);
+  const [projectDays, setProjectDays] = useState<ProjectDaySummary[]>([]);
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
+
+  // Load favourites
+  useEffect(() => {
+    if (user) {
+      supabase.from('favourite_roles').select('role_name').eq('user_id', user.id)
+        .then(({ data }) => { if (data) setFavouriteRoles(data.map(f => f.role_name)); });
+    }
+  }, [user]);
+
+  // Load project days & auto-load last day when entering a project
+  useEffect(() => {
+    if (projectId) {
+      supabase.from('project_days')
+        .select('id, work_date, role_name, grand_total, day_number')
+        .eq('project_id', projectId)
+        .order('day_number', { ascending: true })
+        .then(({ data }) => {
+          if (data) {
+            setProjectDays(data);
+            // If there are saved days, auto-load the most recent one
+            if (data.length > 0) {
+              const lastDay = data[data.length - 1];
+              loadDayById(lastDay.id);
+            }
+          }
+        });
+    }
+  }, [projectId]);
+
+  // Load project name
   useEffect(() => {
     if (projectNameFromUrl && !projectName) {
       setProjectName(decodeURIComponent(projectNameFromUrl));
-    }
-    if (projectId && !projectNameFromUrl) {
-      // Load project name from Supabase
+    } else if (projectId && !projectNameFromUrl && !projectName) {
       supabase.from('projects').select('name').eq('id', projectId).single().then(({ data }) => {
-        if (data && !projectName) setProjectName(data.name);
+        if (data) setProjectName(data.name);
       });
     }
   }, [projectId, projectNameFromUrl]);
@@ -163,7 +342,47 @@ export function CalculatorPage() {
     }
   };
 
+  const loadDayIntoForm = (day: FullProjectDay) => {
+    setCurrentDayId(day.id);
+    setWorkDate(day.work_date);
+    setIsBankHoliday(day.is_bank_holiday ?? false);
+    setDayType(day.day_type as DayType);
+    setCallTime(day.call_time);
+    setWrapTime(day.wrap_time);
+    setFirstBreakGiven(day.first_break_given ?? true);
+    setFirstBreakTime(day.first_break_time || '13:00');
+    setFirstBreakDuration(String(day.first_break_duration ?? 60));
+    setSecondBreakGiven(day.second_break_given ?? true);
+    setSecondBreakTime(day.second_break_time || '18:30');
+    setSecondBreakDuration(String(day.second_break_duration ?? 30));
+    setContinuousFirstBreakGiven(day.continuous_first_break_given ?? true);
+    setContinuousAdditionalBreakGiven(day.continuous_additional_break_given ?? true);
+    setTravelHours(String(day.travel_hours ?? 0));
+    setMileage(String(day.mileage ?? 0));
+    setPreviousWrap(day.previous_wrap ?? '');
+    const role = APA_CREW_ROLES.find(r => r.role === day.role_name);
+    if (role) {
+      setSelectedRole(role);
+      setAgreedRate(String(day.agreed_rate));
+    }
+    setSaveSuccess(false);
+  };
+
+  const loadDayById = async (dayId: string) => {
+    const { data } = await supabase.from('project_days').select('*').eq('id', dayId).single();
+    if (data) loadDayIntoForm(data as FullProjectDay);
+  };
+
+  const refreshProjectDays = async (projId: string) => {
+    const { data } = await supabase.from('project_days')
+      .select('id, work_date, role_name, grand_total, day_number')
+      .eq('project_id', projId)
+      .order('day_number', { ascending: true });
+    if (data) setProjectDays(data);
+  };
+
   const handleReset = () => {
+    setCurrentDayId(null);
     setSelectedRole(null);
     setAgreedRate('');
     setDayType('basic_working');
@@ -182,17 +401,28 @@ export function CalculatorPage() {
     setTravelHours('0');
     setMileage('0');
     setPreviousWrap('');
-    setProjectName('');
   };
 
-  const handleSave = async () => {
-    if (!result || !user || !selectedRole) return;
+  const handleSave = async (): Promise<string | null> => {
+    if (!result || !user || !selectedRole) return null;
     setSaving(true);
     setSaveSuccess(false);
 
-    const { error } = await supabase.from('calculations').insert({
-      user_id: user.id,
-      project_name: projectName || 'Untitled',
+    // Resolve or create a project
+    let resolvedProjectId = projectId;
+    if (!resolvedProjectId) {
+      const { data: proj, error: projError } = await supabase.from('projects').insert({
+        user_id: user.id,
+        name: projectName || 'Untitled',
+        client_name: null,
+      }).select().single();
+      if (projError || !proj) { setSaving(false); return null; }
+      resolvedProjectId = proj.id;
+    }
+
+    const payload = {
+      project_id: resolvedProjectId,
+      work_date: workDate,
       role_name: selectedRole.role,
       department: selectedRole.department,
       agreed_rate: parseInt(agreedRate),
@@ -202,10 +432,57 @@ export function CalculatorPage() {
       wrap_time: wrapTime,
       result_json: result,
       grand_total: result.grandTotal,
-    });
+      first_break_given: firstBreakGiven,
+      first_break_time: firstBreakTime,
+      first_break_duration: parseInt(firstBreakDuration),
+      second_break_given: secondBreakGiven,
+      second_break_time: secondBreakTime,
+      second_break_duration: parseInt(secondBreakDuration),
+      continuous_first_break_given: continuousFirstBreakGiven,
+      continuous_additional_break_given: continuousAdditionalBreakGiven,
+      travel_hours: parseFloat(travelHours),
+      mileage: parseFloat(mileage),
+      previous_wrap: previousWrap || null,
+      is_bank_holiday: isBankHoliday,
+    };
+
+    let savedId: string | null = null;
+
+    if (currentDayId) {
+      // UPDATE existing day
+      const { error } = await supabase.from('project_days').update(payload).eq('id', currentDayId);
+      if (!error) savedId = currentDayId;
+    } else {
+      // INSERT new day
+      const { count } = await supabase.from('project_days')
+        .select('*', { count: 'exact', head: true })
+        .eq('project_id', resolvedProjectId);
+      const { data, error } = await supabase.from('project_days').insert({
+        ...payload,
+        day_number: (count ?? 0) + 1,
+      }).select('id').single();
+      if (!error && data) {
+        savedId = data.id;
+        setCurrentDayId(data.id);
+      }
+    }
 
     setSaving(false);
-    if (!error) setSaveSuccess(true);
+    if (savedId) {
+      setSaveSuccess(true);
+      await refreshProjectDays(resolvedProjectId);
+    }
+    return savedId;
+  };
+
+  const handleAddDay = async () => {
+    if (!result || !user || !selectedRole) return;
+    await handleSave();
+    // Clear editing state and advance to next day
+    setCurrentDayId(null);
+    const nextDate = format(addDays(parseISO(workDate), 1), 'yyyy-MM-dd');
+    setWorkDate(nextDate);
+    setSaveSuccess(false);
   };
 
   return (
@@ -217,6 +494,9 @@ export function CalculatorPage() {
             <CardTitle className="flex items-center gap-2">
               <PoundSterling className="h-5 w-5" />
               Crew Rate Calculator
+              {currentDayId && (
+                <Badge variant="outline" className="ml-2 text-xs font-normal">Editing saved day</Badge>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -237,16 +517,35 @@ export function CalculatorPage() {
                     <SelectValue placeholder="Select a role..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {DEPARTMENTS.map(dept => (
-                      <SelectGroup key={dept}>
-                        <SelectLabel>{dept}</SelectLabel>
-                        {getRolesByDepartment(dept).map(role => (
-                          <SelectItem key={role.role} value={role.role}>
-                            {role.role}
-                          </SelectItem>
-                        ))}
+                    {favouriteRoles.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel className="flex items-center gap-1">
+                          <Star className="h-3 w-3 fill-amber-500 text-amber-500" /> Favourites
+                        </SelectLabel>
+                        {favouriteRoles.map(roleName => {
+                          const role = APA_CREW_ROLES.find(r => r.role === roleName);
+                          return role ? (
+                            <SelectItem key={`fav-${role.role}`} value={role.role}>
+                              {role.role}
+                            </SelectItem>
+                          ) : null;
+                        })}
                       </SelectGroup>
-                    ))}
+                    )}
+                    {DEPARTMENTS.map(dept => {
+                      const deptRoles = getRolesByDepartment(dept).filter(r => !favouriteRoles.includes(r.role));
+                      if (deptRoles.length === 0) return null;
+                      return (
+                        <SelectGroup key={dept}>
+                          <SelectLabel>{dept}</SelectLabel>
+                          {deptRoles.map(role => (
+                            <SelectItem key={role.role} value={role.role}>
+                              {role.role}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -494,14 +793,22 @@ export function CalculatorPage() {
               })()}
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Button variant="outline" onClick={handleReset}>
                 <RotateCcw className="h-4 w-4 mr-1" /> Reset
               </Button>
               {result && (
-                <Button onClick={handleSave} disabled={saving}>
-                  <Save className="h-4 w-4 mr-1" /> {saving ? 'Saving...' : saveSuccess ? 'Saved!' : 'Save Calculation'}
-                </Button>
+                <>
+                  <Button onClick={handleSave} disabled={saving}>
+                    <Save className="h-4 w-4 mr-1" />
+                    {saving ? 'Saving...' : saveSuccess ? 'Saved!' : currentDayId ? 'Update Day' : 'Save Day'}
+                  </Button>
+                  {projectId && (
+                    <Button variant="secondary" onClick={handleAddDay} disabled={saving}>
+                      <Plus className="h-4 w-4 mr-1" /> Add Next Day
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </CardContent>
@@ -509,7 +816,33 @@ export function CalculatorPage() {
       </div>
 
       {/* Results Panel */}
-      <div className="space-y-6">
+      <div className="space-y-4">
+        {/* Project Calendar */}
+        {projectId && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                <CalendarDays className="h-4 w-4" /> Project Days
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <ProjectCalendar
+                projectDays={projectDays}
+                selectedDate={workDate}
+                calendarMonth={calendarMonth}
+                onMonthChange={setCalendarMonth}
+                onSelectDay={loadDayById}
+                onAddDate={(date) => {
+                  setCurrentDayId(null);
+                  setWorkDate(date);
+                  setSaveSuccess(false);
+                }}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Cost Breakdown */}
         <Card className="sticky top-20">
           <CardHeader>
             <CardTitle>Cost Breakdown</CardTitle>
@@ -574,6 +907,16 @@ export function CalculatorPage() {
                   <span>Total</span>
                   <span className="font-mono text-primary">£{result.grandTotal.toFixed(2)}</span>
                 </div>
+
+                {saveSuccess && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => navigate('/invoices', { state: { dayId: currentDayId } })}
+                  >
+                    <InvoiceIcon className="h-4 w-4 mr-2" /> Convert to Invoice
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>

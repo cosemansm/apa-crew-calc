@@ -48,6 +48,7 @@ export function DashboardPage() {
   const [newProjectName, setNewProjectName] = useState('');
   const [newClientName, setNewClientName] = useState('');
   const [loading, setLoading] = useState(true);
+  const [projectError, setProjectError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -114,6 +115,7 @@ export function DashboardPage() {
 
   const createProject = async () => {
     if (!newProjectName.trim()) return;
+    setProjectError(null);
     const { data, error } = await supabase.from('projects').insert({
       user_id: user!.id,
       name: newProjectName.trim(),
@@ -121,7 +123,7 @@ export function DashboardPage() {
     }).select().single();
 
     if (error) {
-      console.error('Failed to create project:', error);
+      setProjectError(`Error: ${error.message} (code: ${error.code})`);
       return;
     }
 
@@ -193,6 +195,9 @@ export function DashboardPage() {
                 <Input placeholder="e.g. Nike UK" value={newClientName} onChange={e => setNewClientName(e.target.value)} />
               </div>
             </div>
+            {projectError && (
+              <p className="text-sm text-red-500 mt-3">{projectError}</p>
+            )}
             <div className="flex gap-2 mt-4">
               <Button onClick={createProject} disabled={!newProjectName.trim()}>Create & Open Calculator</Button>
               <Button variant="outline" onClick={() => setShowNewProject(false)}>Cancel</Button>

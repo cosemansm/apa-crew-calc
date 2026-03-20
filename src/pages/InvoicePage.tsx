@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
-import { format } from 'date-fns';
-import { FileText, Download, Printer } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { format, parseISO } from 'date-fns';
+import { FileText, Printer } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,12 +10,10 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
-interface SavedCalc {
+interface ProjectDay {
   id: string;
-  created_at: string;
-  project_name: string;
+  work_date: string;
   role_name: string;
-  agreed_rate: number;
   day_type: string;
   day_of_week: string;
   call_time: string;
@@ -26,11 +25,13 @@ interface SavedCalc {
     travelPay?: number;
     mileage?: number;
   };
+  projects: { name: string; client_name: string | null } | null;
 }
 
 export function InvoicePage() {
   const { user } = useAuth();
-  const [calculations, setCalculations] = useState<SavedCalc[]>([]);
+  const location = useLocation();
+  const [days, setDays] = useState<ProjectDay[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [invoiceNumber, setInvoiceNumber] = useState(`INV-${Date.now().toString(36).toUpperCase()}`);
   const [companyName, setCompanyName] = useState('');
@@ -43,21 +44,34 @@ export function InvoicePage() {
   useEffect(() => {
     if (!user) return;
     supabase
-      .from('calculations')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
+      .from('project_days')
+      .select('*, projects(name, client_name)')
+      .order('work_date', { ascending: false })
       .then(({ data }) => {
-        if (data) setCalculations(data as SavedCalc[]);
+        if (data) {
+          setDays(data as ProjectDay[]);
+          // If navigated here with a pre-selected day id
+          const preselect = (location.state as { dayId?: string } | null)?.dayId;
+          if (preselect) setSelected([preselect]);
+        }
       });
+
+    // Load user settings for pre-fill
+    supabase.from('user_settings').select('*').eq('user_id', user.id).single().then(({ data }) => {
+      if (data) {
+        if (data.company_name) setCompanyName(data.company_name);
+        if (data.company_address) setCompanyAddress(data.company_address);
+        if (data.bank_account_name && data.bank_sort_code && data.bank_account_number) {
+          setBankDetails(`${data.bank_account_name} | Sort: ${data.bank_sort_code} | Acc: ${data.bank_account_number}`);
+        }
+      }
+    });
   }, [user]);
 
-  const selectedCalcs = calculations.filter(c => selected.includes(c.id));
-  const totalAmount = selectedCalcs.reduce((sum, c) => sum + c.grand_total, 0);
+  const selectedDays = days.filter(d => selected.includes(d.id));
+  const totalAmount = selectedDays.reduce((sum, d) => sum + (d.grand_total || 0), 0);
 
-  const handlePrint = () => {
-    window.print();
-  };
+  const handlePrint = () => window.print();
 
   return (
     <div className="space-y-6">
@@ -67,11 +81,10 @@ export function InvoicePage() {
       </h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Invoice Config */}
         <Card>
           <CardHeader>
             <CardTitle>Invoice Details</CardTitle>
-            <CardDescription>Fill in your details and select calculations to include</CardDescription>
+            <CardDescription>Fill in your details and select days to include</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -111,33 +124,34 @@ export function InvoicePage() {
 
             <div className="space-y-2">
               <Label>Bank Details</Label>
-              <Input value={bankDetails} onChange={e => setBankDetails(e.target.value)} placeholder="Sort: 12-34-56, Acc: 12345678" />
+              <Input value={bankDetails} onChange={e => setBankDetails(e.target.value)} placeholder="Account Name | Sort: 12-34-56 | Acc: 12345678" />
             </div>
 
             <Separator />
 
             <div className="space-y-2">
-              <Label>Select Calculations to Include</Label>
-              {calculations.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No saved calculations. Save one from the calculator first.</p>
+              <Label>Select Days to Include</Label>
+              {days.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No saved days yet. Save a calculation first.</p>
               ) : (
                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {calculations.map(calc => (
-                    <label key={calc.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer">
+                  {days.map(day => (
+                    <label key={day.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-muted cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={selected.includes(calc.id)}
+                        checked={selected.includes(day.id)}
                         onChange={e => {
-                          if (e.target.checked) setSelected([...selected, calc.id]);
-                          else setSelected(selected.filter(id => id !== calc.id));
+                          if (e.target.checked) setSelected([...selected, day.id]);
+                          else setSelected(selected.filter(id => id !== day.id));
                         }}
                         className="rounded"
                       />
                       <div className="flex-1 text-sm">
-                        <span className="font-medium">{calc.project_name}</span>
-                        <span className="text-muted-foreground"> - {calc.role_name} ({calc.day_of_week})</span>
+                        <span className="font-medium">{day.projects?.name ?? 'Untitled'}</span>
+                        <span className="text-muted-foreground"> — {day.role_name}</span>
+                        {day.work_date && <span className="text-muted-foreground"> ({format(parseISO(day.work_date), 'dd MMM')})</span>}
                       </div>
-                      <span className="font-mono text-sm">£{calc.grand_total.toFixed(2)}</span>
+                      <span className="font-mono text-sm">£{(day.grand_total || 0).toFixed(2)}</span>
                     </label>
                   ))}
                 </div>
@@ -146,22 +160,19 @@ export function InvoicePage() {
           </CardContent>
         </Card>
 
-        {/* Invoice Preview */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Preview</CardTitle>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handlePrint}>
-                <Printer className="h-4 w-4 mr-1" /> Print
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" onClick={handlePrint}>
+              <Printer className="h-4 w-4 mr-1" /> Print
+            </Button>
           </CardHeader>
           <CardContent>
             <div ref={printRef} className="space-y-6 text-sm print:text-xs">
               <div className="flex justify-between">
                 <div>
                   <p className="font-bold text-lg">{companyName || 'Your Company'}</p>
-                  <p className="text-muted-foreground">{companyAddress}</p>
+                  <p className="text-muted-foreground whitespace-pre-line">{companyAddress}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-bold text-lg">INVOICE</p>
@@ -178,7 +189,7 @@ export function InvoicePage() {
 
               <Separator />
 
-              {selectedCalcs.length > 0 ? (
+              {selectedDays.length > 0 ? (
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
@@ -188,21 +199,21 @@ export function InvoicePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedCalcs.map(calc => (
-                      <tr key={calc.id} className="border-b">
+                    {selectedDays.map(day => (
+                      <tr key={day.id} className="border-b">
                         <td className="py-2">
-                          <p className="font-medium">{calc.project_name}</p>
+                          <p className="font-medium">{day.projects?.name ?? 'Untitled'}</p>
                           <p className="text-muted-foreground">
-                            {calc.role_name} - {calc.day_type.replace(/_/g, ' ')} ({calc.day_of_week})
+                            {day.role_name} — {day.day_type.replace(/_/g, ' ')}
                           </p>
                           <p className="text-muted-foreground">
-                            Call: {calc.call_time} - Wrap: {calc.wrap_time}
+                            Call: {day.call_time} – Wrap: {day.wrap_time}
                           </p>
                         </td>
                         <td className="py-2 text-muted-foreground">
-                          {format(new Date(calc.created_at), 'dd/MM/yy')}
+                          {day.work_date ? format(parseISO(day.work_date), 'dd/MM/yy') : '—'}
                         </td>
-                        <td className="py-2 text-right font-mono">£{calc.grand_total.toFixed(2)}</td>
+                        <td className="py-2 text-right font-mono">£{(day.grand_total || 0).toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -214,16 +225,15 @@ export function InvoicePage() {
                   </tfoot>
                 </table>
               ) : (
-                <p className="text-muted-foreground text-center py-8">Select calculations to include in the invoice</p>
+                <p className="text-muted-foreground text-center py-8">Select days to include in the invoice</p>
               )}
 
               <Separator />
 
               <div className="text-xs text-muted-foreground space-y-1">
-                <p>Payment terms: 7 days from receipt</p>
+                <p>Payment terms: 30 days from receipt</p>
                 {bankDetails && <p>Bank details: {bankDetails}</p>}
                 <p>Rates as per APA Recommended Terms for Engaging Crew on Commercials (Effective 1st September 2025)</p>
-                <p>Holiday pay (12.07%) included in all calculations as per statutory entitlement.</p>
               </div>
             </div>
           </CardContent>

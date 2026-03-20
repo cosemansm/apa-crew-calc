@@ -1,6 +1,6 @@
-import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Calculator, History, FileText, LogOut, Sparkles, Menu, X, LayoutDashboard } from 'lucide-react';
-import { useState } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Calculator, History, FileText, LogOut, Sparkles, Menu, X, LayoutDashboard, Settings, User } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -16,11 +16,23 @@ const navItems = [
 export function AppLayout() {
   const { user, signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <div className="min-h-screen">
-      {/* Header */}
       <header className="glass-header sticky top-0 z-50">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link to="/dashboard" className="flex items-center gap-2">
@@ -28,7 +40,6 @@ export function AppLayout() {
             <span className="text-xl font-bold tracking-tight">CrewRate</span>
           </Link>
 
-          {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-1 rounded-2xl bg-white/30 backdrop-blur-sm p-1 border border-white/20">
             {navItems.map(({ path, label, icon: Icon }) => (
               <Link key={path} to={path}>
@@ -48,12 +59,43 @@ export function AppLayout() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <span className="hidden sm:inline text-sm text-muted-foreground">
-              {user?.email}
-            </span>
-            <Button variant="ghost" size="icon" onClick={signOut} title="Sign out" className="rounded-xl">
-              <LogOut className="h-4 w-4" />
-            </Button>
+            {/* User menu */}
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center gap-2 rounded-xl px-3 py-1.5 text-sm hover:bg-white/30 transition-colors border border-white/20 bg-white/10 backdrop-blur-sm"
+              >
+                <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center">
+                  <User className="h-4 w-4 text-primary" />
+                </div>
+                <span className="hidden sm:inline text-sm text-muted-foreground max-w-[140px] truncate">
+                  {user?.email}
+                </span>
+              </button>
+
+              {userMenuOpen && (
+                <div className="absolute right-0 top-10 w-52 rounded-2xl border border-white/20 bg-white/80 backdrop-blur-xl shadow-xl py-1 z-50">
+                  <div className="px-4 py-2 border-b border-border/40">
+                    <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                  </div>
+                  <button
+                    onClick={() => { setUserMenuOpen(false); navigate('/settings'); }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-white/60 transition-colors"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Settings
+                  </button>
+                  <button
+                    onClick={() => { setUserMenuOpen(false); signOut(); }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-destructive hover:bg-white/60 transition-colors"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
+
             <Button
               variant="ghost"
               size="icon"
@@ -65,7 +107,6 @@ export function AppLayout() {
           </div>
         </div>
 
-        {/* Mobile nav */}
         {mobileMenuOpen && (
           <div className="md:hidden p-4 space-y-1 border-t border-white/20">
             {navItems.map(({ path, label, icon: Icon }) => (
@@ -79,11 +120,16 @@ export function AppLayout() {
                 </Button>
               </Link>
             ))}
+            <Link to="/settings" onClick={() => setMobileMenuOpen(false)}>
+              <Button variant="ghost" className="w-full justify-start rounded-xl">
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </Button>
+            </Link>
           </div>
         )}
       </header>
 
-      {/* Main content */}
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
         <Outlet />
       </main>

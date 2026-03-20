@@ -7,6 +7,7 @@ import { CalculatorPage } from '@/pages/CalculatorPage';
 import { AIInputPage } from '@/pages/AIInputPage';
 import { HistoryPage } from '@/pages/HistoryPage';
 import { InvoicePage } from '@/pages/InvoicePage';
+import { SettingsPage } from '@/pages/SettingsPage';
 import type { ReactNode } from 'react';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -35,6 +36,7 @@ export default function App() {
             <Route path="/ai-input" element={<AIInputPage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/invoices" element={<InvoicePage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
