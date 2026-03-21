@@ -250,7 +250,7 @@ export function DashboardPage() {
                     <div
                       key={date.toISOString()}
                       className={`min-h-[60px] rounded-xl p-1.5 text-sm transition-all ${
-                        isToday ? 'bg-primary/10 ring-1 ring-primary/30' : 'hover:bg-white/40'
+                        isToday ? 'bg-primary/10 ring-1 ring-primary/30' : 'hover:bg-muted'
                       }`}
                     >
                       <span className={`text-xs ${isToday ? 'font-bold text-primary' : 'text-muted-foreground'}`}>
@@ -350,7 +350,7 @@ export function DashboardPage() {
                   {favourites.map(fav => {
                     const role = APA_CREW_ROLES.find(r => r.role === fav.role_name);
                     return (
-                      <div key={fav.id} className="flex items-center justify-between rounded-xl bg-white/30 px-3 py-2">
+                      <div key={fav.id} className="flex items-center justify-between rounded-xl bg-muted px-3 py-2">
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">{fav.role_name}</p>
                           <p className="text-xs text-muted-foreground">{role?.department} | £{fav.default_rate || role?.maxRate || '—'}</p>
@@ -373,7 +373,7 @@ export function DashboardPage() {
                     {getRolesByDepartment(dept).map(role => (
                       <div
                         key={role.role}
-                        className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-white/30 transition-colors"
+                        className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-muted transition-colors"
                       >
                         <span className="text-sm truncate">{role.role}</span>
                         <Button

@@ -805,8 +805,8 @@ export function CalculatorPage() {
     <>
     {/* Within-page unsaved warning (switching days in calendar) */}
     {pendingDayId && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-        <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30 p-6 max-w-sm w-full mx-4 space-y-4">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="bg-white rounded-2xl shadow-2xl border border-border p-6 max-w-sm w-full mx-4 space-y-4">
           <div className="space-y-1">
             <h2 className="text-base font-semibold">Unsaved changes</h2>
             <p className="text-sm text-muted-foreground">
@@ -860,7 +860,7 @@ export function CalculatorPage() {
                     <FolderOpen className="h-4 w-4" />
                   </Button>
                   {showProjectPicker && (
-                    <div className="absolute right-0 top-11 w-72 rounded-2xl border border-white/20 bg-white/90 backdrop-blur-xl shadow-xl z-50 overflow-hidden">
+                    <div className="absolute right-0 top-11 w-72 rounded-2xl border border-border bg-white shadow-xl z-50 overflow-hidden">
                       <div className="px-4 py-2.5 border-b border-border/40">
                         <p className="text-xs font-semibold text-muted-foreground">Switch to project</p>
                       </div>
