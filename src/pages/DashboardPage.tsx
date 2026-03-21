@@ -474,7 +474,7 @@ export function DashboardPage() {
                   );
                 })}
                 {/* Bars */}
-                <div className="absolute inset-x-0 bottom-0 flex items-end gap-2" style={{ height: `${BAR_PX + 18}px` }}>
+                <div className="absolute left-0 right-9 bottom-0 flex items-end gap-2" style={{ height: `${BAR_PX + 18}px` }}>
                   {monthlyBreakdown.map((m, idx) => {
                     const barPx = Math.max((m.total / chartMax) * BAR_PX, m.total > 0 ? 5 : 2);
                     return (
