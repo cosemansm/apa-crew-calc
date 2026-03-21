@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Calculator, History, FileText, LogOut, Sparkles, Menu, X, LayoutDashboard, Settings, User, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calculator, History, FileText, LogOut, Sparkles, Menu, X, LayoutDashboard, Settings, User, ChevronLeft, ChevronRight, FolderOpen } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/calculator', label: 'Calculator', icon: Calculator },
+  { path: '/projects', label: 'Projects', icon: FolderOpen },
   { path: '/ai-input', label: 'AI Input', icon: Sparkles },
   { path: '/history', label: 'History', icon: History },
   { path: '/invoices', label: 'Invoices', icon: FileText },

@@ -428,7 +428,17 @@ export function DashboardPage() {
 
       {/* Projects */}
       <div>
-        <h2 className="text-lg font-semibold mb-3">Projects</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold">Recent Projects</h2>
+          {projects.length > 0 && (
+            <button
+              onClick={() => navigate('/projects')}
+              className="text-sm text-muted-foreground hover:text-foreground font-medium transition-colors flex items-center gap-1"
+            >
+              View all {projects.length > 6 ? `(${projects.length})` : ''} →
+            </button>
+          )}
+        </div>
         {loading ? (
           <div className="text-muted-foreground text-sm">Loading projects...</div>
         ) : projects.length === 0 ? (
@@ -442,47 +452,57 @@ export function DashboardPage() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {projects.map(project => {
-              const totalCost = project.days.reduce((sum, d) => sum + (d.grand_total || 0), 0);
-              const sortedDays = [...project.days].sort((a, b) => a.work_date.localeCompare(b.work_date));
-              const dateRange = sortedDays.length > 0
-                ? `${format(parseISO(sortedDays[0].work_date), 'dd MMM')}${sortedDays.length > 1 ? ` – ${format(parseISO(sortedDays[sortedDays.length - 1].work_date), 'dd MMM')}` : ''}`
-                : 'No days added';
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {projects.slice(0, 6).map(project => {
+                const totalCost = project.days.reduce((sum, d) => sum + (d.grand_total || 0), 0);
+                const sortedDays = [...project.days].sort((a, b) => a.work_date.localeCompare(b.work_date));
+                const dateRange = sortedDays.length > 0
+                  ? `${format(parseISO(sortedDays[0].work_date), 'dd MMM')}${sortedDays.length > 1 ? ` – ${format(parseISO(sortedDays[sortedDays.length - 1].work_date), 'dd MMM')}` : ''}`
+                  : 'No days added';
 
-              return (
-                <Card
-                  key={project.id}
-                  className="cursor-pointer hover:scale-[1.01] hover:shadow-lg transition-all duration-200"
-                  onClick={() => navigate(`/calculator?project=${project.id}`)}
-                >
-                  <CardContent className="p-5">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">{project.name}</h3>
-                        {project.client_name && (
-                          <p className="text-sm text-muted-foreground truncate">{project.client_name}</p>
-                        )}
+                return (
+                  <Card
+                    key={project.id}
+                    className="cursor-pointer hover:scale-[1.01] hover:shadow-lg transition-all duration-200"
+                    onClick={() => navigate(`/calculator?project=${project.id}`)}
+                  >
+                    <CardContent className="p-5">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold truncate">{project.name}</h3>
+                          {project.client_name && (
+                            <p className="text-sm text-muted-foreground truncate">{project.client_name}</p>
+                          )}
+                        </div>
+                        <Badge variant="outline" className="ml-2 shrink-0">
+                          {project.days.length} day{project.days.length !== 1 ? 's' : ''}
+                        </Badge>
                       </div>
-                      <Badge variant="outline" className="ml-2 shrink-0">
-                        {project.days.length} day{project.days.length !== 1 ? 's' : ''}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" />
-                        {dateRange}
-                      </span>
-                      <span className="flex items-center gap-1 font-medium text-foreground">
-                        <PoundSterling className="h-3.5 w-3.5" />
-                        {totalCost > 0 ? `£${totalCost.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '—'}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                      <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5" />
+                          {dateRange}
+                        </span>
+                        <span className="flex items-center gap-1 font-medium text-foreground">
+                          <PoundSterling className="h-3.5 w-3.5" />
+                          {totalCost > 0 ? `£${totalCost.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '—'}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+            {projects.length > 6 && (
+              <button
+                onClick={() => navigate('/projects')}
+                className="mt-3 w-full rounded-xl border border-dashed border-border py-3 text-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+              >
+                + {projects.length - 6} more project{projects.length - 6 !== 1 ? 's' : ''} — View all
+              </button>
+            )}
+          </>
         )}
       </div>
 
