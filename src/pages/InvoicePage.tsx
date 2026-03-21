@@ -43,6 +43,7 @@ export function InvoicePage() {
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [invoiceNumber, setInvoiceNumber] = useState(`INV-${Date.now().toString(36).toUpperCase()}`);
+  const [jobReference, setJobReference] = useState('');
 
   // From / To details
   const [companyName, setCompanyName] = useState('');
@@ -246,6 +247,12 @@ export function InvoicePage() {
               </div>
             </div>
 
+            {/* Job reference */}
+            <div className="space-y-2">
+              <Label>Job Reference <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input value={jobReference} onChange={e => setJobReference(e.target.value)} placeholder="e.g. PO-1234, Ref: ABC" />
+            </div>
+
             <Separator />
 
             {/* From */}
@@ -381,10 +388,20 @@ export function InvoicePage() {
                 {clientAddress && <p className="text-muted-foreground">{clientAddress}</p>}
               </div>
 
-              {selectedProject && (
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Project</p>
-                  <p className="font-medium">{selectedProject.name}</p>
+              {(selectedProject || jobReference) && (
+                <div className="flex gap-8">
+                  {selectedProject && (
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Project</p>
+                      <p className="font-medium">{selectedProject.name}</p>
+                    </div>
+                  )}
+                  {jobReference && (
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Job Reference</p>
+                      <p className="font-medium">{jobReference}</p>
+                    </div>
+                  )}
                 </div>
               )}
 

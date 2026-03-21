@@ -191,6 +191,7 @@ export function SettingsPage() {
 
   const [companyName, setCompanyName] = useState('');
   const [companyAddress, setCompanyAddress] = useState('');
+  const [vatNumber, setVatNumber] = useState('');
   const [bankAccountName, setBankAccountName] = useState('');
   const [bankSortCode, setBankSortCode] = useState('');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
@@ -209,6 +210,7 @@ export function SettingsPage() {
         setAddress(data.address ?? '');
         setCompanyName(data.company_name ?? '');
         setCompanyAddress(data.company_address ?? '');
+        setVatNumber(data.vat_number ?? '');
         setBankAccountName(data.bank_account_name ?? '');
         setBankSortCode(data.bank_sort_code ?? '');
         setBankAccountNumber(data.bank_account_number ?? '');
@@ -245,6 +247,7 @@ export function SettingsPage() {
       address,
       company_name: companyName,
       company_address: companyAddress,
+      vat_number: vatNumber,
       bank_account_name: bankAccountName,
       bank_sort_code: bankSortCode,
       bank_account_number: bankAccountNumber,
@@ -336,6 +339,10 @@ export function SettingsPage() {
           <div className="space-y-2">
             <Label>Company Address</Label>
             <Input value={companyAddress} onChange={e => setCompanyAddress(e.target.value)} placeholder="123 Studio Road, London, W1A 1AA" />
+          </div>
+          <div className="space-y-2">
+            <Label>VAT Number</Label>
+            <Input value={vatNumber} onChange={e => setVatNumber(e.target.value)} placeholder="GB 123 4567 89" />
           </div>
 
           <Separator />
