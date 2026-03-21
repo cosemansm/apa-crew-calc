@@ -49,11 +49,21 @@ export function DashboardPage() {
   const [newClientName, setNewClientName] = useState('');
   const [loading, setLoading] = useState(true);
   const [projectError, setProjectError] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
       loadProjects();
       loadFavourites();
+      // Load display name from user settings
+      supabase
+        .from('user_settings')
+        .select('display_name')
+        .eq('user_id', user.id)
+        .single()
+        .then(({ data }) => {
+          if (data?.display_name) setDisplayName(data.display_name);
+        });
     }
   }, [user]);
 
@@ -167,7 +177,7 @@ export function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Hi, {user?.email?.split('@')[0] || 'there'}!</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Hi, {displayName || user?.email?.split('@')[0] || 'there'}!</h1>
           <p className="text-muted-foreground mt-1">Let's manage your crew bookings</p>
         </div>
         <Button onClick={() => setShowNewProject(true)} className="gap-2">
