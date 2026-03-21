@@ -167,8 +167,8 @@ export function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Manage your projects and crew bookings</p>
+          <h1 className="text-3xl font-bold tracking-tight">Hi, {user?.email?.split('@')[0] || 'there'}!</h1>
+          <p className="text-muted-foreground mt-1">Let's manage your crew bookings</p>
         </div>
         <Button onClick={() => setShowNewProject(true)} className="gap-2">
           <Plus className="h-4 w-4" /> New Project
@@ -253,11 +253,11 @@ export function DashboardPage() {
                         isToday ? 'bg-primary/10 ring-1 ring-primary/30' : 'hover:bg-muted'
                       }`}
                     >
-                      <span className={`text-xs ${isToday ? 'font-bold text-primary' : 'text-muted-foreground'}`}>
+                      <span className={`text-xs ${isToday ? 'font-bold text-[#1F1F21]' : 'text-muted-foreground'}`}>
                         {format(date, 'd')}
                       </span>
                       {dayProjects.slice(0, 2).map((dp, i) => (
-                        <div key={i} className="mt-0.5 truncate rounded-md bg-primary/15 px-1 py-0.5 text-[10px] font-medium text-primary leading-tight">
+                        <div key={i} className="mt-0.5 truncate rounded-md bg-[#1F1F21] px-1 py-0.5 text-[10px] font-medium text-white leading-tight">
                           {dp.projectName}
                         </div>
                       ))}

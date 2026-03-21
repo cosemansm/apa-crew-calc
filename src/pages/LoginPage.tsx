@@ -64,7 +64,9 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <Calculator className="h-8 w-8 text-primary" />
+          <div className="h-12 w-12 rounded-2xl bg-[#FFD528] flex items-center justify-center">
+            <Calculator className="h-6 w-6 text-[#1F1F21]" />
+          </div>
           <h1 className="text-3xl font-bold">CrewRate</h1>
         </div>
         <p className="text-center text-muted-foreground mb-6">

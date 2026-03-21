@@ -1,27 +1,27 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #F7F5F0;
-  --color-foreground: #1A1A2E;
+  --color-background: #F5F3EE;
+  --color-foreground: #1F1F21;
   --color-card: #FFFFFF;
-  --color-card-foreground: #1A1A2E;
+  --color-card-foreground: #1F1F21;
   --color-popover: #FFFFFF;
-  --color-popover-foreground: #1A1A2E;
-  --color-primary: #1B6B6D;
-  --color-primary-foreground: #FFFFFF;
+  --color-popover-foreground: #1F1F21;
+  --color-primary: #FFD528;
+  --color-primary-foreground: #1F1F21;
   --color-secondary: #F0EDE8;
   --color-secondary-foreground: #2D2D3A;
-  --color-muted: #F0EDE8;
-  --color-muted-foreground: #7A7A8A;
-  --color-accent: #E8915A;
-  --color-accent-foreground: #FFFFFF;
+  --color-muted: #EDEAE4;
+  --color-muted-foreground: #8A8A8A;
+  --color-accent: #FFD528;
+  --color-accent-foreground: #1F1F21;
   --color-destructive: #D45B5B;
   --color-destructive-foreground: #FFFFFF;
-  --color-border: #E8E5DF;
-  --color-input: #E8E5DF;
-  --color-ring: #1B6B6D;
-  --color-sidebar: #FFFFFF;
-  --color-sidebar-foreground: #1A1A2E;
+  --color-border: #E5E2DC;
+  --color-input: #E5E2DC;
+  --color-ring: #FFD528;
+  --color-sidebar: #1F1F21;
+  --color-sidebar-foreground: #FFFFFF;
   --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 1rem;
@@ -39,7 +39,8 @@
   body {
     @apply text-foreground antialiased;
     font-family: -apple-system, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
-    background: #F7F5F0;
+    background: radial-gradient(ellipse at 30% 20%, #FFF9E6 0%, #F5F3EE 50%, #EDE9E0 100%);
+    background-attachment: fixed;
     min-height: 100vh;
   }
 }

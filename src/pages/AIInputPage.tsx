@@ -89,7 +89,7 @@ export function AIInputPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
+            <Sparkles className="h-5 w-5 text-[#1F1F21]" />
             AI Timesheet Input
           </CardTitle>
           <CardDescription>
@@ -146,7 +146,7 @@ export function AIInputPage() {
                   Call: {entry.callTime} | Wrap: {entry.wrapTime} | Rate: £{entry.agreedRate}
                 </div>
                 {results[i] && (
-                  <div className="text-lg font-bold font-mono text-primary">
+                  <div className="text-lg font-bold font-mono text-foreground">
                     £{results[i].grandTotal.toFixed(2)}
                   </div>
                 )}
@@ -158,7 +158,7 @@ export function AIInputPage() {
 
             <div className="flex justify-between text-xl font-bold">
               <span>Total Cost</span>
-              <span className="font-mono text-primary">£{totalCost.toFixed(2)}</span>
+              <span className="font-mono text-foreground">£{totalCost.toFixed(2)}</span>
             </div>
           </CardContent>
         </Card>

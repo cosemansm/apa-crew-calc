@@ -302,7 +302,7 @@ export function InvoicePage() {
                 {visibleDays.length > 0 && (
                   <button
                     onClick={toggleSelectAll}
-                    className="flex items-center gap-1 text-xs text-primary hover:underline"
+                    className="flex items-center gap-1 text-xs text-foreground font-medium hover:underline"
                   >
                     {allVisibleSelected
                       ? <><CheckSquare className="h-3.5 w-3.5" /> Deselect all</>

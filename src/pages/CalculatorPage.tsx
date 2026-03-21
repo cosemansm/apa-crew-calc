@@ -226,9 +226,9 @@ function ProjectCalendar({
                 className={cn(
                   'w-full h-full flex items-center justify-center rounded-full text-[11px] transition-all',
                   isBooked && isSelected
-                    ? 'bg-primary text-primary-foreground ring-2 ring-primary ring-offset-1 font-bold'
+                    ? 'bg-[#1F1F21] text-white ring-2 ring-[#FFD528] ring-offset-1 font-bold'
                     : isBooked
-                    ? 'bg-primary/80 text-primary-foreground font-semibold'
+                    ? 'bg-[#1F1F21] text-white font-semibold'
                     : isSelected
                     ? 'bg-muted font-semibold'
                     : isHovered
@@ -239,7 +239,7 @@ function ProjectCalendar({
                 {isBooked && isHovered ? (
                   <Pencil className="h-2.5 w-2.5" />
                 ) : !isBooked && isHovered ? (
-                  <Plus className="h-3 w-3 text-primary" />
+                  <Plus className="h-3 w-3 text-[#1F1F21]" />
                 ) : (
                   format(day, 'd')
                 )}
@@ -910,7 +910,7 @@ export function CalculatorPage() {
                     {customRoles.length > 0 && (
                       <SelectGroup>
                         <SelectLabel className="flex items-center gap-1">
-                          <Star className="h-3 w-3 fill-primary text-primary" /> Custom Rates
+                          <Star className="h-3 w-3 fill-[#FFD528] text-[#FFD528]" /> Custom Rates
                         </SelectLabel>
                         {customRoles.map(role => (
                           <SelectItem key={`custom-${role.customId}`} value={role.role}>
@@ -1355,7 +1355,7 @@ export function CalculatorPage() {
                             <div className="min-w-0">
                               <p className="text-sm font-medium leading-tight">
                                 Day {idx + 1}
-                                {day.isCurrent && <span className="ml-1.5 text-xs text-primary font-normal">(editing)</span>}
+                                {day.isCurrent && <span className="ml-1.5 text-xs text-[#FFD528] font-normal">(editing)</span>}
                               </p>
                               <p className="text-xs text-muted-foreground truncate">
                                 {day.work_date ? format(parseISO(day.work_date), 'EEE dd MMM') : '—'}
@@ -1426,7 +1426,7 @@ export function CalculatorPage() {
                       <Separator />
                       <div className="flex justify-between text-base font-bold px-1">
                         <span>Project Total</span>
-                        <span className="font-mono text-primary">£{projectTotal.toFixed(2)}</span>
+                        <span className="font-mono text-foreground">£{projectTotal.toFixed(2)}</span>
                       </div>
                     </>
                   )}
@@ -1436,7 +1436,7 @@ export function CalculatorPage() {
                       <Separator />
                       <div className="flex justify-between text-base font-bold px-1">
                         <span>Total</span>
-                        <span className="font-mono text-primary">£{result.grandTotal.toFixed(2)}</span>
+                        <span className="font-mono text-foreground">£{result.grandTotal.toFixed(2)}</span>
                       </div>
                     </>
                   )}

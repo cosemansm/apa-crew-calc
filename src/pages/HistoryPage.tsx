@@ -99,7 +99,7 @@ export function HistoryPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-lg font-bold font-mono text-primary">
+                    <span className="text-lg font-bold font-mono text-foreground">
                       £{(day.grand_total || 0).toFixed(2)}
                     </span>
                     <Button variant="ghost" size="icon" onClick={() => setExpandedId(expandedId === day.id ? null : day.id)}>
@@ -139,7 +139,7 @@ export function HistoryPage() {
                     )}
                     <div className="flex justify-between font-bold pt-2 border-t border-border">
                       <span>Total</span>
-                      <span className="font-mono text-primary">£{(day.grand_total || 0).toFixed(2)}</span>
+                      <span className="font-mono text-foreground">£{(day.grand_total || 0).toFixed(2)}</span>
                     </div>
                   </div>
                 )}
