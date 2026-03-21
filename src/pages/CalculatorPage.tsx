@@ -168,6 +168,7 @@ function ProjectCalendar({
 }) {
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
 
+  const today = format(new Date(), 'yyyy-MM-dd');
   const monthStart = startOfMonth(calendarMonth);
   const monthEnd = endOfMonth(calendarMonth);
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
@@ -196,24 +197,39 @@ function ProjectCalendar({
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-px">
+      <div className="grid grid-cols-7">
         {['M','T','W','T','F','S','S'].map((d, i) => (
           <div key={i} className="text-center text-[10px] text-muted-foreground py-0.5">{d}</div>
         ))}
-        {Array.from({ length: startPadding }, (_, i) => <div key={`pad-${i}`} />)}
+        {Array.from({ length: startPadding }, (_, i) => <div key={`pad-${i}`} className="h-8" />)}
         {days.map(day => {
           const dateStr = format(day, 'yyyy-MM-dd');
           const isBooked = bookedDates.has(dateStr);
           const isSelected = dateStr === selectedDate;
           const isHovered = hoveredDate === dateStr;
+          const isToday = dateStr === today;
+
+          // Connected bar logic — check if adjacent days are also booked
+          const prevDate = format(addDays(day, -1), 'yyyy-MM-dd');
+          const nextDate = format(addDays(day, 1), 'yyyy-MM-dd');
+          const connPrev = isBooked && bookedDates.has(prevDate);
+          const connNext = isBooked && bookedDates.has(nextDate);
 
           return (
             <div
               key={dateStr}
-              className="relative aspect-square flex items-center justify-center"
+              className="relative h-8 flex items-center justify-center"
               onMouseEnter={() => setHoveredDate(dateStr)}
               onMouseLeave={() => setHoveredDate(null)}
             >
+              {/* Connected bar track behind the dot */}
+              {isBooked && (connPrev || connNext) && (
+                <div className={cn(
+                  'absolute top-1/2 -translate-y-1/2 h-[26px] bg-[#1F1F21]/15 pointer-events-none',
+                  connPrev ? 'left-0' : 'left-1/2',
+                  connNext ? 'right-0' : 'right-1/2',
+                )} />
+              )}
               <button
                 onClick={() => {
                   if (isBooked) {
@@ -224,11 +240,13 @@ function ProjectCalendar({
                 }}
                 title={isBooked ? `${dayByDate[dateStr].role_name} — £${(dayByDate[dateStr].grand_total || 0).toFixed(0)}` : 'Add day'}
                 className={cn(
-                  'w-full h-full flex items-center justify-center rounded-full text-[11px] transition-all',
+                  'relative z-10 w-[26px] h-[26px] flex items-center justify-center text-[11px] transition-all',
+                  // Today gets a square-ish highlight
+                  isToday && !isBooked ? 'rounded-md ring-2 ring-[#1F1F21]/30 font-bold' : 'rounded-full',
                   isBooked && isSelected
-                    ? 'bg-[#1F1F21] text-white ring-2 ring-[#FFD528] ring-offset-1 font-bold'
+                    ? 'bg-[#1F1F21] text-white ring-2 ring-[#FFD528] ring-offset-1 font-bold rounded-full'
                     : isBooked
-                    ? 'bg-[#1F1F21] text-white font-semibold'
+                    ? 'bg-[#1F1F21] text-white font-semibold rounded-full'
                     : isSelected
                     ? 'bg-muted font-semibold'
                     : isHovered

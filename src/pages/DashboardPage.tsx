@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, getDay,
-  addMonths, subMonths, isSameMonth, isSameDay, parseISO
+  addMonths, subMonths, isSameMonth, isSameDay, parseISO, addDays
 } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -162,6 +162,16 @@ export function DashboardPage() {
     return allProjectDays.filter(d => d.work_date === dateStr);
   };
 
+  // Lookup: which project_ids are booked on each date (for connected bars)
+  const bookedProjectsByDate = useMemo(() => {
+    const map: Record<string, Set<string>> = {};
+    allProjectDays.forEach(d => {
+      if (!map[d.work_date]) map[d.work_date] = new Set();
+      map[d.work_date].add(d.project_id);
+    });
+    return map;
+  }, [allProjectDays]);
+
   // Monthly stats
   const monthProjects = useMemo(() => {
     return allProjectDays.filter(d => {
@@ -292,18 +302,34 @@ export function DashboardPage() {
                 return (
                   <div
                     key={date.toISOString()}
-                    className={`min-h-[52px] rounded-xl p-1.5 text-sm transition-all ${
-                      isToday ? 'bg-[#FFD528]/15 ring-1 ring-[#FFD528]/60' : 'hover:bg-muted'
+                    className={`min-h-[52px] p-1.5 text-sm transition-all overflow-visible ${
+                      isToday
+                        ? 'bg-[#FFD528]/15 ring-1 ring-[#FFD528]/50 rounded-md'
+                        : 'hover:bg-muted rounded-xl'
                     }`}
                   >
                     <span className={`text-xs ${isToday ? 'font-bold text-[#1F1F21]' : 'text-muted-foreground'}`}>
                       {format(date, 'd')}
                     </span>
-                    {dayProjects.slice(0, 2).map((dp, i) => (
-                      <div key={i} className="mt-0.5 truncate rounded-md bg-[#1F1F21] px-1 py-0.5 text-[10px] font-medium text-white leading-tight">
-                        {dp.projectName}
-                      </div>
-                    ))}
+                    {dayProjects.slice(0, 2).map((dp, i) => {
+                      const prevDate = format(addDays(date, -1), 'yyyy-MM-dd');
+                      const nextDate = format(addDays(date, 1), 'yyyy-MM-dd');
+                      const connPrev = bookedProjectsByDate[prevDate]?.has(dp.project_id);
+                      const connNext = bookedProjectsByDate[nextDate]?.has(dp.project_id);
+                      return (
+                        <div
+                          key={i}
+                          className={`mt-0.5 bg-[#1F1F21] py-0.5 text-[10px] font-medium text-white leading-tight truncate ${
+                            connPrev && connNext ? 'rounded-none -mx-[7px] px-2' :
+                            connPrev            ? 'rounded-r-md rounded-l-none -ml-[7px] pl-2 pr-1' :
+                            connNext            ? 'rounded-l-md rounded-r-none -mr-[7px] pl-1 pr-2' :
+                            'rounded-md px-1'
+                          }`}
+                        >
+                          {connPrev ? '\u00A0' : dp.projectName}
+                        </div>
+                      );
+                    })}
                     {dayProjects.length > 2 && (
                       <div className="text-[10px] text-muted-foreground mt-0.5">+{dayProjects.length - 2} more</div>
                     )}
