@@ -163,7 +163,7 @@ function ProjectCalendar({
   selectedDate: string;
   calendarMonth: Date;
   onMonthChange: (d: Date) => void;
-  onSelectDay: (dayId: string) => void;
+  onSelectDay?: (dayId: string) => void;
   onAddDate: (date: string) => void;
 }) {
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
@@ -217,7 +217,7 @@ function ProjectCalendar({
               <button
                 onClick={() => {
                   if (isBooked) {
-                    onSelectDay(dayByDate[dateStr].id);
+                    onSelectDay?.(dayByDate[dateStr].id);
                   } else {
                     onAddDate(dateStr);
                   }
@@ -1248,26 +1248,29 @@ export function CalculatorPage() {
 
       {/* Results Panel */}
       <div className="space-y-4">
-        {/* Project Calendar */}
-        {projectId && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-                <CalendarDays className="h-4 w-4" /> Project Days
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <ProjectCalendar
-                projectDays={projectDays}
-                selectedDate={workDate}
-                calendarMonth={calendarMonth}
-                onMonthChange={setCalendarMonth}
-                onSelectDay={loadDayById}
-                onAddDate={handleAddNewDay}
-              />
-            </CardContent>
-          </Card>
-        )}
+        {/* Project Calendar — always visible */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+              <CalendarDays className="h-4 w-4" /> Project Days
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <ProjectCalendar
+              projectDays={projectDays}
+              selectedDate={workDate}
+              calendarMonth={calendarMonth}
+              onMonthChange={setCalendarMonth}
+              onSelectDay={projectId ? loadDayById : undefined}
+              onAddDate={handleAddNewDay}
+            />
+            {!projectId && (
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                Save your first day to start tracking project days.
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Cost Breakdown */}
         <Card className="sticky top-20">
