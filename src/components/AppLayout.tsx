@@ -38,7 +38,7 @@ export function AppLayout() {
           </div>
           {sidebarExpanded && (
             <span className="text-lg font-bold text-white tracking-tight whitespace-nowrap">
-              CrewRate
+              Crew Dock
             </span>
           )}
         </div>
@@ -144,7 +144,7 @@ export function AppLayout() {
             <div className="h-8 w-8 rounded-xl bg-[#FFD528] flex items-center justify-center">
               <Calculator className="h-4 w-4 text-[#1F1F21]" />
             </div>
-            <span className="text-lg font-bold text-white tracking-tight">CrewRate</span>
+            <span className="text-lg font-bold text-white tracking-tight">Crew Dock</span>
           </Link>
           <button
             className="h-10 w-10 flex items-center justify-center rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors"

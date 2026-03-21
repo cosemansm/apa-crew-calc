@@ -67,7 +67,7 @@ export function LoginPage() {
           <div className="h-12 w-12 rounded-2xl bg-[#FFD528] flex items-center justify-center">
             <Calculator className="h-6 w-6 text-[#1F1F21]" />
           </div>
-          <h1 className="text-3xl font-bold">CrewRate</h1>
+          <h1 className="text-3xl font-bold">Crew Dock</h1>
         </div>
         <p className="text-center text-muted-foreground mb-6">
           APA Crew Rate Calculator for UK Commercials
