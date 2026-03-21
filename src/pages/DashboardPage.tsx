@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
   Plus, FolderOpen, Star, StarOff, ChevronLeft, ChevronRight,
-  Calendar, PoundSterling, Clock, X, TrendingUp
+  Calendar, PoundSterling, Clock, X, TrendingUp, Sparkles
 } from 'lucide-react';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, getDay,
@@ -217,9 +217,14 @@ export function DashboardPage() {
           </h1>
           <p className="text-muted-foreground mt-1">Let's manage your crew bookings</p>
         </div>
-        <Button onClick={() => setShowNewProject(true)} className="gap-2">
-          <Plus className="h-4 w-4" /> New Project
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate('/ai-input')} className="gap-2">
+            <Sparkles className="h-4 w-4" /> AI Input
+          </Button>
+          <Button onClick={() => setShowNewProject(true)} className="gap-2">
+            <Plus className="h-4 w-4" /> New Project
+          </Button>
+        </div>
       </div>
 
       {/* New Project Dialog */}
