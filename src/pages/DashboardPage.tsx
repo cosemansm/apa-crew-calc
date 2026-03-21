@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,7 @@ interface ProjectDay {
   work_date: string;
   role_name: string;
   grand_total: number;
+  result_json?: { grandTotal?: number } | null;
 }
 
 interface FavouriteRole {
@@ -41,9 +42,16 @@ interface FavouriteRole {
   default_rate: number | null;
 }
 
+// Resolve the best available grand total for a day
+function dayTotal(d: ProjectDay): number {
+  if (d.grand_total && d.grand_total > 0) return d.grand_total;
+  return d.result_json?.grandTotal ?? 0;
+}
+
 export function DashboardPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [projects, setProjects] = useState<Project[]>([]);
   const [favourites, setFavourites] = useState<FavouriteRole[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -67,7 +75,7 @@ export function DashboardPage() {
           if (data?.display_name) setDisplayName(data.display_name);
         });
     }
-  }, [user]);
+  }, [user, location.key]);
 
   const loadProjects = async () => {
     setLoading(true);
@@ -180,7 +188,7 @@ export function DashboardPage() {
     });
   }, [allProjectDays, currentMonth]);
 
-  const monthTotal = monthProjects.reduce((sum, d) => sum + (d.grand_total || 0), 0);
+  const monthTotal = monthProjects.reduce((sum, d) => sum + dayTotal(d), 0);
 
   // Total calendar days in the month
   const totalDaysInMonth = calendarDays.length;
@@ -190,7 +198,7 @@ export function DashboardPage() {
   const yearTotal = useMemo(() => {
     return allProjectDays
       .filter(d => parseISO(d.work_date).getFullYear() === currentYear)
-      .reduce((sum, d) => sum + (d.grand_total || 0), 0);
+      .reduce((sum, d) => sum + dayTotal(d), 0);
   }, [allProjectDays, currentYear]);
 
   // Last 6 months for bar chart
@@ -199,7 +207,7 @@ export function DashboardPage() {
       const date = subMonths(new Date(), 5 - i);
       const total = allProjectDays
         .filter(d => isSameMonth(parseISO(d.work_date), date))
-        .reduce((sum, d) => sum + (d.grand_total || 0), 0);
+        .reduce((sum, d) => sum + dayTotal(d), 0);
       return { date, total, label: format(date, 'MMM'), isCurrent: isSameMonth(date, new Date()) };
     });
   }, [allProjectDays]);
@@ -481,7 +489,7 @@ export function DashboardPage() {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {projects.slice(0, 6).map(project => {
-                const totalCost = project.days.reduce((sum, d) => sum + (d.grand_total || 0), 0);
+                const totalCost = project.days.reduce((sum, d) => sum + dayTotal(d), 0);
                 const sortedDays = [...project.days].sort((a, b) => a.work_date.localeCompare(b.work_date));
                 const dateRange = sortedDays.length > 0
                   ? `${format(parseISO(sortedDays[0].work_date), 'dd MMM')}${sortedDays.length > 1 ? ` – ${format(parseISO(sortedDays[sortedDays.length - 1].work_date), 'dd MMM')}` : ''}`
