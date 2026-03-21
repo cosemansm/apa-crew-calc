@@ -157,7 +157,6 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
     if (breakMissedOrTooLate) {
       convertedToContinuous = true;
       dayType = 'continuous_working';
-      penalties.push({ description: 'First break missed - meal allowance', hours: 0, rate: 7.50, total: 7.50 });
     }
   }
 
