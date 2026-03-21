@@ -34,6 +34,8 @@ export interface CalculationInput {
   travelHours: number;
   mileageOutsideM25: number;
   previousWrapTime?: string; // for time-off-the-clock calculation
+  equipmentValue?: number;    // gross equipment charge
+  equipmentDiscount?: number; // discount % (0–100)
 }
 
 export interface CalculationLineItem {
@@ -50,6 +52,9 @@ export interface CalculationResult {
   mileage: number;
   mileageMiles: number;
   penalties: CalculationLineItem[];
+  equipmentValue: number;
+  equipmentDiscount: number;
+  equipmentTotal: number;
   grandTotal: number;
   callType: CallType;
   dayDescription: string;
@@ -633,10 +638,15 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
   const mileageMiles = input.mileageOutsideM25;
   const mileage = mileageMiles * 0.50;
 
+  // ============= EQUIPMENT =============
+  const equipmentValue = input.equipmentValue ?? 0;
+  const equipmentDiscount = input.equipmentDiscount ?? 0;
+  const equipmentTotal = Math.round(equipmentValue * (1 - equipmentDiscount / 100) * 100) / 100;
+
   const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
   const penaltiesTotal = penalties.reduce((sum, item) => sum + item.total, 0);
 
-  const grandTotal = subtotal + penaltiesTotal + travelPay + mileage;
+  const grandTotal = subtotal + penaltiesTotal + travelPay + mileage + equipmentTotal;
 
   const dayDescriptions: Record<DayType, string> = {
     basic_working: 'Basic Working Day',
@@ -656,6 +666,9 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
     mileage,
     mileageMiles,
     penalties,
+    equipmentValue,
+    equipmentDiscount,
+    equipmentTotal,
     grandTotal,
     callType,
     dayDescription: `${convertedToContinuous ? 'Converted to Continuous (break missed)' : dayDescriptions[dayType]} - ${callType.charAt(0).toUpperCase() + callType.slice(1)} Call`,

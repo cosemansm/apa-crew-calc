@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, User, Building2, CreditCard, Plug, Save, Eye, EyeOff, Briefcase, Plus, Trash2, Pencil, X, Check } from 'lucide-react';
+import { Settings, User, Building2, CreditCard, Plug, Save, Eye, EyeOff, Briefcase, Plus, Trash2, Pencil, X, Check, Package } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+
+interface EquipmentPackage {
+  id: string;
+  name: string;
+  day_rate: number;
+}
 
 interface CustomRole {
   id: string;
@@ -201,6 +207,15 @@ export function SettingsPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  // Equipment packages
+  const [equipmentPackages, setEquipmentPackages] = useState<EquipmentPackage[]>([]);
+  const [showAddEquipment, setShowAddEquipment] = useState(false);
+  const [editingEquipmentId, setEditingEquipmentId] = useState<string | null>(null);
+  const [newEquipmentName, setNewEquipmentName] = useState('');
+  const [newEquipmentRate, setNewEquipmentRate] = useState('');
+  const [editEquipmentName, setEditEquipmentName] = useState('');
+  const [editEquipmentRate, setEditEquipmentRate] = useState('');
+
   useEffect(() => {
     if (!user) return;
     supabase.from('user_settings').select('*').eq('user_id', user.id).single().then(({ data }) => {
@@ -217,6 +232,7 @@ export function SettingsPage() {
       }
     });
     loadCustomRoles();
+    loadEquipmentPackages();
   }, [user]);
 
   const [customRolesError, setCustomRolesError] = useState<string | null>(null);
@@ -284,6 +300,32 @@ export function SettingsPage() {
   const handleDeleteCustomRole = async (id: string) => {
     await supabase.from('custom_roles').delete().eq('id', id);
     await loadCustomRoles();
+  };
+
+  // Equipment package CRUD
+  const loadEquipmentPackages = async () => {
+    if (!user) return;
+    const { data } = await supabase.from('equipment_packages').select('id, name, day_rate').eq('user_id', user.id).order('name');
+    if (data) setEquipmentPackages(data);
+  };
+
+  const handleAddEquipmentPackage = async () => {
+    if (!user || !newEquipmentName.trim() || !newEquipmentRate) return;
+    await supabase.from('equipment_packages').insert({ user_id: user.id, name: newEquipmentName.trim(), day_rate: parseFloat(newEquipmentRate) });
+    setNewEquipmentName(''); setNewEquipmentRate(''); setShowAddEquipment(false);
+    await loadEquipmentPackages();
+  };
+
+  const handleUpdateEquipmentPackage = async (id: string) => {
+    if (!editEquipmentName.trim() || !editEquipmentRate) return;
+    await supabase.from('equipment_packages').update({ name: editEquipmentName.trim(), day_rate: parseFloat(editEquipmentRate) }).eq('id', id);
+    setEditingEquipmentId(null);
+    await loadEquipmentPackages();
+  };
+
+  const handleDeleteEquipmentPackage = async (id: string) => {
+    await supabase.from('equipment_packages').delete().eq('id', id);
+    await loadEquipmentPackages();
   };
 
   return (
@@ -468,6 +510,92 @@ export function SettingsPage() {
                       className="h-8 w-8 text-destructive hover:text-destructive"
                       onClick={() => handleDeleteCustomRole(role.id)}
                     >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* My Equipment */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                My Equipment
+              </CardTitle>
+              <CardDescription>Save equipment packages with a day rate to quickly load in the calculator</CardDescription>
+            </div>
+            {!showAddEquipment && (
+              <Button size="sm" variant="outline" onClick={() => { setShowAddEquipment(true); setEditingEquipmentId(null); }}>
+                <Plus className="h-4 w-4 mr-1" /> Add Package
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {showAddEquipment && (
+            <div className="rounded-xl border border-border p-4 space-y-3 bg-muted/30">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Package Name</Label>
+                  <Input value={newEquipmentName} onChange={e => setNewEquipmentName(e.target.value)} placeholder="e.g. Full Lighting Kit" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Day Rate (£)</Label>
+                  <Input type="number" value={newEquipmentRate} onChange={e => setNewEquipmentRate(e.target.value)} placeholder="0.00" min="0" step="0.01" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handleAddEquipmentPackage} disabled={!newEquipmentName.trim() || !newEquipmentRate}>
+                  <Check className="h-4 w-4 mr-1" /> Save
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => { setShowAddEquipment(false); setNewEquipmentName(''); setNewEquipmentRate(''); }}>
+                  <X className="h-4 w-4 mr-1" /> Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {equipmentPackages.length === 0 && !showAddEquipment && (
+            <p className="text-sm text-muted-foreground text-center py-4">No equipment packages yet. Click "Add Package" to create one.</p>
+          )}
+
+          {equipmentPackages.map(pkg => (
+            <div key={pkg.id}>
+              {editingEquipmentId === pkg.id ? (
+                <div className="rounded-xl border border-border p-4 space-y-3 bg-muted/30">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Package Name</Label>
+                      <Input value={editEquipmentName} onChange={e => setEditEquipmentName(e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Day Rate (£)</Label>
+                      <Input type="number" value={editEquipmentRate} onChange={e => setEditEquipmentRate(e.target.value)} min="0" step="0.01" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => handleUpdateEquipmentPackage(pkg.id)}><Check className="h-4 w-4 mr-1" /> Save</Button>
+                    <Button size="sm" variant="outline" onClick={() => setEditingEquipmentId(null)}><X className="h-4 w-4 mr-1" /> Cancel</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors">
+                  <div>
+                    <p className="font-medium text-sm">{pkg.name}</p>
+                    <p className="text-xs text-muted-foreground font-mono">£{pkg.day_rate}/day</p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingEquipmentId(pkg.id); setEditEquipmentName(pkg.name); setEditEquipmentRate(String(pkg.day_rate)); setShowAddEquipment(false); }}>
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteEquipmentPackage(pkg.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>

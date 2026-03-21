@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen } from 'lucide-react';
+import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown } from 'lucide-react';
 import { format, getDay, addDays, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek, type CalculationResult } from '@/data/calculation-engine';
@@ -356,12 +356,19 @@ export function CalculatorPage() {
   const [continuousAdditionalBreakGiven, setContinuousAdditionalBreakGiven] = useState(ss?.continuousAdditionalBreakGiven ?? true);
   const [travelHours, setTravelHours] = useState(ss?.travelHours ?? '0');
   const [mileage, setMileage] = useState(ss?.mileage ?? '0');
+  const [equipmentValue, setEquipmentValue] = useState(ss?.equipmentValue ?? '0');
+  const [equipmentDiscount, setEquipmentDiscount] = useState(ss?.equipmentDiscount ?? '0');
   const [previousWrap, setPreviousWrap] = useState(ss?.previousWrap ?? '');
   const [projectName, setProjectName] = useState(ss?.projectName ?? '');
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [favouriteRoles, setFavouriteRoles] = useState<string[]>([]);
   const [customRoles, setCustomRoles] = useState<CrewRole[]>([]);
+
+  // Equipment packages
+  const [equipmentPackages, setEquipmentPackages] = useState<{ id: string; name: string; day_rate: number }[]>([]);
+  const [showEquipmentPicker, setShowEquipmentPicker] = useState(false);
+  const equipmentPickerRef = useRef<HTMLDivElement>(null);
 
   // Track which saved day we're currently editing (null = new day)
   const [currentDayId, setCurrentDayId] = useState<string | null>(ss?.currentDayId ?? null);
@@ -475,6 +482,9 @@ export function CalculatorPage() {
     if (!user) return;
     supabase.from('favourite_roles').select('role_name').eq('user_id', user.id)
       .then(({ data }) => { if (data) setFavouriteRoles(data.map(f => f.role_name)); });
+    supabase.from('equipment_packages').select('id, name, day_rate').eq('user_id', user.id)
+      .order('name', { ascending: true })
+      .then(({ data }) => { if (data) setEquipmentPackages(data); });
     supabase.from('custom_roles').select('*').eq('user_id', user.id)
       .order('created_at', { ascending: true })
       .then(({ data }) => {
@@ -590,8 +600,10 @@ export function CalculatorPage() {
       travelHours: parseFloat(travelHours) || 0,
       mileageOutsideM25: parseFloat(mileage) || 0,
       previousWrapTime: autoPreviousWrap || undefined,
+      equipmentValue: parseFloat(equipmentValue) || 0,
+      equipmentDiscount: parseFloat(equipmentDiscount) || 0,
     });
-  }, [selectedRole, agreedRate, dayType, dayOfWeek, callTime, wrapTime, firstBreakGiven, firstBreakTime, firstBreakDuration, secondBreakGiven, secondBreakTime, secondBreakDuration, continuousFirstBreakGiven, continuousAdditionalBreakGiven, travelHours, mileage, autoPreviousWrap, workDate, isBankHoliday]);
+  }, [selectedRole, agreedRate, dayType, dayOfWeek, callTime, wrapTime, firstBreakGiven, firstBreakTime, firstBreakDuration, secondBreakGiven, secondBreakTime, secondBreakDuration, continuousFirstBreakGiven, continuousAdditionalBreakGiven, travelHours, mileage, autoPreviousWrap, workDate, isBankHoliday, equipmentValue, equipmentDiscount]);
 
   // Mark dirty whenever the calculated result changes (but not during load/reset)
   useEffect(() => {
@@ -646,6 +658,8 @@ export function CalculatorPage() {
     setContinuousAdditionalBreakGiven(day.continuous_additional_break_given ?? true);
     setTravelHours(String(day.travel_hours ?? 0));
     setMileage(String(day.mileage ?? 0));
+    setEquipmentValue(String(day.equipment_value ?? 0));
+    setEquipmentDiscount(String(day.equipment_discount ?? 0));
     setPreviousWrap(day.previous_wrap ?? '');
     const role = customRoles.find(r => r.role === day.role_name) ?? APA_CREW_ROLES.find(r => r.role === day.role_name);
     if (role) {
@@ -702,6 +716,8 @@ export function CalculatorPage() {
     setContinuousAdditionalBreakGiven(true);
     setTravelHours('0');
     setMileage('0');
+    setEquipmentValue('0');
+    setEquipmentDiscount('0');
     setPreviousWrap('');
   };
 
@@ -726,6 +742,8 @@ export function CalculatorPage() {
     setContinuousAdditionalBreakGiven(true);
     setTravelHours('0');
     setMileage('0');
+    setEquipmentValue('0');
+    setEquipmentDiscount('0');
     setPreviousWrap('');
     setSaveSuccess(false);
     // Scroll form back to top
@@ -771,6 +789,8 @@ export function CalculatorPage() {
       continuous_additional_break_given: continuousAdditionalBreakGiven,
       travel_hours: parseFloat(travelHours),
       mileage: parseFloat(mileage),
+      equipment_value: parseFloat(equipmentValue) || 0,
+      equipment_discount: parseFloat(equipmentDiscount) || 0,
       previous_wrap: autoPreviousWrap || null,
       is_bank_holiday: isBankHoliday,
     };
@@ -1222,6 +1242,91 @@ export function CalculatorPage() {
               </div>
             </div>
 
+            {/* Equipment */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium flex items-center gap-2"><Package className="h-4 w-4" /> Equipment</h3>
+                <div className="relative" ref={equipmentPickerRef}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => setShowEquipmentPicker(p => !p)}
+                  >
+                    Load package <ChevronDown className="h-3 w-3" />
+                  </Button>
+                  {showEquipmentPicker && (
+                    <div className="absolute right-0 top-9 w-64 rounded-2xl border border-border bg-white shadow-xl z-50 overflow-hidden">
+                      <div className="px-4 py-2.5 border-b border-border/40">
+                        <p className="text-xs font-semibold text-muted-foreground">Saved equipment packages</p>
+                      </div>
+                      {equipmentPackages.length === 0 ? (
+                        <div className="px-4 py-4 text-xs text-muted-foreground text-center">
+                          No packages yet.{' '}
+                          <button className="underline text-foreground" onClick={() => { setShowEquipmentPicker(false); navigate('/settings'); }}>
+                            Add one in Settings →
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="max-h-52 overflow-y-auto py-1">
+                          {equipmentPackages.map(pkg => (
+                            <button
+                              key={pkg.id}
+                              onClick={() => { setEquipmentValue(String(pkg.day_rate)); setEquipmentDiscount('0'); setShowEquipmentPicker(false); }}
+                              className="w-full text-left px-4 py-2.5 text-sm hover:bg-primary/5 transition-colors flex items-center justify-between gap-2"
+                            >
+                              <span className="font-medium truncate">{pkg.name}</span>
+                              <span className="font-mono text-xs text-muted-foreground shrink-0">£{pkg.day_rate}/day</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="equipment-value">Equipment Value (£)</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">£</span>
+                    <Input
+                      id="equipment-value"
+                      type="number"
+                      value={equipmentValue}
+                      onChange={e => setEquipmentValue(e.target.value)}
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      className="pl-7"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="equipment-discount">Discount (%)</Label>
+                  <div className="relative">
+                    <Input
+                      id="equipment-discount"
+                      type="number"
+                      value={equipmentDiscount}
+                      onChange={e => setEquipmentDiscount(e.target.value)}
+                      min="0"
+                      max="100"
+                      placeholder="0"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                  </div>
+                  {parseFloat(equipmentDiscount) > 0 && parseFloat(equipmentValue) > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      After discount: <span className="font-mono font-medium text-foreground">
+                        £{(parseFloat(equipmentValue) * (1 - parseFloat(equipmentDiscount) / 100)).toFixed(2)}
+                      </span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Time Off The Clock — auto-calculated from project days */}
             {autoPreviousWrap && callTime && (() => {
               let prevMins = parseInt(autoPreviousWrap.split(':')[0]) * 60 + parseInt(autoPreviousWrap.split(':')[1]);
@@ -1427,6 +1532,16 @@ export function CalculatorPage() {
                               <div className="flex justify-between">
                                 <span className="text-muted-foreground">Mileage ({rj.mileageMiles} mi @ 50p)</span>
                                 <span className="font-mono text-xs">£{(rj.mileage ?? 0).toFixed(2)}</span>
+                              </div>
+                            )}
+
+                            {/* Equipment */}
+                            {(rj.equipmentTotal ?? 0) > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">
+                                  Equipment{(rj.equipmentDiscount ?? 0) > 0 ? ` (−${rj.equipmentDiscount}%)` : ''}
+                                </span>
+                                <span className="font-mono text-xs">£{(rj.equipmentTotal ?? 0).toFixed(2)}</span>
                               </div>
                             )}
 
