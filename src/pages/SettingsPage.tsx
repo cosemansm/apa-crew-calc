@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { DEPARTMENTS } from '@/data/apa-rates';
 
 interface EquipmentPackage {
   id: string;
@@ -194,6 +195,7 @@ export function SettingsPage() {
   const [displayName, setDisplayName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
+  const [department, setDepartment] = useState('');
 
   const [companyName, setCompanyName] = useState('');
   const [companyAddress, setCompanyAddress] = useState('');
@@ -223,6 +225,7 @@ export function SettingsPage() {
         setDisplayName(data.display_name ?? '');
         setPhone(data.phone ?? '');
         setAddress(data.address ?? '');
+        setDepartment(data.department ?? '');
         setCompanyName(data.company_name ?? '');
         setCompanyAddress(data.company_address ?? '');
         setVatNumber(data.vat_number ?? '');
@@ -261,6 +264,7 @@ export function SettingsPage() {
       display_name: displayName,
       phone,
       address,
+      department,
       company_name: companyName,
       company_address: companyAddress,
       vat_number: vatNumber,
@@ -369,6 +373,19 @@ export function SettingsPage() {
           <div className="space-y-2">
             <Label>Address</Label>
             <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="123 Film Street, London, W1A 1AA" />
+          </div>
+          <div className="space-y-2">
+            <Label>My Department</Label>
+            <Select value={department} onValueChange={setDepartment}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select your primary department…" />
+              </SelectTrigger>
+              <SelectContent>
+                {DEPARTMENTS.map(dept => (
+                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>

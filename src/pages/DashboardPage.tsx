@@ -61,6 +61,7 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [projectError, setProjectError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [userDepartment, setUserDepartment] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -68,11 +69,12 @@ export function DashboardPage() {
       loadFavourites();
       supabase
         .from('user_settings')
-        .select('display_name')
+        .select('display_name, department')
         .eq('user_id', user.id)
         .single()
         .then(({ data }) => {
           if (data?.display_name) setDisplayName(data.display_name);
+          if (data?.department) setUserDepartment(data.department);
         });
     }
   }, [user, location.key]);
@@ -575,76 +577,80 @@ export function DashboardPage() {
         )}
       </div>
 
-      {/* Favourite Roles — moved below projects */}
+      {/* My Department */}
       <div>
         <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
           <Star className="h-5 w-5 text-[#FFD528]" />
-          Favourite Roles
+          My Department
+          {userDepartment && (
+            <span className="text-sm font-normal text-muted-foreground">— {userDepartment}</span>
+          )}
         </h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-          {/* Starred roles */}
+        {!userDepartment ? (
           <Card>
-            <CardContent className="pt-5 pb-5">
-              {favourites.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Star roles on the right for quick access when creating calculations.
-                </p>
-              ) : (
-                <div className="space-y-2">
-                  {favourites.map(fav => {
-                    const role = APA_CREW_ROLES.find(r => r.role === fav.role_name);
-                    return (
-                      <div key={fav.id} className="flex items-center justify-between rounded-xl bg-muted px-3 py-2.5">
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{fav.role_name}</p>
-                          <p className="text-xs text-muted-foreground">{role?.department} · £{fav.default_rate || role?.maxRate || '—'}</p>
-                        </div>
-                        <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={() => role && toggleFavourite(role)}>
-                          <Star className="h-4 w-4 fill-[#FFD528] text-[#FFD528]" />
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+            <CardContent className="py-10 text-center">
+              <p className="text-muted-foreground text-sm">Set your department in <button className="underline font-medium text-foreground" onClick={() => navigate('/settings')}>Settings</button> to see your roles here.</p>
             </CardContent>
           </Card>
-
-          {/* All roles browser */}
-          <Card>
-            <CardContent className="pt-5 pb-5">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">All Roles</p>
-              <div className="max-h-[320px] overflow-y-auto space-y-0.5 pr-1">
-                {DEPARTMENTS.map(dept => (
-                  <div key={dept}>
-                    <p className="text-xs font-semibold text-muted-foreground mt-2 mb-1 px-1">{dept}</p>
-                    {getRolesByDepartment(dept).map(role => (
-                      <div
-                        key={role.role}
-                        className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-muted transition-colors"
-                      >
-                        <span className="text-sm truncate">{role.role}</span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 shrink-0"
-                          onClick={() => toggleFavourite(role)}
-                        >
-                          {isFavourite(role.role)
-                            ? <Star className="h-3.5 w-3.5 fill-[#FFD528] text-[#FFD528]" />
-                            : <StarOff className="h-3.5 w-3.5 text-muted-foreground" />
-                          }
-                        </Button>
-                      </div>
-                    ))}
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Favourites within department */}
+            <Card>
+              <CardContent className="pt-5 pb-5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Favourites</p>
+                {favourites.filter(f => APA_CREW_ROLES.find(r => r.role === f.role_name)?.department === userDepartment).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Star a role on the right to pin it here.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {favourites
+                      .filter(f => APA_CREW_ROLES.find(r => r.role === f.role_name)?.department === userDepartment)
+                      .map(fav => {
+                        const role = APA_CREW_ROLES.find(r => r.role === fav.role_name);
+                        return (
+                          <div key={fav.id} className="flex items-center justify-between rounded-xl bg-muted px-3 py-2.5">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium truncate">{fav.role_name}</p>
+                              <p className="text-xs text-muted-foreground">£{fav.default_rate || role?.maxRate || '—'} / day</p>
+                            </div>
+                            <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={() => role && toggleFavourite(role)}>
+                              <Star className="h-4 w-4 fill-[#FFD528] text-[#FFD528]" />
+                            </Button>
+                          </div>
+                        );
+                    })}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                )}
+              </CardContent>
+            </Card>
 
-        </div>
+            {/* All roles in department */}
+            <Card>
+              <CardContent className="pt-5 pb-5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">{userDepartment} Roles</p>
+                <div className="max-h-[320px] overflow-y-auto space-y-0.5 pr-1">
+                  {getRolesByDepartment(userDepartment).map(role => (
+                    <div
+                      key={role.role}
+                      className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-muted transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <span className="text-sm truncate block">{role.role}</span>
+                        <span className="text-xs text-muted-foreground">up to £{role.maxRate}/day</span>
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => toggleFavourite(role)}>
+                        {isFavourite(role.role)
+                          ? <Star className="h-3.5 w-3.5 fill-[#FFD528] text-[#FFD528]" />
+                          : <StarOff className="h-3.5 w-3.5 text-muted-foreground" />
+                        }
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
 
     </div>
