@@ -336,11 +336,14 @@ export function DashboardPage() {
                     key={date.toISOString()}
                     className={`min-h-[52px] p-1.5 text-sm transition-all overflow-visible ${
                       isToday
-                        ? 'bg-[#FFD528]/15 ring-1 ring-[#FFD528]/50 rounded-md'
+                        ? 'bg-[#FFD528]/10 rounded-xl ring-2 ring-[#FFD528]'
                         : 'hover:bg-muted rounded-xl'
                     }`}
                   >
-                    <span className={`text-xs ${isToday ? 'font-bold text-[#1F1F21]' : 'text-muted-foreground'}`}>
+                    <span className={isToday
+                      ? 'inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#FFD528] text-[#1F1F21] text-xs font-bold'
+                      : 'text-xs text-muted-foreground'
+                    }>
                       {format(date, 'd')}
                     </span>
                     {dayProjects.slice(0, 2).map((dp, i) => {
