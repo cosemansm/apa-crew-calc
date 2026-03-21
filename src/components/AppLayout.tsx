@@ -60,7 +60,7 @@ export function AppLayout() {
                 >
                   <Icon className="h-5 w-5 shrink-0" />
                   {sidebarExpanded && (
-                    <span className="text-sm font-medium whitespace-nowrap">
+                    <span className="text-sm font-medium whitespace-nowrap font-mono">
                       {label}
                     </span>
                   )}
@@ -87,7 +87,7 @@ export function AppLayout() {
             >
               <Settings className="h-5 w-5 shrink-0" />
               {sidebarExpanded && (
-                <span className="text-sm font-medium whitespace-nowrap">Settings</span>
+                <span className="text-sm font-medium whitespace-nowrap font-mono">Settings</span>
               )}
             </div>
           </Link>

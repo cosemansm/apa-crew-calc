@@ -45,8 +45,20 @@
     min-height: 100vh;
   }
 
+  /* Terminal font for all headings */
   h1, h2, h3, h4 {
     font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
     letter-spacing: -0.02em;
+  }
+
+  /* Card titles (tracking-tight divs used by CardTitle component) */
+  .tracking-tight {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  }
+
+  /* Section labels — small uppercase caps above boxes */
+  .uppercase.tracking-wide {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    letter-spacing: 0.08em;
   }
 }
