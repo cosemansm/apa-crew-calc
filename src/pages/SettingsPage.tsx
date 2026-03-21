@@ -303,22 +303,31 @@ export function SettingsPage() {
   };
 
   // Equipment package CRUD
+  const [equipmentError, setEquipmentError] = useState<string | null>(null);
+
   const loadEquipmentPackages = async () => {
     if (!user) return;
-    const { data } = await supabase.from('equipment_packages').select('id, name, day_rate').eq('user_id', user.id).order('name');
-    if (data) setEquipmentPackages(data);
+    const { data, error } = await supabase.from('equipment_packages').select('id, name, day_rate').eq('user_id', user.id).order('name');
+    if (error) { setEquipmentError(error.message); }
+    else { setEquipmentError(null); if (data) setEquipmentPackages(data); }
   };
 
   const handleAddEquipmentPackage = async () => {
     if (!user || !newEquipmentName.trim() || !newEquipmentRate) return;
-    await supabase.from('equipment_packages').insert({ user_id: user.id, name: newEquipmentName.trim(), day_rate: parseFloat(newEquipmentRate) });
+    const { error } = await supabase.from('equipment_packages').insert({
+      user_id: user.id,
+      name: newEquipmentName.trim(),
+      day_rate: parseFloat(newEquipmentRate),
+    });
+    if (error) { setEquipmentError(error.message); return; }
     setNewEquipmentName(''); setNewEquipmentRate(''); setShowAddEquipment(false);
     await loadEquipmentPackages();
   };
 
   const handleUpdateEquipmentPackage = async (id: string) => {
     if (!editEquipmentName.trim() || !editEquipmentRate) return;
-    await supabase.from('equipment_packages').update({ name: editEquipmentName.trim(), day_rate: parseFloat(editEquipmentRate) }).eq('id', id);
+    const { error } = await supabase.from('equipment_packages').update({ name: editEquipmentName.trim(), day_rate: parseFloat(editEquipmentRate) }).eq('id', id);
+    if (error) { setEquipmentError(error.message); return; }
     setEditingEquipmentId(null);
     await loadEquipmentPackages();
   };
@@ -562,7 +571,15 @@ export function SettingsPage() {
             </div>
           )}
 
-          {equipmentPackages.length === 0 && !showAddEquipment && (
+          {equipmentError && (
+            <div className="rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive space-y-1">
+              <p className="font-medium">Could not save equipment package</p>
+              <p className="text-xs opacity-80">{equipmentError}</p>
+              <p className="text-xs opacity-70">If this table is missing, run the SQL from the setup instructions in Supabase.</p>
+            </div>
+          )}
+
+          {equipmentPackages.length === 0 && !showAddEquipment && !equipmentError && (
             <p className="text-sm text-muted-foreground text-center py-4">No equipment packages yet. Click "Add Package" to create one.</p>
           )}
 
