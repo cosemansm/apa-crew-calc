@@ -201,16 +201,25 @@ export function DashboardPage() {
       .reduce((sum, d) => sum + dayTotal(d), 0);
   }, [allProjectDays, currentYear]);
 
-  // Last 6 months for bar chart
-  const monthlyBreakdown = useMemo(() => {
-    return Array.from({ length: 6 }, (_, i) => {
-      const date = subMonths(new Date(), 5 - i);
-      const total = allProjectDays
-        .filter(d => isSameMonth(parseISO(d.work_date), date))
-        .reduce((sum, d) => sum + dayTotal(d), 0);
-      return { date, total, label: format(date, 'MMM'), isCurrent: isSameMonth(date, new Date()) };
+  // Last 6 months for bar chart — aggregate by yyyy-MM key to avoid new Date() closure issues
+  const monthlyTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    allProjectDays.forEach(d => {
+      const key = format(parseISO(d.work_date), 'yyyy-MM');
+      totals[key] = (totals[key] || 0) + dayTotal(d);
     });
+    return totals;
   }, [allProjectDays]);
+
+  const monthlyBreakdown = useMemo(() => {
+    const now = new Date();
+    return Array.from({ length: 6 }, (_, i) => {
+      const date = subMonths(now, 5 - i);
+      const key = format(date, 'yyyy-MM');
+      const total = monthlyTotals[key] || 0;
+      return { date, total, label: format(date, 'MMM'), isCurrent: isSameMonth(date, now) };
+    });
+  }, [monthlyTotals]);
 
   const isFavourite = (roleName: string) => favourites.some(f => f.role_name === roleName);
 
