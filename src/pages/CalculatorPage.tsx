@@ -110,6 +110,9 @@ interface DayResultJson {
   travelPay?: number;
   mileage?: number;
   mileageMiles?: number;
+  equipmentValue?: number;
+  equipmentDiscount?: number;
+  equipmentTotal?: number;
 }
 
 interface ProjectDaySummary {
@@ -147,6 +150,8 @@ interface FullProjectDay {
   continuous_additional_break_given: boolean;
   travel_hours: number;
   mileage: number;
+  equipment_value: number;
+  equipment_discount: number;
   previous_wrap: string | null;
   is_bank_holiday: boolean;
 }
@@ -301,6 +306,8 @@ interface SessionState {
   continuousAdditionalBreakGiven: boolean;
   travelHours: string;
   mileage: string;
+  equipmentValue: string;
+  equipmentDiscount: string;
   previousWrap: string;
   currentDayId: string | null;
   isDirty: boolean;
@@ -417,11 +424,13 @@ export function CalculatorPage() {
       continuousAdditionalBreakGiven,
       travelHours,
       mileage,
+      equipmentValue,
+      equipmentDiscount,
       previousWrap,
       currentDayId,
       isDirty,
     });
-  }, [projectId, projectName, selectedRole, agreedRate, dayType, workDate, isBankHoliday, callTime, wrapTime, firstBreakGiven, firstBreakTime, firstBreakDuration, secondBreakGiven, secondBreakTime, secondBreakDuration, continuousFirstBreakGiven, continuousAdditionalBreakGiven, travelHours, mileage, previousWrap, currentDayId, isDirty]);
+  }, [projectId, projectName, selectedRole, agreedRate, dayType, workDate, isBankHoliday, callTime, wrapTime, firstBreakGiven, firstBreakTime, firstBreakDuration, secondBreakGiven, secondBreakTime, secondBreakDuration, continuousFirstBreakGiven, continuousAdditionalBreakGiven, travelHours, mileage, equipmentValue, equipmentDiscount, previousWrap, currentDayId, isDirty]);
 
   // Load projects list for the picker
   useEffect(() => {
