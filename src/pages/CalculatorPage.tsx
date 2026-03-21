@@ -1093,7 +1093,7 @@ export function CalculatorPage() {
                           </div>
                         )}
                         {!firstBreakGiven && (
-                          <p className="ml-7 text-xs text-orange-600">Day treated as Continuous Working Day + £7.50 meal allowance</p>
+                          <p className="ml-7 text-xs text-orange-600">Day treated as Continuous Working Day</p>
                         )}
                       </div>
 
