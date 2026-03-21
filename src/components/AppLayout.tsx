@@ -138,70 +138,69 @@ export function AppLayout() {
         "transition-all duration-300 print:ml-0",
         sidebarExpanded ? "md:ml-[236px]" : "md:ml-[88px]"
       )}>
-        {/* Mobile Header */}
-        <header className="md:hidden sticky top-0 z-50 bg-[#1F1F21] h-14 flex items-center justify-between px-4 rounded-b-2xl">
-          <Link to="/dashboard" className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-xl bg-[#FFD528] flex items-center justify-center">
-              <Calculator className="h-4 w-4 text-[#1F1F21]" />
-            </div>
-            <span className="text-lg font-bold text-white tracking-tight">Crew Dock</span>
-          </Link>
-          <button
-            className="h-10 w-10 flex items-center justify-center rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
-        </header>
+        {/* Mobile — floating pill header */}
+        <div className="md:hidden fixed top-0 left-0 right-0 z-50 p-3 print:hidden">
+          <header className="bg-[#1F1F21] rounded-2xl shadow-2xl h-14 flex items-center justify-between px-4">
+            <Link to="/dashboard" className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-xl bg-[#FFD528] flex items-center justify-center shrink-0">
+                <Calculator className="h-4 w-4 text-[#1F1F21]" />
+              </div>
+              <span className="text-base font-bold text-white tracking-tight">Crew Dock</span>
+            </Link>
+            <button
+              className="h-9 w-9 flex items-center justify-center rounded-xl text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          </header>
 
-        {/* Mobile nav dropdown */}
-        {mobileMenuOpen && (
-          <div className="md:hidden bg-[#1F1F21] px-4 pb-4 space-y-1 rounded-b-2xl -mt-px z-40 relative">
-            {navItems.map(({ path, label, icon: Icon }) => {
-              const isActive = location.pathname === path;
-              return (
-                <Link key={path} to={path} onClick={() => setMobileMenuOpen(false)}>
-                  <div
-                    className={cn(
-                      "flex items-center gap-3 h-11 px-3 rounded-2xl transition-all",
+          {/* Floating dropdown below the pill */}
+          {mobileMenuOpen && (
+            <div className="mt-2 bg-[#1F1F21] rounded-2xl shadow-2xl p-2 space-y-0.5">
+              {navItems.map(({ path, label, icon: Icon }) => {
+                const isActive = location.pathname === path;
+                return (
+                  <Link key={path} to={path} onClick={() => setMobileMenuOpen(false)}>
+                    <div className={cn(
+                      "flex items-center gap-3 h-11 px-3 rounded-xl transition-all",
                       isActive
                         ? "bg-[#FFD528] text-[#1F1F21] font-semibold"
                         : "text-white/60 hover:text-white hover:bg-white/10"
-                    )}
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span className="text-sm font-medium">{label}</span>
+                    )}>
+                      <Icon className="h-4.5 w-4.5" />
+                      <span className="text-sm font-medium">{label}</span>
+                    </div>
+                  </Link>
+                );
+              })}
+
+              <div className="border-t border-white/10 mt-1 pt-1">
+                <Link to="/settings" onClick={() => setMobileMenuOpen(false)}>
+                  <div className={cn(
+                    "flex items-center gap-3 h-11 px-3 rounded-xl transition-all",
+                    location.pathname === '/settings'
+                      ? "bg-[#FFD528] text-[#1F1F21] font-semibold"
+                      : "text-white/60 hover:text-white hover:bg-white/10"
+                  )}>
+                    <Settings className="h-4 w-4" />
+                    <span className="text-sm font-medium">Settings</span>
                   </div>
                 </Link>
-              );
-            })}
-            <Link to="/settings" onClick={() => setMobileMenuOpen(false)}>
-              <div
-                className={cn(
-                  "flex items-center gap-3 h-11 px-3 rounded-2xl transition-all",
-                  location.pathname === '/settings'
-                    ? "bg-[#FFD528] text-[#1F1F21] font-semibold"
-                    : "text-white/60 hover:text-white hover:bg-white/10"
-                )}
-              >
-                <Settings className="h-5 w-5" />
-                <span className="text-sm font-medium">Settings</span>
+                <button
+                  onClick={() => { setMobileMenuOpen(false); signOut(); }}
+                  className="w-full flex items-center gap-3 h-11 px-3 text-sm text-[#D45B5B] hover:bg-white/10 rounded-xl transition-colors"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign out
+                </button>
               </div>
-            </Link>
-            <div className="border-t border-white/10 pt-2 mt-2">
-              <button
-                onClick={() => { setMobileMenuOpen(false); signOut(); }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-[#D45B5B] hover:bg-white/10 rounded-2xl transition-colors"
-              >
-                <LogOut className="h-4 w-4" />
-                Sign out
-              </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* Page content */}
-        <main className="max-w-6xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+        {/* Page content — offset for floating mobile header */}
+        <main className="max-w-6xl mx-auto px-4 py-6 sm:px-6 lg:px-8 md:pt-6 pt-[88px]">
           <Outlet />
         </main>
       </div>
