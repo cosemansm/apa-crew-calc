@@ -172,13 +172,8 @@ export function DashboardPage() {
 
   const monthTotal = monthProjects.reduce((sum, d) => sum + (d.grand_total || 0), 0);
 
-  // Working days in current calendar month (Mon–Fri)
-  const workingDaysInMonth = useMemo(() => {
-    return calendarDays.filter(d => {
-      const day = getDay(d);
-      return day !== 0 && day !== 6;
-    }).length;
-  }, [calendarDays]);
+  // Total calendar days in the month
+  const totalDaysInMonth = calendarDays.length;
 
   // Yearly total
   const currentYear = new Date().getFullYear();
@@ -204,8 +199,8 @@ export function DashboardPage() {
   // Donut ring maths
   const donutRadius = 40;
   const donutCircumference = 2 * Math.PI * donutRadius;
-  const donutProgress = workingDaysInMonth > 0
-    ? Math.min(monthProjects.length / workingDaysInMonth, 1)
+  const donutProgress = totalDaysInMonth > 0
+    ? Math.min(monthProjects.length / totalDaysInMonth, 1)
     : 0;
   const donutOffset = donutCircumference * (1 - donutProgress);
 
@@ -351,7 +346,7 @@ export function DashboardPage() {
                       {monthProjects.length}
                     </text>
                     <text x="48" y="57" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 9, fill: '#8A8A8A' }}>
-                      / {workingDaysInMonth} days
+                      / {totalDaysInMonth} days
                     </text>
                   </svg>
                 </div>
