@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @theme {
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
   --color-background: #F5F3EE;
   --color-foreground: #1F1F21;
   --color-card: #FFFFFF;
@@ -42,5 +43,10 @@
     background: radial-gradient(ellipse at 30% 20%, #FFF9E6 0%, #F5F3EE 50%, #EDE9E0 100%);
     background-attachment: fixed;
     min-height: 100vh;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    letter-spacing: -0.02em;
   }
 }
