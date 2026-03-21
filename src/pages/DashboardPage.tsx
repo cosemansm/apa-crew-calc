@@ -8,9 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import {
   Plus, FolderOpen, Star, StarOff, ChevronLeft, ChevronRight,
-  Calendar, PoundSterling, Clock, X
+  Calendar, PoundSterling, Clock, X, TrendingUp
 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, addMonths, subMonths, isSameMonth, isSameDay, parseISO } from 'date-fns';
+import {
+  format, startOfMonth, endOfMonth, eachDayOfInterval, getDay,
+  addMonths, subMonths, isSameMonth, isSameDay, parseISO
+} from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
@@ -55,7 +58,6 @@ export function DashboardPage() {
     if (user) {
       loadProjects();
       loadFavourites();
-      // Load display name from user settings
       supabase
         .from('user_settings')
         .select('display_name')
@@ -149,7 +151,7 @@ export function DashboardPage() {
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const calendarDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
-  const startDayOfWeek = getDay(monthStart); // 0=Sun
+  const startDayOfWeek = getDay(monthStart);
 
   const allProjectDays = useMemo(() => {
     return projects.flatMap(p => p.days.map(d => ({ ...d, projectName: p.name })));
@@ -170,14 +172,54 @@ export function DashboardPage() {
 
   const monthTotal = monthProjects.reduce((sum, d) => sum + (d.grand_total || 0), 0);
 
+  // Working days in current calendar month (Mon–Fri)
+  const workingDaysInMonth = useMemo(() => {
+    return calendarDays.filter(d => {
+      const day = getDay(d);
+      return day !== 0 && day !== 6;
+    }).length;
+  }, [calendarDays]);
+
+  // Yearly total
+  const currentYear = new Date().getFullYear();
+  const yearTotal = useMemo(() => {
+    return allProjectDays
+      .filter(d => parseISO(d.work_date).getFullYear() === currentYear)
+      .reduce((sum, d) => sum + (d.grand_total || 0), 0);
+  }, [allProjectDays, currentYear]);
+
+  // Last 6 months for bar chart
+  const monthlyBreakdown = useMemo(() => {
+    return Array.from({ length: 6 }, (_, i) => {
+      const date = subMonths(new Date(), 5 - i);
+      const total = allProjectDays
+        .filter(d => isSameMonth(parseISO(d.work_date), date))
+        .reduce((sum, d) => sum + (d.grand_total || 0), 0);
+      return { date, total, label: format(date, 'MMM'), isCurrent: isSameMonth(date, new Date()) };
+    });
+  }, [allProjectDays]);
+
   const isFavourite = (roleName: string) => favourites.some(f => f.role_name === roleName);
+
+  // Donut ring maths
+  const donutRadius = 40;
+  const donutCircumference = 2 * Math.PI * donutRadius;
+  const donutProgress = workingDaysInMonth > 0
+    ? Math.min(monthProjects.length / workingDaysInMonth, 1)
+    : 0;
+  const donutOffset = donutCircumference * (1 - donutProgress);
+
+  // Bar chart maths
+  const barMax = Math.max(...monthlyBreakdown.map(m => m.total), 1);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Hi, {displayName || user?.email?.split('@')[0] || 'there'}!</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Hi, {displayName || user?.email?.split('@')[0] || 'there'}!
+          </h1>
           <p className="text-muted-foreground mt-1">Let's manage your crew bookings</p>
         </div>
         <Button onClick={() => setShowNewProject(true)} className="gap-2">
@@ -187,7 +229,7 @@ export function DashboardPage() {
 
       {/* New Project Dialog */}
       {showNewProject && (
-        <Card className="border-primary/20">
+        <Card className="border-[#FFD528]/40">
           <CardContent className="pt-6">
             <div className="flex items-start justify-between mb-4">
               <h3 className="text-lg font-semibold">Create New Project</h3>
@@ -205,9 +247,7 @@ export function DashboardPage() {
                 <Input placeholder="e.g. Nike UK" value={newClientName} onChange={e => setNewClientName(e.target.value)} />
               </div>
             </div>
-            {projectError && (
-              <p className="text-sm text-red-500 mt-3">{projectError}</p>
-            )}
+            {projectError && <p className="text-sm text-red-500 mt-3">{projectError}</p>}
             <div className="flex gap-2 mt-4">
               <Button onClick={createProject} disabled={!newProjectName.trim()}>Create & Open Calculator</Button>
               <Button variant="outline" onClick={() => setShowNewProject(false)}>Cancel</Button>
@@ -216,167 +256,277 @@ export function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Projects + Calendar */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Monthly Calendar */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  {format(currentMonth, 'MMMM yyyy')}
-                </CardTitle>
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setCurrentMonth(new Date())}>Today</Button>
-                  <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
+      {/* Calendar + Stats row */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+
+        {/* Calendar — takes 3/5 */}
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                {format(currentMonth, 'MMMM yyyy')}
+              </CardTitle>
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setCurrentMonth(new Date())}>Today</Button>
+                <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </div>
-              {monthProjects.length > 0 && (
-                <div className="flex items-center gap-4 text-sm text-muted-foreground mt-2">
-                  <span>{monthProjects.length} day{monthProjects.length !== 1 ? 's' : ''} booked</span>
-                  <span className="font-medium text-foreground">Total: £{monthTotal.toFixed(0)}</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-7 gap-px">
+              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
+                <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">{d}</div>
+              ))}
+              {Array.from({ length: (startDayOfWeek + 6) % 7 }, (_, i) => (
+                <div key={`empty-${i}`} className="min-h-[52px]" />
+              ))}
+              {calendarDays.map(date => {
+                const dayProjects = getDayProjects(date);
+                const isToday = isSameDay(date, new Date());
+                return (
+                  <div
+                    key={date.toISOString()}
+                    className={`min-h-[52px] rounded-xl p-1.5 text-sm transition-all ${
+                      isToday ? 'bg-[#FFD528]/15 ring-1 ring-[#FFD528]/60' : 'hover:bg-muted'
+                    }`}
+                  >
+                    <span className={`text-xs ${isToday ? 'font-bold text-[#1F1F21]' : 'text-muted-foreground'}`}>
+                      {format(date, 'd')}
+                    </span>
+                    {dayProjects.slice(0, 2).map((dp, i) => (
+                      <div key={i} className="mt-0.5 truncate rounded-md bg-[#1F1F21] px-1 py-0.5 text-[10px] font-medium text-white leading-tight">
+                        {dp.projectName}
+                      </div>
+                    ))}
+                    {dayProjects.length > 2 && (
+                      <div className="text-[10px] text-muted-foreground mt-0.5">+{dayProjects.length - 2} more</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Stats panel — takes 2/5 */}
+        <div className="lg:col-span-2 flex flex-col gap-4">
+
+          {/* Monthly donut */}
+          <Card>
+            <CardContent className="p-5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">
+                {format(currentMonth, 'MMMM yyyy')}
+              </p>
+              <div className="flex items-center gap-5">
+                {/* SVG Donut ring */}
+                <div className="relative shrink-0">
+                  <svg width="96" height="96" viewBox="0 0 96 96">
+                    {/* Track */}
+                    <circle
+                      cx="48" cy="48" r={donutRadius}
+                      fill="none"
+                      stroke="#E5E2DC"
+                      strokeWidth="8"
+                    />
+                    {/* Progress */}
+                    <circle
+                      cx="48" cy="48" r={donutRadius}
+                      fill="none"
+                      stroke="#FFD528"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeDasharray={donutCircumference}
+                      strokeDashoffset={donutOffset}
+                      transform="rotate(-90 48 48)"
+                      style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+                    />
+                    {/* Centre text */}
+                    <text x="48" y="44" textAnchor="middle" dominantBaseline="middle" className="font-bold" style={{ fontSize: 12, fontWeight: 700, fill: '#1F1F21' }}>
+                      {monthProjects.length}
+                    </text>
+                    <text x="48" y="57" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 9, fill: '#8A8A8A' }}>
+                      / {workingDaysInMonth} days
+                    </text>
+                  </svg>
                 </div>
-              )}
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-7 gap-px">
-                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
-                  <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">{d}</div>
-                ))}
-                {/* Empty cells for start of month (Mon=0 based) */}
-                {Array.from({ length: (startDayOfWeek + 6) % 7 }, (_, i) => (
-                  <div key={`empty-${i}`} className="min-h-[60px]" />
-                ))}
-                {calendarDays.map(date => {
-                  const dayProjects = getDayProjects(date);
-                  const isToday = isSameDay(date, new Date());
-                  return (
-                    <div
-                      key={date.toISOString()}
-                      className={`min-h-[60px] rounded-xl p-1.5 text-sm transition-all ${
-                        isToday ? 'bg-primary/10 ring-1 ring-primary/30' : 'hover:bg-muted'
-                      }`}
-                    >
-                      <span className={`text-xs ${isToday ? 'font-bold text-[#1F1F21]' : 'text-muted-foreground'}`}>
-                        {format(date, 'd')}
-                      </span>
-                      {dayProjects.slice(0, 2).map((dp, i) => (
-                        <div key={i} className="mt-0.5 truncate rounded-md bg-[#1F1F21] px-1 py-0.5 text-[10px] font-medium text-white leading-tight">
-                          {dp.projectName}
-                        </div>
-                      ))}
-                      {dayProjects.length > 2 && (
-                        <div className="text-[10px] text-muted-foreground mt-0.5">+{dayProjects.length - 2} more</div>
-                      )}
-                    </div>
-                  );
-                })}
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Monthly earnings</p>
+                  <p className="text-2xl font-bold tracking-tight">£{monthTotal.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {monthProjects.length} day{monthProjects.length !== 1 ? 's' : ''} booked
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Projects List */}
-          <div>
-            <h2 className="text-lg font-semibold mb-3">Projects</h2>
-            {loading ? (
-              <div className="text-muted-foreground text-sm">Loading projects...</div>
-            ) : projects.length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
-                  <p className="text-muted-foreground">No projects yet. Create your first project to get started.</p>
-                  <Button className="mt-4" onClick={() => setShowNewProject(true)}>
-                    <Plus className="h-4 w-4 mr-1" /> Create Project
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {projects.map(project => {
-                  const totalCost = project.days.reduce((sum, d) => sum + (d.grand_total || 0), 0);
-                  const dateRange = project.days.length > 0
-                    ? `${format(parseISO(project.days[0].work_date), 'dd MMM')}${project.days.length > 1 ? ` – ${format(parseISO(project.days[project.days.length - 1].work_date), 'dd MMM')}` : ''}`
-                    : 'No days added';
+          {/* Year total */}
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    {currentYear} Total
+                  </p>
+                  <p className="text-2xl font-bold tracking-tight mt-1">
+                    £{yearTotal.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {allProjectDays.filter(d => parseISO(d.work_date).getFullYear() === currentYear).length} days worked
+                  </p>
+                </div>
+                <div className="h-12 w-12 rounded-2xl bg-[#1F1F21] flex items-center justify-center shrink-0">
+                  <TrendingUp className="h-5 w-5 text-[#FFD528]" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
+          {/* 6-month bar chart */}
+          <Card className="flex-1">
+            <CardContent className="p-5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">
+                Income — last 6 months
+              </p>
+              <div className="flex items-end gap-2 h-24">
+                {monthlyBreakdown.map((m) => {
+                  const heightPct = barMax > 0 ? (m.total / barMax) * 100 : 0;
+                  const minHeight = m.total > 0 ? Math.max(heightPct, 8) : 4;
                   return (
-                    <Card
-                      key={project.id}
-                      className="cursor-pointer hover:scale-[1.01] hover:shadow-lg transition-all duration-200"
-                      onClick={() => navigate(`/calculator?project=${project.id}`)}
-                    >
-                      <CardContent className="p-5">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold truncate">{project.name}</h3>
-                            {project.client_name && (
-                              <p className="text-sm text-muted-foreground truncate">{project.client_name}</p>
-                            )}
-                          </div>
-                          <Badge variant="outline" className="ml-2 shrink-0">
-                            {project.days.length} day{project.days.length !== 1 ? 's' : ''}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5" />
-                            {dateRange}
-                          </span>
-                          <span className="flex items-center gap-1 font-medium text-foreground">
-                            <PoundSterling className="h-3.5 w-3.5" />
-                            {totalCost > 0 ? `£${totalCost.toFixed(0)}` : '—'}
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <div key={m.label} className="flex-1 flex flex-col items-center gap-1.5">
+                      <div
+                        className="w-full rounded-t-lg transition-all duration-500"
+                        style={{
+                          height: `${minHeight}%`,
+                          background: m.isCurrent ? '#FFD528' : '#1F1F21',
+                          opacity: m.isCurrent ? 1 : 0.25 + (monthlyBreakdown.indexOf(m) / monthlyBreakdown.length) * 0.55,
+                          minHeight: '4px',
+                        }}
+                        title={`£${m.total.toLocaleString('en-GB', { maximumFractionDigits: 0 })}`}
+                      />
+                      <span className="text-[10px] text-muted-foreground font-medium">{m.label}</span>
+                    </div>
                   );
                 })}
               </div>
-            )}
-          </div>
-        </div>
+              {barMax > 1 && (
+                <p className="text-[10px] text-muted-foreground mt-2 text-right">
+                  Peak: £{barMax.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Right: Favourites */}
-        <div className="space-y-6">
-          <Card className="sticky top-20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Star className="h-5 w-5 text-amber-500" />
-                Favourite Roles
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+        </div>
+      </div>
+
+      {/* Projects */}
+      <div>
+        <h2 className="text-lg font-semibold mb-3">Projects</h2>
+        {loading ? (
+          <div className="text-muted-foreground text-sm">Loading projects...</div>
+        ) : projects.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
+              <p className="text-muted-foreground">No projects yet. Create your first project to get started.</p>
+              <Button className="mt-4" onClick={() => setShowNewProject(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Create Project
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {projects.map(project => {
+              const totalCost = project.days.reduce((sum, d) => sum + (d.grand_total || 0), 0);
+              const sortedDays = [...project.days].sort((a, b) => a.work_date.localeCompare(b.work_date));
+              const dateRange = sortedDays.length > 0
+                ? `${format(parseISO(sortedDays[0].work_date), 'dd MMM')}${sortedDays.length > 1 ? ` – ${format(parseISO(sortedDays[sortedDays.length - 1].work_date), 'dd MMM')}` : ''}`
+                : 'No days added';
+
+              return (
+                <Card
+                  key={project.id}
+                  className="cursor-pointer hover:scale-[1.01] hover:shadow-lg transition-all duration-200"
+                  onClick={() => navigate(`/calculator?project=${project.id}`)}
+                >
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold truncate">{project.name}</h3>
+                        {project.client_name && (
+                          <p className="text-sm text-muted-foreground truncate">{project.client_name}</p>
+                        )}
+                      </div>
+                      <Badge variant="outline" className="ml-2 shrink-0">
+                        {project.days.length} day{project.days.length !== 1 ? 's' : ''}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5" />
+                        {dateRange}
+                      </span>
+                      <span className="flex items-center gap-1 font-medium text-foreground">
+                        <PoundSterling className="h-3.5 w-3.5" />
+                        {totalCost > 0 ? `£${totalCost.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '—'}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Favourite Roles — moved below projects */}
+      <div>
+        <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+          <Star className="h-5 w-5 text-[#FFD528]" />
+          Favourite Roles
+        </h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          {/* Starred roles */}
+          <Card>
+            <CardContent className="pt-5 pb-5">
               {favourites.length === 0 ? (
-                <p className="text-sm text-muted-foreground mb-4">
-                  Star roles below for quick access when creating calculations.
+                <p className="text-sm text-muted-foreground">
+                  Star roles on the right for quick access when creating calculations.
                 </p>
               ) : (
-                <div className="space-y-2 mb-4">
+                <div className="space-y-2">
                   {favourites.map(fav => {
                     const role = APA_CREW_ROLES.find(r => r.role === fav.role_name);
                     return (
-                      <div key={fav.id} className="flex items-center justify-between rounded-xl bg-muted px-3 py-2">
+                      <div key={fav.id} className="flex items-center justify-between rounded-xl bg-muted px-3 py-2.5">
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">{fav.role_name}</p>
-                          <p className="text-xs text-muted-foreground">{role?.department} | £{fav.default_rate || role?.maxRate || '—'}</p>
+                          <p className="text-xs text-muted-foreground">{role?.department} · £{fav.default_rate || role?.maxRate || '—'}</p>
                         </div>
                         <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={() => role && toggleFavourite(role)}>
-                          <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
+                          <Star className="h-4 w-4 fill-[#FFD528] text-[#FFD528]" />
                         </Button>
                       </div>
                     );
                   })}
                 </div>
               )}
+            </CardContent>
+          </Card>
 
-              <Separator className="my-3" />
-              <p className="text-xs font-medium text-muted-foreground mb-2">All Roles</p>
-              <div className="max-h-[400px] overflow-y-auto space-y-0.5 pr-1">
+          {/* All roles browser */}
+          <Card>
+            <CardContent className="pt-5 pb-5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">All Roles</p>
+              <div className="max-h-[320px] overflow-y-auto space-y-0.5 pr-1">
                 {DEPARTMENTS.map(dept => (
                   <div key={dept}>
                     <p className="text-xs font-semibold text-muted-foreground mt-2 mb-1 px-1">{dept}</p>
@@ -393,7 +543,7 @@ export function DashboardPage() {
                           onClick={() => toggleFavourite(role)}
                         >
                           {isFavourite(role.role)
-                            ? <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+                            ? <Star className="h-3.5 w-3.5 fill-[#FFD528] text-[#FFD528]" />
                             : <StarOff className="h-3.5 w-3.5 text-muted-foreground" />
                           }
                         </Button>
@@ -404,8 +554,10 @@ export function DashboardPage() {
               </div>
             </CardContent>
           </Card>
+
         </div>
       </div>
+
     </div>
   );
 }
