@@ -234,6 +234,19 @@ export function DashboardPage() {
   // Bar chart maths
   const barMax = Math.max(...monthlyBreakdown.map(m => m.total), 1);
 
+  // Compute nice reference line step (3 evenly spaced ticks above barMax)
+  function niceStep(maxVal: number): number {
+    const rough = maxVal / 3;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(Math.max(rough, 1))));
+    const normalized = rough / magnitude;
+    const nice = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+    return Math.max(nice * magnitude, 100);
+  }
+  const BAR_PX = 72; // pixel height of bar area
+  const chartStep = niceStep(barMax);
+  const chartMax = chartStep * 3;
+  const chartTicks = [chartStep, chartStep * 2, chartStep * 3];
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -437,33 +450,45 @@ export function DashboardPage() {
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">
                 Income — last 6 months
               </p>
-              <div className="flex items-end gap-2" style={{ height: '80px' }}>
-                {monthlyBreakdown.map((m, idx) => {
-                  const BAR_AREA = 64; // px available for bars (leaves ~16px for label)
-                  const barPx = barMax > 1
-                    ? Math.max((m.total / barMax) * BAR_AREA, m.total > 0 ? 6 : 3)
-                    : 3;
+              {/* Chart: reference lines + bars */}
+              <div className="relative" style={{ height: `${BAR_PX + 18}px` }}>
+                {/* Reference lines */}
+                {chartTicks.map(tick => {
+                  const bottomPx = (tick / chartMax) * BAR_PX + 18;
                   return (
-                    <div key={m.label} className="flex-1 flex flex-col items-center justify-end gap-1.5">
-                      <div
-                        className="w-full rounded-t-sm transition-all duration-500"
-                        style={{
-                          height: `${barPx}px`,
-                          background: m.isCurrent ? '#FFD528' : '#1F1F21',
-                          opacity: m.isCurrent ? 1 : 0.2 + (idx / monthlyBreakdown.length) * 0.6,
-                        }}
-                        title={`£${m.total.toLocaleString('en-GB', { maximumFractionDigits: 0 })}`}
-                      />
-                      <span className="text-[10px] text-muted-foreground font-medium">{m.label}</span>
+                    <div
+                      key={tick}
+                      className="absolute left-0 right-0 flex items-center pointer-events-none"
+                      style={{ bottom: `${bottomPx}px` }}
+                    >
+                      <div className="flex-1 border-t border-dashed" style={{ borderColor: 'rgba(0,0,0,0.08)' }} />
+                      <span className="text-[9px] text-muted-foreground/50 pl-1.5 shrink-0 font-mono">
+                        £{tick >= 1000 ? `${(tick / 1000).toFixed(tick % 1000 === 0 ? 0 : 1)}k` : tick}
+                      </span>
                     </div>
                   );
                 })}
+                {/* Bars */}
+                <div className="absolute inset-x-0 bottom-0 flex items-end gap-2" style={{ height: `${BAR_PX + 18}px` }}>
+                  {monthlyBreakdown.map((m, idx) => {
+                    const barPx = Math.max((m.total / chartMax) * BAR_PX, m.total > 0 ? 5 : 2);
+                    return (
+                      <div key={m.label} className="flex-1 flex flex-col items-center justify-end gap-1">
+                        <div
+                          className="w-full rounded-t-sm transition-all duration-700"
+                          style={{
+                            height: `${barPx}px`,
+                            background: m.isCurrent ? '#FFD528' : '#1F1F21',
+                            opacity: m.isCurrent ? 1 : 0.15 + (idx / monthlyBreakdown.length) * 0.55,
+                          }}
+                          title={`£${m.total.toLocaleString('en-GB', { maximumFractionDigits: 0 })}`}
+                        />
+                        <span className="text-[10px] text-muted-foreground font-medium font-mono">{m.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              {barMax > 1 && (
-                <p className="text-[10px] text-muted-foreground mt-2 text-right">
-                  Peak: £{barMax.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
-                </p>
-              )}
             </CardContent>
           </Card>
 
