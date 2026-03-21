@@ -437,19 +437,20 @@ export function DashboardPage() {
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">
                 Income — last 6 months
               </p>
-              <div className="flex items-end gap-2 h-24">
-                {monthlyBreakdown.map((m) => {
-                  const heightPct = barMax > 0 ? (m.total / barMax) * 100 : 0;
-                  const minHeight = m.total > 0 ? Math.max(heightPct, 8) : 4;
+              <div className="flex items-end gap-2" style={{ height: '80px' }}>
+                {monthlyBreakdown.map((m, idx) => {
+                  const BAR_AREA = 64; // px available for bars (leaves ~16px for label)
+                  const barPx = barMax > 1
+                    ? Math.max((m.total / barMax) * BAR_AREA, m.total > 0 ? 6 : 3)
+                    : 3;
                   return (
-                    <div key={m.label} className="flex-1 flex flex-col items-center gap-1.5">
+                    <div key={m.label} className="flex-1 flex flex-col items-center justify-end gap-1.5">
                       <div
-                        className="w-full rounded-t-lg transition-all duration-500"
+                        className="w-full rounded-t-sm transition-all duration-500"
                         style={{
-                          height: `${minHeight}%`,
+                          height: `${barPx}px`,
                           background: m.isCurrent ? '#FFD528' : '#1F1F21',
-                          opacity: m.isCurrent ? 1 : 0.25 + (monthlyBreakdown.indexOf(m) / monthlyBreakdown.length) * 0.55,
-                          minHeight: '4px',
+                          opacity: m.isCurrent ? 1 : 0.2 + (idx / monthlyBreakdown.length) * 0.6,
                         }}
                         title={`£${m.total.toLocaleString('en-GB', { maximumFractionDigits: 0 })}`}
                       />
