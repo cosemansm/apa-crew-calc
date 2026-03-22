@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { FileText, FolderOpen, CheckSquare, Square, Download, Mail, Loader2, X, Send, AlertCircle } from 'lucide-react';
+import { FileText, FolderOpen, Download, Mail, Loader2, X, Send, AlertCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -137,15 +137,8 @@ export function InvoicePage() {
   };
 
   const selectedProject = projects.find(p => p.id === selectedProjectId);
-  const visibleDays = selectedProjectId ? allDays.filter(d => d.project_id === selectedProjectId) : allDays;
   const selectedDays = allDays.filter(d => selected.includes(d.id));
   const totalAmount = selectedDays.reduce((sum, d) => sum + (d.grand_total || 0), 0);
-  const allVisibleSelected = visibleDays.length > 0 && visibleDays.every(d => selected.includes(d.id));
-
-  const toggleSelectAll = () => {
-    if (allVisibleSelected) setSelected(prev => prev.filter(id => !visibleDays.find(d => d.id === id)));
-    else setSelected(prev => [...new Set([...prev, ...visibleDays.map(d => d.id)])]);
-  };
 
   // Shared helper — captures the invoice element and builds a jsPDF.
   // scale:2 + PNG for crisp downloads; scale:1 + JPEG for smaller email attachments.
@@ -322,7 +315,7 @@ export function InvoicePage() {
                   </div>
                   {selectedProject && (
                     <Badge variant="secondary" className="shrink-0 text-xs">
-                      {visibleDays.length} day{visibleDays.length !== 1 ? 's' : ''}
+                      {selectedDays.length} day{selectedDays.length !== 1 ? 's' : ''}
                     </Badge>
                   )}
                 </button>
@@ -425,58 +418,6 @@ export function InvoicePage() {
               <p className="text-xs text-muted-foreground">Separate multiple addresses with a comma</p>
             </div>
 
-            <Separator />
-
-            {/* Days */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Days to Invoice</Label>
-                {visibleDays.length > 0 && (
-                  <button onClick={toggleSelectAll} className="flex items-center gap-1 text-xs text-foreground font-medium hover:underline">
-                    {allVisibleSelected
-                      ? <><CheckSquare className="h-3.5 w-3.5" /> Deselect all</>
-                      : <><Square className="h-3.5 w-3.5" /> Select all</>
-                    }
-                  </button>
-                )}
-              </div>
-
-              {!selectedProjectId ? (
-                <p className="text-sm text-muted-foreground py-2">Select a project above to see its days.</p>
-              ) : visibleDays.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-2">No saved days for this project yet.</p>
-              ) : (
-                <div className="space-y-1.5 max-h-60 overflow-y-auto">
-                  {visibleDays.map((day, idx) => (
-                    <label
-                      key={day.id}
-                      className={cn(
-                        'flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-colors',
-                        selected.includes(day.id) ? 'bg-primary/8 border border-primary/20' : 'hover:bg-muted border border-transparent'
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selected.includes(day.id)}
-                        onChange={e => {
-                          if (e.target.checked) setSelected(prev => [...prev, day.id]);
-                          else setSelected(prev => prev.filter(id => id !== day.id));
-                        }}
-                        className="rounded"
-                      />
-                      <div className="flex-1 text-sm min-w-0">
-                        <span className="font-medium">Day {idx + 1}</span>
-                        <span className="text-muted-foreground"> · {day.role_name}</span>
-                        {day.work_date && (
-                          <span className="text-muted-foreground"> · {format(parseISO(day.work_date), 'EEE dd MMM')}</span>
-                        )}
-                      </div>
-                      <span className="font-mono text-sm shrink-0">£{(day.grand_total || 0).toFixed(2)}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
           </CardContent>
         </Card>
 
@@ -506,7 +447,7 @@ export function InvoicePage() {
           </div>
 
           {selectedDays.length === 0 && (
-            <p className="text-xs text-muted-foreground text-center">Select days on the left to enable download</p>
+            <p className="text-xs text-muted-foreground text-center">Select a project to enable download</p>
           )}
           {selectedDays.length > 0 && !clientEmail.trim() && (
             <p className="text-xs text-muted-foreground text-center">Add a client email address to enable sending</p>
