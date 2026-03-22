@@ -1,7 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { FileText, Printer, FolderOpen, CheckSquare, Square } from 'lucide-react';
+import { FileText, FolderOpen, CheckSquare, Square, Download, Mail, Loader2 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,28 +36,30 @@ export function InvoicePage() {
   const { user } = useAuth();
   const location = useLocation();
 
-  // All data
   const [projects, setProjects] = useState<Project[]>([]);
   const [allDays, setAllDays] = useState<ProjectDay[]>([]);
-
-  // Invoice state
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [invoiceNumber, setInvoiceNumber] = useState(`INV-${Date.now().toString(36).toUpperCase()}`);
   const [jobReference, setJobReference] = useState('');
 
-  // From / To details
+  // From / To
   const [companyName, setCompanyName] = useState('');
   const [companyAddress, setCompanyAddress] = useState('');
+  const [vatNumber, setVatNumber] = useState('');
   const [clientName, setClientName] = useState('');
   const [clientAddress, setClientAddress] = useState('');
-  const [bankDetails, setBankDetails] = useState('');
+  const [bankAccountName, setBankAccountName] = useState('');
+  const [bankSortCode, setBankSortCode] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+
+  const [downloading, setDownloading] = useState(false);
+  const [sending, setSending] = useState(false);
 
   const projectPickerRef = useRef<HTMLDivElement>(null);
-  const printRef = useRef<HTMLDivElement>(null);
+  const invoiceRef = useRef<HTMLDivElement>(null);
 
-  // Load projects and all days
   useEffect(() => {
     if (!user) return;
 
@@ -74,42 +78,35 @@ export function InvoicePage() {
         if (data) {
           const days = data as unknown as ProjectDay[];
           setAllDays(days);
-
-          // If navigated here with a pre-selected day id, find its project and select all days from it
           const preselect = (location.state as { dayId?: string } | null)?.dayId;
           if (preselect) {
             const preselectDay = days.find(d => d.id === preselect);
             if (preselectDay) {
               const projId = preselectDay.project_id;
               setSelectedProjectId(projId);
-              const projDays = days.filter(d => d.project_id === projId);
-              setSelected(projDays.map(d => d.id));
-              if (preselectDay.projects?.client_name) {
-                setClientName(preselectDay.projects.client_name);
-              }
+              setSelected(days.filter(d => d.project_id === projId).map(d => d.id));
+              if (preselectDay.projects?.client_name) setClientName(preselectDay.projects.client_name);
             }
           }
         }
       });
 
-    // Load user settings for pre-fill
     supabase
       .from('user_settings')
       .select('*')
       .eq('user_id', user.id)
       .single()
       .then(({ data }) => {
-        if (data) {
-          if (data.company_name) setCompanyName(data.company_name);
-          if (data.company_address) setCompanyAddress(data.company_address);
-          if (data.bank_account_name && data.bank_sort_code && data.bank_account_number) {
-            setBankDetails(`${data.bank_account_name} | Sort: ${data.bank_sort_code} | Acc: ${data.bank_account_number}`);
-          }
-        }
+        if (!data) return;
+        if (data.company_name) setCompanyName(data.company_name);
+        if (data.company_address) setCompanyAddress(data.company_address);
+        if (data.vat_number) setVatNumber(data.vat_number);
+        if (data.bank_account_name) setBankAccountName(data.bank_account_name);
+        if (data.bank_sort_code) setBankSortCode(data.bank_sort_code);
+        if (data.bank_account_number) setBankAccountNumber(data.bank_account_number);
       });
   }, [user]);
 
-  // Close picker on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (projectPickerRef.current && !projectPickerRef.current.contains(e.target as Node)) {
@@ -123,30 +120,63 @@ export function InvoicePage() {
   const handleSelectProject = (proj: Project) => {
     setSelectedProjectId(proj.id);
     setShowProjectPicker(false);
-    // Auto-select all days for this project
-    const projDays = allDays.filter(d => d.project_id === proj.id);
-    setSelected(projDays.map(d => d.id));
-    // Auto-fill client name from project
+    setSelected(allDays.filter(d => d.project_id === proj.id).map(d => d.id));
     if (proj.client_name) setClientName(proj.client_name);
   };
 
   const selectedProject = projects.find(p => p.id === selectedProjectId);
-  const visibleDays = selectedProjectId
-    ? allDays.filter(d => d.project_id === selectedProjectId)
-    : allDays;
-
+  const visibleDays = selectedProjectId ? allDays.filter(d => d.project_id === selectedProjectId) : allDays;
   const selectedDays = allDays.filter(d => selected.includes(d.id));
   const totalAmount = selectedDays.reduce((sum, d) => sum + (d.grand_total || 0), 0);
-
   const allVisibleSelected = visibleDays.length > 0 && visibleDays.every(d => selected.includes(d.id));
 
   const toggleSelectAll = () => {
-    if (allVisibleSelected) {
-      setSelected(prev => prev.filter(id => !visibleDays.find(d => d.id === id)));
-    } else {
-      setSelected(prev => [...new Set([...prev, ...visibleDays.map(d => d.id)])]);
+    if (allVisibleSelected) setSelected(prev => prev.filter(id => !visibleDays.find(d => d.id === id)));
+    else setSelected(prev => [...new Set([...prev, ...visibleDays.map(d => d.id)])]);
+  };
+
+  const generatePDF = async (): Promise<jsPDF | null> => {
+    if (!invoiceRef.current) return null;
+    const canvas = await html2canvas(invoiceRef.current, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+    });
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+    return pdf;
+  };
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const pdf = await generatePDF();
+      pdf?.save(`${invoiceNumber}.pdf`);
+    } finally {
+      setDownloading(false);
     }
   };
+
+  const handleSendToClient = async () => {
+    setSending(true);
+    try {
+      const pdf = await generatePDF();
+      pdf?.save(`${invoiceNumber}.pdf`);
+      const subject = encodeURIComponent(`Invoice ${invoiceNumber} — ${selectedProject?.name || 'Services Rendered'}`);
+      const body = encodeURIComponent(
+        `Hi ${clientName || 'there'},\n\nPlease find attached invoice ${invoiceNumber} for ${selectedProject?.name || 'recent work'}.\n\nTotal amount due: £${totalAmount.toFixed(2)}\nPayment terms: 30 days from receipt\n\nKind regards,\n${companyName}`
+      );
+      window.open(`mailto:?subject=${subject}&body=${body}`);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const hasBankDetails = bankAccountName && bankSortCode && bankAccountNumber;
 
   return (
     <div className="space-y-6">
@@ -155,11 +185,12 @@ export function InvoicePage() {
         Invoice Generator
       </h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* ── Left: Form ─────────────────────────────────────────────── */}
         <Card>
           <CardHeader>
             <CardTitle>Invoice Details</CardTitle>
-            <CardDescription>Select a project, then review and fill in your details</CardDescription>
+            <CardDescription>Select a project, then fill in your details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
 
@@ -216,9 +247,7 @@ export function InvoicePage() {
                             >
                               <div className="min-w-0">
                                 <p className="font-medium truncate">{proj.name}</p>
-                                {proj.client_name && (
-                                  <p className="text-xs text-muted-foreground">{proj.client_name}</p>
-                                )}
+                                {proj.client_name && <p className="text-xs text-muted-foreground">{proj.client_name}</p>}
                               </div>
                               <Badge variant="outline" className="text-xs shrink-0">
                                 {dayCount} day{dayCount !== 1 ? 's' : ''}
@@ -235,7 +264,7 @@ export function InvoicePage() {
 
             <Separator />
 
-            {/* Invoice number / date */}
+            {/* Invoice number / date / ref */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Invoice Number</Label>
@@ -246,8 +275,6 @@ export function InvoicePage() {
                 <Input value={format(new Date(), 'dd/MM/yyyy')} disabled />
               </div>
             </div>
-
-            {/* Job reference */}
             <div className="space-y-2">
               <Label>Job Reference <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <Input value={jobReference} onChange={e => setJobReference(e.target.value)} placeholder="e.g. PO-1234, Ref: ABC" />
@@ -259,21 +286,20 @@ export function InvoicePage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Your Name / Company</Label>
-                {!companyName && (
-                  <span className="text-xs text-amber-600">Not set — add in Settings</span>
-                )}
+                {!companyName && <span className="text-xs text-amber-600">Add in Settings</span>}
               </div>
               <Input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Your Company Ltd" />
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Your Address</Label>
-                {!companyAddress && (
-                  <span className="text-xs text-amber-600">Not set — add in Settings</span>
-                )}
-              </div>
+              <Label>Your Address</Label>
               <Input value={companyAddress} onChange={e => setCompanyAddress(e.target.value)} placeholder="123 Film Street, London" />
             </div>
+            {vatNumber && (
+              <div className="space-y-2">
+                <Label>VAT Number</Label>
+                <Input value={vatNumber} onChange={e => setVatNumber(e.target.value)} />
+              </div>
+            )}
 
             <Separator />
 
@@ -289,28 +315,12 @@ export function InvoicePage() {
 
             <Separator />
 
-            {/* Bank details */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Bank Details</Label>
-                {!bankDetails && (
-                  <span className="text-xs text-amber-600">Not set — add in Settings</span>
-                )}
-              </div>
-              <Input value={bankDetails} onChange={e => setBankDetails(e.target.value)} placeholder="Account Name | Sort: 12-34-56 | Acc: 12345678" />
-            </div>
-
-            <Separator />
-
-            {/* Day selector */}
+            {/* Days */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Days to Invoice</Label>
                 {visibleDays.length > 0 && (
-                  <button
-                    onClick={toggleSelectAll}
-                    className="flex items-center gap-1 text-xs text-foreground font-medium hover:underline"
-                  >
+                  <button onClick={toggleSelectAll} className="flex items-center gap-1 text-xs text-foreground font-medium hover:underline">
                     {allVisibleSelected
                       ? <><CheckSquare className="h-3.5 w-3.5" /> Deselect all</>
                       : <><Square className="h-3.5 w-3.5" /> Select all</>
@@ -358,106 +368,200 @@ export function InvoicePage() {
           </CardContent>
         </Card>
 
-        {/* Preview */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Preview</CardTitle>
-            <Button variant="outline" size="sm" onClick={() => window.print()}>
-              <Printer className="h-4 w-4 mr-1" /> Print / PDF
+        {/* ── Right: Invoice Preview ──────────────────────────────────── */}
+        <div className="space-y-3">
+          {/* Action buttons */}
+          <div className="flex gap-2">
+            <Button
+              className="flex-1 gap-2"
+              onClick={handleDownload}
+              disabled={downloading || sending || selectedDays.length === 0}
+            >
+              {downloading
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
+                : <><Download className="h-4 w-4" /> Download PDF</>
+              }
             </Button>
-          </CardHeader>
-          <CardContent>
-            <div ref={printRef} className="space-y-6 text-sm print:text-xs">
-              {/* Header */}
-              <div className="flex justify-between">
+            <Button
+              variant="outline"
+              className="flex-1 gap-2"
+              onClick={handleSendToClient}
+              disabled={downloading || sending || selectedDays.length === 0}
+            >
+              {sending
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> Preparing…</>
+                : <><Mail className="h-4 w-4" /> Send to Client</>
+              }
+            </Button>
+          </div>
+
+          {selectedDays.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center">Select days on the left to enable download</p>
+          )}
+
+          {/* Invoice document */}
+          <div
+            ref={invoiceRef}
+            style={{ backgroundColor: '#ffffff', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
+            className="rounded-2xl shadow-lg overflow-hidden"
+          >
+            {/* Top bar */}
+            <div style={{ backgroundColor: '#1F1F21', padding: '28px 36px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                  <p className="font-bold text-lg">{companyName || 'Your Company'}</p>
-                  <p className="text-muted-foreground whitespace-pre-line">{companyAddress}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                    <div style={{ backgroundColor: '#FFD528', borderRadius: '10px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>
+                      ⚓
+                    </div>
+                    <span style={{ color: '#ffffff', fontWeight: '700', fontSize: '18px', letterSpacing: '-0.3px' }}>Crew Dock</span>
+                  </div>
+                  <p style={{ color: '#9A9A9A', fontSize: '12px', margin: '0' }}>APA Crew Rate Calculator</p>
                 </div>
-                <div className="text-right">
-                  <p className="font-bold text-lg">INVOICE</p>
-                  <p className="text-muted-foreground">#{invoiceNumber}</p>
-                  <p className="text-muted-foreground">{format(new Date(), 'dd MMMM yyyy')}</p>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ backgroundColor: '#FFD528', color: '#1F1F21', fontWeight: '800', fontSize: '22px', letterSpacing: '3px', padding: '6px 16px', borderRadius: '8px', display: 'inline-block' }}>
+                    INVOICE
+                  </div>
+                  <p style={{ color: '#FFD528', fontWeight: '600', fontSize: '14px', margin: '8px 0 2px', fontFamily: 'monospace' }}>
+                    #{invoiceNumber}
+                  </p>
+                  <p style={{ color: '#9A9A9A', fontSize: '12px', margin: '0' }}>
+                    {format(new Date(), 'dd MMMM yyyy')}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '32px 36px' }}>
+
+              {/* From / To grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', marginBottom: '28px' }}>
+                <div>
+                  <p style={{ fontSize: '10px', fontWeight: '700', color: '#9A9A9A', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 8px' }}>From</p>
+                  <p style={{ fontWeight: '700', fontSize: '16px', color: '#1F1F21', margin: '0 0 4px' }}>{companyName || 'Your Company'}</p>
+                  {companyAddress && (
+                    <p style={{ color: '#6B6B6B', fontSize: '13px', margin: '0 0 4px', whiteSpace: 'pre-line' }}>{companyAddress}</p>
+                  )}
+                  {vatNumber && (
+                    <p style={{ color: '#6B6B6B', fontSize: '12px', margin: '0' }}>VAT: {vatNumber}</p>
+                  )}
+                </div>
+                <div>
+                  <p style={{ fontSize: '10px', fontWeight: '700', color: '#9A9A9A', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 8px' }}>Bill To</p>
+                  <p style={{ fontWeight: '700', fontSize: '16px', color: '#1F1F21', margin: '0 0 4px' }}>{clientName || 'Client Name'}</p>
+                  {clientAddress && (
+                    <p style={{ color: '#6B6B6B', fontSize: '13px', margin: '0', whiteSpace: 'pre-line' }}>{clientAddress}</p>
+                  )}
                 </div>
               </div>
 
-              {/* Bill to */}
-              <div>
-                <p className="font-medium">Bill To:</p>
-                <p>{clientName || 'Client Name'}</p>
-                {clientAddress && <p className="text-muted-foreground">{clientAddress}</p>}
-              </div>
-
+              {/* Project / Job ref pills */}
               {(selectedProject || jobReference) && (
-                <div className="flex gap-8">
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '28px', flexWrap: 'wrap' }}>
                   {selectedProject && (
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Project</p>
-                      <p className="font-medium">{selectedProject.name}</p>
+                    <div style={{ backgroundColor: '#F5F3EE', borderRadius: '8px', padding: '8px 14px' }}>
+                      <p style={{ fontSize: '10px', fontWeight: '700', color: '#9A9A9A', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 3px' }}>Project</p>
+                      <p style={{ fontWeight: '600', fontSize: '13px', color: '#1F1F21', margin: '0' }}>{selectedProject.name}</p>
                     </div>
                   )}
                   {jobReference && (
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Job Reference</p>
-                      <p className="font-medium">{jobReference}</p>
+                    <div style={{ backgroundColor: '#F5F3EE', borderRadius: '8px', padding: '8px 14px' }}>
+                      <p style={{ fontSize: '10px', fontWeight: '700', color: '#9A9A9A', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 3px' }}>Job Reference</p>
+                      <p style={{ fontWeight: '600', fontSize: '13px', color: '#1F1F21', margin: '0' }}>{jobReference}</p>
                     </div>
                   )}
                 </div>
               )}
 
-              <Separator />
-
+              {/* Line items table */}
               {selectedDays.length > 0 ? (
-                <table className="w-full text-sm">
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-2">Description</th>
-                      <th className="text-left py-2">Date</th>
-                      <th className="text-right py-2">Amount</th>
+                    <tr style={{ backgroundColor: '#F5F3EE' }}>
+                      <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: '700', color: '#1F1F21', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', borderRadius: '6px 0 0 6px' }}>Description</th>
+                      <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: '700', color: '#1F1F21', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Date</th>
+                      <th style={{ textAlign: 'left', padding: '10px 14px', fontWeight: '700', color: '#1F1F21', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Hours</th>
+                      <th style={{ textAlign: 'right', padding: '10px 14px', fontWeight: '700', color: '#1F1F21', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', borderRadius: '0 6px 6px 0' }}>Amount</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedDays.map(day => (
-                      <tr key={day.id} className="border-b">
-                        <td className="py-2">
-                          <p className="font-medium">{day.role_name}</p>
-                          <p className="text-muted-foreground capitalize">
+                    {selectedDays.map((day, idx) => (
+                      <tr key={day.id} style={{ borderBottom: '1px solid #F0EDE8' }}>
+                        <td style={{ padding: '12px 14px', verticalAlign: 'top' }}>
+                          <p style={{ fontWeight: '600', color: '#1F1F21', margin: '0 0 2px', fontSize: '13px' }}>{day.role_name}</p>
+                          <p style={{ color: '#9A9A9A', margin: '0', fontSize: '11px', textTransform: 'capitalize' }}>
                             {day.day_type.replace(/_/g, ' ')}
                           </p>
-                          <p className="text-muted-foreground">
-                            Call: {day.call_time} – Wrap: {day.wrap_time}
-                          </p>
                         </td>
-                        <td className="py-2 text-muted-foreground">
-                          {day.work_date ? format(parseISO(day.work_date), 'dd/MM/yy') : '—'}
+                        <td style={{ padding: '12px 14px', color: '#6B6B6B', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
+                          {day.work_date ? format(parseISO(day.work_date), 'EEE dd MMM yyyy') : '—'}
                         </td>
-                        <td className="py-2 text-right font-mono">£{(day.grand_total || 0).toFixed(2)}</td>
+                        <td style={{ padding: '12px 14px', color: '#6B6B6B', verticalAlign: 'top', whiteSpace: 'nowrap', fontSize: '12px' }}>
+                          {day.call_time} – {day.wrap_time}
+                        </td>
+                        <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: '700', color: '#1F1F21', verticalAlign: 'top', fontFamily: 'monospace', fontSize: '14px' }}>
+                          £{(day.grand_total || 0).toFixed(2)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
-                  <tfoot>
-                    <tr>
-                      <td colSpan={2} className="py-3 text-right font-bold">Total Due:</td>
-                      <td className="py-3 text-right font-bold font-mono text-lg">£{totalAmount.toFixed(2)}</td>
-                    </tr>
-                  </tfoot>
                 </table>
               ) : (
-                <p className="text-muted-foreground text-center py-8">
-                  {selectedProjectId ? 'Check the days you want to include on the left.' : 'Select a project to generate the invoice.'}
-                </p>
+                <div style={{ textAlign: 'center', padding: '40px', color: '#9A9A9A', fontSize: '14px' }}>
+                  Select days from the left panel to populate the invoice.
+                </div>
               )}
 
-              <Separator />
+              {/* Total */}
+              {selectedDays.length > 0 && (
+                <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+                  <div style={{ backgroundColor: '#1F1F21', borderRadius: '12px', padding: '16px 24px', minWidth: '220px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '24px' }}>
+                      <span style={{ color: '#9A9A9A', fontSize: '13px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Total Due
+                      </span>
+                      <span style={{ color: '#FFD528', fontWeight: '800', fontSize: '22px', fontFamily: 'monospace' }}>
+                        £{totalAmount.toFixed(2)}
+                      </span>
+                    </div>
+                    <p style={{ color: '#6B6B6B', fontSize: '11px', margin: '6px 0 0', textAlign: 'right' }}>
+                      Payment within 30 days of invoice
+                    </p>
+                  </div>
+                </div>
+              )}
 
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p>Payment terms: 30 days from receipt</p>
-                {bankDetails && <p>Bank details: {bankDetails}</p>}
-                <p>Rates as per APA Recommended Terms for Engaging Crew on Commercials (Effective 1st September 2025)</p>
+              {/* Footer */}
+              <div style={{ marginTop: '28px', paddingTop: '20px', borderTop: '1px solid #F0EDE8' }}>
+                {hasBankDetails && (
+                  <div style={{ backgroundColor: '#F5F3EE', borderRadius: '10px', padding: '14px 18px', marginBottom: '14px' }}>
+                    <p style={{ fontSize: '10px', fontWeight: '700', color: '#9A9A9A', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 6px' }}>Payment Details</p>
+                    <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+                      <div>
+                        <p style={{ fontSize: '10px', color: '#9A9A9A', margin: '0 0 2px' }}>Account Name</p>
+                        <p style={{ fontSize: '13px', fontWeight: '600', color: '#1F1F21', margin: '0' }}>{bankAccountName}</p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '10px', color: '#9A9A9A', margin: '0 0 2px' }}>Sort Code</p>
+                        <p style={{ fontSize: '13px', fontWeight: '600', color: '#1F1F21', margin: '0', fontFamily: 'monospace' }}>{bankSortCode}</p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '10px', color: '#9A9A9A', margin: '0 0 2px' }}>Account Number</p>
+                        <p style={{ fontSize: '13px', fontWeight: '600', color: '#1F1F21', margin: '0', fontFamily: 'monospace' }}>{bankAccountNumber}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <p style={{ color: '#ABABAB', fontSize: '11px', margin: '0 0 4px' }}>
+                  Rates as per APA Recommended Terms for Engaging Crew on Commercials (Effective 1 September 2025)
+                </p>
+                <p style={{ color: '#ABABAB', fontSize: '11px', margin: '0' }}>
+                  Generated by Crew Dock · crew-dock.vercel.app
+                </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
