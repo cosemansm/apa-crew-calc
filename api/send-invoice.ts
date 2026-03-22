@@ -1,54 +1,24 @@
-// Vercel Edge Function — sends an invoice PDF via Resend
-// POST /api/send-invoice
-// Body: { to: string[], subject: string, message: string, pdfBase64: string, fileName: string, fromName: string }
-
-export const config = {
-  runtime: 'edge',
-};
+// Vercel Serverless Function (Node.js runtime) — sends an invoice PDF via Resend
+// Node.js runtime is used instead of Edge so we can handle larger PDF payloads.
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
-export default async function handler(req: Request) {
+export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   if (!RESEND_API_KEY) {
-    return new Response(JSON.stringify({ error: 'Email service not configured — add RESEND_API_KEY to environment variables' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(500).json({ error: 'Email service not configured — add RESEND_API_KEY to environment variables' });
   }
 
-  let body: {
-    to: string | string[];
-    subject: string;
-    message: string;
-    pdfBase64: string;
-    fileName?: string;
-    fromName?: string;
-  };
-
-  try {
-    body = await req.json();
-  } catch {
-    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
-
-  const { to, subject, message, pdfBase64, fileName, fromName } = body;
+  const { to, subject, message, pdfBase64, fileName } = req.body;
 
   if (!to || !subject || !pdfBase64) {
-    return new Response(JSON.stringify({ error: 'Missing required fields: to, subject, pdfBase64' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(400).json({ error: 'Missing required fields: to, subject, pdfBase64' });
   }
 
   const toArray = Array.isArray(to) ? to : [to];
-  const senderName = fromName || 'Crew Dock';
   const attachmentName = fileName || 'invoice.pdf';
 
   try {
@@ -59,7 +29,7 @@ export default async function handler(req: Request) {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: `Crew Dock <noreply@crewdock.app>`,
+        from: 'Crew Dock <noreply@crewdock.app>',
         to: toArray,
         subject,
         text: message,
@@ -74,21 +44,12 @@ export default async function handler(req: Request) {
 
     if (!response.ok) {
       const errorText = await response.text();
-      return new Response(JSON.stringify({ error: `Resend API error: ${errorText}` }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return res.status(500).json({ error: `Resend API error: ${errorText}` });
     }
 
-    const data = await response.json() as { id?: string };
-    return new Response(JSON.stringify({ success: true, id: data.id }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    const data = await response.json();
+    return res.status(200).json({ success: true, id: data.id });
   } catch (error) {
-    return new Response(JSON.stringify({ error: String(error) }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return res.status(500).json({ error: String(error) });
   }
 }

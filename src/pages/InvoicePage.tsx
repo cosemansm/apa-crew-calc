@@ -146,18 +146,17 @@ export function InvoicePage() {
     else setSelected(prev => [...new Set([...prev, ...visibleDays.map(d => d.id)])]);
   };
 
-  const generatePDF = async (): Promise<jsPDF | null> => {
+  // Shared helper — captures the invoice element and builds a jsPDF.
+  // scale:2 + PNG for crisp downloads; scale:1 + JPEG for smaller email attachments.
+  const capturePDF = async (scale: number, format: 'PNG' | 'JPEG'): Promise<jsPDF | null> => {
     if (!invoiceRef.current) return null;
     const el = invoiceRef.current;
 
-    // Temporarily force A4 width (794px ≈ 210mm at 96dpi) for capture,
-    // then restore the original width so the preview stays responsive.
     const prevWidth = el.style.width;
-    const prevPosition = el.style.position;
     el.style.width = '794px';
 
     const canvas = await html2canvas(el, {
-      scale: 2,           // 2× for crisp hi-res output
+      scale,
       useCORS: true,
       backgroundColor: '#ffffff',
       logging: false,
@@ -166,26 +165,32 @@ export function InvoicePage() {
     });
 
     el.style.width = prevWidth;
-    el.style.position = prevPosition;
 
-    const imgData = canvas.toDataURL('image/png');
+    const mimeType = format === 'JPEG' ? 'image/jpeg' : 'image/png';
+    const quality  = format === 'JPEG' ? 0.85 : 1;
+    const imgData  = canvas.toDataURL(mimeType, quality);
+
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pdfWidth = pdf.internal.pageSize.getWidth();   // 210mm
-    const pdfHeight = pdf.internal.pageSize.getHeight(); // 297mm
-
-    // Scale image to fill A4 width exactly; add pages if content overflows
+    const pdfWidth  = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
     const imgHeightMm = (canvas.height / canvas.width) * pdfWidth;
 
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeightMm);
+    pdf.addImage(imgData, format, 0, 0, pdfWidth, imgHeightMm);
     let remaining = imgHeightMm - pdfHeight;
     while (remaining > 0) {
       pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, -(imgHeightMm - remaining), pdfWidth, imgHeightMm);
+      pdf.addImage(imgData, format, 0, -(imgHeightMm - remaining), pdfWidth, imgHeightMm);
       remaining -= pdfHeight;
     }
 
     return pdf;
   };
+
+  // High-res PNG for downloading (looks sharp when printed)
+  const generatePDF = () => capturePDF(2, 'PNG');
+
+  // Smaller JPEG for email attachment (keeps payload well under Vercel's limit)
+  const generatePDFForEmail = () => capturePDF(1, 'JPEG');
 
   const handleDownload = async () => {
     setDownloading(true);
@@ -217,7 +222,7 @@ export function InvoicePage() {
     setEmailSending(true);
     setEmailError('');
     try {
-      const pdf = await generatePDF();
+      const pdf = await generatePDFForEmail();
       if (!pdf) {
         setEmailError('Failed to generate PDF. Please try again.');
         return;
