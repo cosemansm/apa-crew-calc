@@ -173,9 +173,27 @@ export function DashboardPage() {
     })));
   }, [projects]);
 
+  // Earliest work_date per project — used to sort bars consistently across days
+  // so a project always occupies the same vertical slot, keeping bars visually connected
+  const projectFirstDate = useMemo(() => {
+    const map: Record<string, string> = {};
+    allProjectDays.forEach(d => {
+      if (!map[d.project_id] || d.work_date < map[d.project_id]) {
+        map[d.project_id] = d.work_date;
+      }
+    });
+    return map;
+  }, [allProjectDays]);
+
   const getDayProjects = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
-    return allProjectDays.filter(d => d.work_date === dateStr);
+    return allProjectDays
+      .filter(d => d.work_date === dateStr)
+      .sort((a, b) => {
+        const fa = projectFirstDate[a.project_id] ?? a.work_date;
+        const fb = projectFirstDate[b.project_id] ?? b.work_date;
+        return fa.localeCompare(fb) || a.project_id.localeCompare(b.project_id);
+      });
   };
 
   // Lookup: which project_ids are booked on each date (for connected bars)
@@ -327,7 +345,7 @@ export function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-7 gap-px">
+            <div className="grid grid-cols-7 gap-0">
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
                 <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">{d}</div>
               ))}
@@ -341,7 +359,7 @@ export function DashboardPage() {
                   <div
                     key={date.toISOString()}
                     className={`min-h-[52px] p-1 text-sm transition-all overflow-hidden ${
-                      isToday ? 'bg-[#FFD528] rounded-xl' : 'hover:bg-muted rounded-xl'
+                      isToday ? 'bg-[#FFD528] rounded-lg' : 'hover:bg-muted rounded-lg'
                     }`}
                   >
                     <span className={`block text-xs mb-0.5 ${isToday ? 'font-bold text-[#1F1F21]' : 'text-muted-foreground'}`}>
@@ -355,12 +373,12 @@ export function DashboardPage() {
                       const connNext  = bookedProjectsByDate[nextDate]?.has(dp.project_id);
                       const colour    = STATUS_CONFIG[dp.projectStatus].calendarBg;
 
-                      // Border-radius only — no negative margins, so bars never collide
+                      // Border-radius: flat on sides that connect to adjacent cells
                       const br =
                         connPrev && connNext ? '0'          :
-                        connPrev             ? '0 4px 4px 0':
-                        connNext             ? '4px 0 0 4px':
-                                               '4px';
+                        connPrev             ? '0 3px 3px 0':
+                        connNext             ? '3px 0 0 3px':
+                                               '3px';
 
                       return (
                         <div
