@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown, Trash2 } from 'lucide-react';
+import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown, Trash2, Receipt } from 'lucide-react';
 import { format, getDay, addDays, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek, type CalculationResult } from '@/data/calculation-engine';
@@ -390,6 +390,22 @@ export function CalculatorPage() {
   // Pending within-page navigation when user has unsaved changes
   const [pendingDayId, setPendingDayId] = useState<string | null>(null);
 
+  // Expenses
+  interface Expense {
+    id: string;
+    description: string;
+    amount: number;
+    category: string;
+    expense_date: string | null;
+  }
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [expenseDesc, setExpenseDesc] = useState('');
+  const [expenseAmount, setExpenseAmount] = useState('');
+  const [expenseCategory, setExpenseCategory] = useState('other');
+  const [expenseDate, setExpenseDate] = useState('');
+  const [addingExpense, setAddingExpense] = useState(false);
+  const [showExpenseForm, setShowExpenseForm] = useState(false);
+
   // Change Project picker
   const [allProjects, setAllProjects] = useState<UserProject[]>([]);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
@@ -547,6 +563,46 @@ export function CalculatorPage() {
         });
     }
   }, [projectId]);
+
+  // Load expenses when project changes
+  useEffect(() => {
+    if (projectId) {
+      supabase.from('project_expenses')
+        .select('id, description, amount, category, expense_date')
+        .eq('project_id', projectId)
+        .order('created_at', { ascending: true })
+        .then(({ data }) => { if (data) setExpenses(data as Expense[]); });
+    } else {
+      setExpenses([]);
+    }
+  }, [projectId]);
+
+  const addExpense = async () => {
+    if (!projectId || !expenseDesc.trim() || !expenseAmount) return;
+    setAddingExpense(true);
+    const { data, error } = await supabase.from('project_expenses').insert({
+      user_id: user!.id,
+      project_id: projectId,
+      description: expenseDesc.trim(),
+      amount: parseFloat(expenseAmount),
+      category: expenseCategory,
+      expense_date: expenseDate || null,
+    }).select('id, description, amount, category, expense_date').single();
+    if (!error && data) {
+      setExpenses(prev => [...prev, data as Expense]);
+      setExpenseDesc('');
+      setExpenseAmount('');
+      setExpenseCategory('other');
+      setExpenseDate('');
+      setShowExpenseForm(false);
+    }
+    setAddingExpense(false);
+  };
+
+  const removeExpense = async (id: string) => {
+    await supabase.from('project_expenses').delete().eq('id', id);
+    setExpenses(prev => prev.filter(e => e.id !== id));
+  };
 
   // Load project name (skip if already set from session restore)
   useEffect(() => {
@@ -1042,21 +1098,7 @@ export function CalculatorPage() {
             {/* Day Details */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Day Type</Label>
-                <Select value={dayType} onValueChange={v => handleDayTypeChange(v as DayType)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DAY_TYPES.map(dt => (
-                      <SelectItem key={dt.value} value={dt.value}>{dt.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="workDate">Date Worked</Label>
+                <Label htmlFor="workDate">Date</Label>
                 <div className="relative">
                   <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input id="workDate" type="date" className="pl-10" value={workDate} onChange={e => setWorkDate(e.target.value)} />
@@ -1068,6 +1110,20 @@ export function CalculatorPage() {
                     <Label htmlFor="bankHol" className="text-xs">Bank Holiday</Label>
                   </div>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Day Type</Label>
+                <Select value={dayType} onValueChange={v => handleDayTypeChange(v as DayType)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DAY_TYPES.map(dt => (
+                      <SelectItem key={dt.value} value={dt.value}>{dt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -1624,6 +1680,154 @@ export function CalculatorPage() {
             })()}
           </CardContent>
         </Card>
+
+        {/* Expenses */}
+        {projectId && (() => {
+          const expensesTotal = expenses.reduce((s, e) => s + e.amount, 0);
+          const EXPENSE_CATEGORIES: Record<string, string> = {
+            travel: 'Travel',
+            accommodation: 'Accommodation',
+            meals: 'Meals & Subsistence',
+            equipment: 'Equipment',
+            parking: 'Parking',
+            other: 'Other',
+          };
+          return (
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                    <Receipt className="h-4 w-4" /> Expenses
+                    {expenses.length > 0 && (
+                      <span className="ml-1 text-xs font-normal text-muted-foreground">
+                        £{expensesTotal.toFixed(2)}
+                      </span>
+                    )}
+                  </CardTitle>
+                  {!showExpenseForm && (
+                    <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowExpenseForm(true)}>
+                      <Plus className="h-3 w-3" /> Add Expense
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-3">
+
+                {/* Add expense form */}
+                {showExpenseForm && (
+                  <div className="rounded-xl border border-border bg-muted/30 p-3 space-y-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Description</Label>
+                      <Input
+                        placeholder="e.g. Taxi to location"
+                        value={expenseDesc}
+                        onChange={e => setExpenseDesc(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Category</Label>
+                        <Select value={expenseCategory} onValueChange={setExpenseCategory}>
+                          <SelectTrigger className="h-9 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(EXPENSE_CATEGORIES).map(([val, label]) => (
+                              <SelectItem key={val} value={val}>{label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Amount (£)</Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">£</span>
+                          <Input
+                            type="number"
+                            className="pl-6 h-9 text-sm"
+                            placeholder="0.00"
+                            min="0"
+                            step="0.01"
+                            value={expenseAmount}
+                            onChange={e => setExpenseAmount(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Date (optional)</Label>
+                      <Input
+                        type="date"
+                        className="h-9 text-sm"
+                        value={expenseDate}
+                        onChange={e => setExpenseDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        disabled={addingExpense || !expenseDesc.trim() || !expenseAmount}
+                        onClick={addExpense}
+                      >
+                        {addingExpense ? 'Adding…' : 'Add Expense'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => { setShowExpenseForm(false); setExpenseDesc(''); setExpenseAmount(''); setExpenseCategory('other'); setExpenseDate(''); }}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Expenses list */}
+                {expenses.length === 0 && !showExpenseForm ? (
+                  <p className="text-xs text-muted-foreground text-center py-3">
+                    No expenses added yet. Click "Add Expense" to track costs.
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {expenses.map(exp => (
+                      <div key={exp.id} className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 border border-border hover:bg-muted/30 transition-colors group">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium truncate">{exp.description}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {EXPENSE_CATEGORIES[exp.category] ?? exp.category}
+                            {exp.expense_date && ` · ${format(new Date(exp.expense_date + 'T12:00:00'), 'dd MMM')}`}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="font-mono text-sm font-semibold">£{exp.amount.toFixed(2)}</span>
+                          <button
+                            onClick={() => removeExpense(exp.id)}
+                            className="p-1 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                            title="Remove expense"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {expenses.length > 0 && (
+                      <>
+                        <Separator />
+                        <div className="flex justify-between text-sm font-bold px-1">
+                          <span>Expenses Total</span>
+                          <span className="font-mono">£{expensesTotal.toFixed(2)}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })()}
+
       </div>
     </div>
     </>
