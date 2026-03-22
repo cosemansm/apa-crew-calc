@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Sparkles, Send, Loader2, AlertCircle, ChevronLeft,
-  CheckCircle2, Save, TriangleAlert,
+  Sparkles, Send, Loader2, AlertCircle, ChevronLeft, ChevronRight,
+  CheckCircle2, Save, TriangleAlert, CalendarIcon, Star,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,14 +10,21 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  SelectGroup, SelectLabel,
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { APA_CREW_ROLES } from '@/data/apa-rates';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { APA_CREW_ROLES, getRolesByDepartment } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek } from '@/data/calculation-engine';
 import { parseTimesheetWithGemini, type ParsedEntry } from '@/lib/gemini';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { format } from 'date-fns';
+import {
+  format, startOfMonth, endOfMonth, eachDayOfInterval,
+  addMonths, subMonths, isSameDay, isSameMonth, parseISO, getDay,
+} from 'date-fns';
 import { cn } from '@/lib/utils';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -44,21 +51,213 @@ const DAY_OF_WEEK_OPTIONS: { value: DayOfWeek; label: string }[] = [
   { value: 'bank_holiday', label: 'Bank Holiday' },
 ];
 
+const WEEK_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
 type Stage = 'input' | 'review';
 
 interface EditableEntry extends ParsedEntry {
   _id: string;
 }
 
-// ─── Field wrapper — highlights missing fields in yellow ──────────────────────
+// ─── Custom Date Picker ───────────────────────────────────────────────────────
 
-function FieldWrap({
-  label, missing, children, className,
+function DatePickerField({
+  value, onChange, missing,
 }: {
-  label: string;
+  value: string;
+  onChange: (date: string, dow: DayOfWeek) => void;
   missing?: boolean;
-  children: React.ReactNode;
-  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [viewMonth, setViewMonth] = useState(() =>
+    value ? new Date(value) : new Date()
+  );
+
+  const today = new Date();
+  const selected = value ? parseISO(value) : null;
+
+  const monthStart = startOfMonth(viewMonth);
+  const monthEnd = endOfMonth(viewMonth);
+  const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+
+  // Monday-first offset
+  const startOffset = (getDay(monthStart) + 6) % 7;
+
+  const handleSelect = (d: Date) => {
+    const iso = format(d, 'yyyy-MM-dd');
+    const dowMap: DayOfWeek[] = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+    const dow = dowMap[d.getDay()];
+    onChange(iso, dow);
+    setOpen(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            'flex h-11 w-full items-center gap-2 rounded-xl border border-border bg-white px-3 py-2 text-sm text-left transition-colors',
+            'hover:border-foreground/30 focus:outline-none focus:ring-2 focus:ring-ring/20',
+            !value && 'text-muted-foreground',
+            missing && 'ring-2 ring-[#FFD528]',
+          )}
+        >
+          <CalendarIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+          {value ? format(parseISO(value), 'd MMM yyyy') : 'Pick a date…'}
+        </button>
+      </PopoverTrigger>
+
+      <PopoverContent className="p-4 w-72">
+        {/* Month nav */}
+        <div className="flex items-center justify-between mb-3">
+          <button
+            type="button"
+            onClick={() => setViewMonth(m => subMonths(m, 1))}
+            className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <span className="text-sm font-semibold">{format(viewMonth, 'MMMM yyyy')}</span>
+          <button
+            type="button"
+            onClick={() => setViewMonth(m => addMonths(m, 1))}
+            className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-muted transition-colors"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Week headers */}
+        <div className="grid grid-cols-7 mb-1">
+          {WEEK_HEADERS.map(h => (
+            <div key={h} className="h-8 flex items-center justify-center text-[11px] font-medium text-muted-foreground">
+              {h}
+            </div>
+          ))}
+        </div>
+
+        {/* Days grid */}
+        <div className="grid grid-cols-7 gap-y-1">
+          {/* Leading empty cells */}
+          {Array.from({ length: startOffset }).map((_, i) => (
+            <div key={`empty-${i}`} />
+          ))}
+          {days.map(d => {
+            const isToday = isSameDay(d, today);
+            const isSelected = selected ? isSameDay(d, selected) : false;
+            const isCurrentMonth = isSameMonth(d, viewMonth);
+            return (
+              <button
+                key={d.toISOString()}
+                type="button"
+                onClick={() => handleSelect(d)}
+                className={cn(
+                  'h-8 w-8 mx-auto flex items-center justify-center rounded-lg text-sm transition-colors',
+                  !isCurrentMonth && 'opacity-30',
+                  isSelected && 'bg-[#FFD528] text-[#1F1F21] font-bold',
+                  isToday && !isSelected && 'bg-[#1F1F21] text-white font-bold',
+                  !isSelected && !isToday && 'hover:bg-muted',
+                )}
+              >
+                {d.getDate()}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Today shortcut */}
+        <div className="mt-3 pt-3 border-t border-border">
+          <button
+            type="button"
+            onClick={() => handleSelect(today)}
+            className="w-full text-xs text-muted-foreground hover:text-foreground text-center transition-colors"
+          >
+            Today — {format(today, 'd MMM yyyy')}
+          </button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+// ─── Role Select with grouped options ────────────────────────────────────────
+
+function RoleSelect({
+  value, onChange, missing,
+  favouriteRoles, userDepartment,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  missing?: boolean;
+  favouriteRoles: string[];
+  userDepartment: string;
+}) {
+  const deptRoles = useMemo(() => {
+    if (!userDepartment) return [];
+    return getRolesByDepartment(userDepartment)
+      .map(r => r.role)
+      .filter(r => !favouriteRoles.includes(r));
+  }, [userDepartment, favouriteRoles]);
+
+  const otherRoles = useMemo(() => {
+    const used = new Set([...favouriteRoles, ...deptRoles]);
+    return APA_CREW_ROLES.map(r => r.role).filter(r => !used.has(r));
+  }, [favouriteRoles, deptRoles]);
+
+  return (
+    <div className={cn(missing && 'ring-2 ring-[#FFD528] rounded-xl')}>
+      <Select
+        value={value || '__none__'}
+        onValueChange={v => onChange(v === '__none__' ? '' : v)}
+      >
+        <SelectTrigger className={cn('text-sm', !value && 'text-muted-foreground')}>
+          <SelectValue placeholder="Select a role…" />
+        </SelectTrigger>
+        <SelectContent className="max-h-72">
+
+          {/* Favourites */}
+          {favouriteRoles.length > 0 && (
+            <SelectGroup>
+              <SelectLabel className="flex items-center gap-1.5 text-[11px] text-amber-600">
+                <Star className="h-3 w-3 fill-amber-400 text-amber-400" /> Favourites
+              </SelectLabel>
+              {favouriteRoles.map(r => (
+                <SelectItem key={`fav-${r}`} value={r} className="text-sm">{r}</SelectItem>
+              ))}
+            </SelectGroup>
+          )}
+
+          {/* My Department */}
+          {deptRoles.length > 0 && (
+            <SelectGroup>
+              <SelectLabel className="text-[11px] text-muted-foreground">
+                My Department — {userDepartment}
+              </SelectLabel>
+              {deptRoles.map(r => (
+                <SelectItem key={`dept-${r}`} value={r} className="text-sm">{r}</SelectItem>
+              ))}
+            </SelectGroup>
+          )}
+
+          {/* All other roles */}
+          <SelectGroup>
+            <SelectLabel className="text-[11px] text-muted-foreground">All Roles</SelectLabel>
+            {otherRoles.map(r => (
+              <SelectItem key={r} value={r} className="text-sm">{r}</SelectItem>
+            ))}
+          </SelectGroup>
+
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+// ─── Missing field wrapper ────────────────────────────────────────────────────
+
+function FieldWrap({ label, missing, children, className }: {
+  label: string; missing?: boolean; children: React.ReactNode; className?: string;
 }) {
   return (
     <div className={cn('space-y-1', className)}>
@@ -66,14 +265,12 @@ function FieldWrap({
         <Label className="text-xs">{label}</Label>
         {missing && <span className="text-[10px] font-semibold text-amber-600 uppercase tracking-wide">Required</span>}
       </div>
-      <div className={cn(missing && 'ring-2 ring-[#FFD528] rounded-lg')}>
-        {children}
-      </div>
+      {children}
     </div>
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export function AIInputPage() {
   const navigate = useNavigate();
@@ -88,7 +285,19 @@ export function AIInputPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  // ── Parse ─────────────────────────────────────────────────────────────────
+  // User context for role sorting
+  const [favouriteRoles, setFavouriteRoles] = useState<string[]>([]);
+  const [userDepartment, setUserDepartment] = useState('');
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from('favourite_roles').select('role_name').eq('user_id', user.id)
+      .then(({ data }) => { if (data) setFavouriteRoles(data.map(r => r.role_name)); });
+    supabase.from('user_settings').select('department').eq('user_id', user.id).single()
+      .then(({ data }) => { if (data?.department) setUserDepartment(data.department); });
+  }, [user]);
+
+  // ── Parse ──────────────────────────────────────────────────────────────────
 
   const handleParse = async () => {
     if (!input.trim()) return;
@@ -97,7 +306,6 @@ export function AIInputPage() {
     try {
       const parsed = await parseTimesheetWithGemini(input);
       setEntries(parsed.map((e, i) => ({ ...e, _id: `entry-${i}-${Date.now()}` })));
-      // Default project name from today's date
       setProjectName(`AI Import — ${format(new Date(), 'd MMM yyyy')}`);
       setStage('review');
     } catch (err) {
@@ -107,25 +315,23 @@ export function AIInputPage() {
     }
   };
 
-  // ── Update a single entry field ───────────────────────────────────────────
+  // ── Update entry ───────────────────────────────────────────────────────────
 
   const updateEntry = (id: string, patch: Partial<EditableEntry>) => {
     setEntries(prev => prev.map(e => {
       if (e._id !== id) return e;
       const updated = { ...e, ...patch };
-      // When a field is filled in, remove it from missingFields
-      const resolved = Object.keys(patch) as string[];
       const fieldMap: Record<string, string> = {
         role: 'role', agreedRate: 'rate', workDate: 'date',
         dayOfWeek: 'date', callTime: 'callTime', wrapTime: 'wrapTime',
       };
-      const resolvedMissing = resolved.map(k => fieldMap[k]).filter(Boolean);
+      const resolvedMissing = Object.keys(patch).map(k => fieldMap[k]).filter(Boolean);
       updated.missingFields = updated.missingFields.filter(f => !resolvedMissing.includes(f));
       return updated;
     }));
   };
 
-  // ── Auto-calculate results from current entries ───────────────────────────
+  // ── Auto-calculate ─────────────────────────────────────────────────────────
 
   const results = useMemo(() => {
     return entries.map(entry => {
@@ -149,19 +355,15 @@ export function AIInputPage() {
           travelHours: 0,
           mileageOutsideM25: 0,
         });
-      } catch {
-        return null;
-      }
+      } catch { return null; }
     });
   }, [entries]);
 
-  // ── Totals / missing count ────────────────────────────────────────────────
-
   const totalMissing = entries.reduce((sum, e) => sum + e.missingFields.length, 0);
   const grandTotal = results.reduce((sum, r) => sum + (r?.grandTotal ?? 0), 0);
-  const allCalculated = results.every(r => r !== null);
+  const allCalculated = results.length > 0 && results.every(r => r !== null);
 
-  // ── Save to Supabase → navigate to Calculator ─────────────────────────────
+  // ── Save project ───────────────────────────────────────────────────────────
 
   const handleSaveProject = async () => {
     if (!user) return;
@@ -171,8 +373,7 @@ export function AIInputPage() {
     const { data: project, error: projErr } = await supabase
       .from('projects')
       .insert({ user_id: user.id, name: projectName.trim() || 'AI Import' })
-      .select()
-      .single();
+      .select().single();
 
     if (projErr || !project) {
       setSaveError(projErr?.message ?? 'Could not create project');
@@ -184,7 +385,6 @@ export function AIInputPage() {
       const entry = entries[i];
       const result = results[i];
       const role = APA_CREW_ROLES.find(r => r.role === entry.role);
-
       await supabase.from('project_days').insert({
         project_id: project.id,
         day_number: i + 1,
@@ -218,7 +418,7 @@ export function AIInputPage() {
     navigate(`/calculator?project=${project.id}&name=${encodeURIComponent(projectName.trim() || 'AI Import')}`);
   };
 
-  // ─── Render: Input stage ──────────────────────────────────────────────────
+  // ─── Input stage ──────────────────────────────────────────────────────────
 
   if (stage === 'input') {
     return (
@@ -229,18 +429,17 @@ export function AIInputPage() {
               <Sparkles className="h-5 w-5" /> AI Timesheet Input
             </CardTitle>
             <CardDescription>
-              Describe your shoot days in plain English. Anything missing can be filled in on the next screen.
+              Describe your shoot days in plain English — even partial info works. Missing fields can be filled in on the next screen.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Textarea
-              placeholder={`Just type what you know — even partial info works:\n\n"Call 0800 wrap 1700 + 2h OT"\n"Gaffer, Monday, 6am–9pm, £568"\n"3 day shoot as DoP at £1200. Mon–Wed, call 0730, wrap around 2000"\n"Saturday night shoot as Sound Mixer. Called 6pm, wrapped 5am."`}
+              placeholder={`Just type what you know:\n\n"Call 0800 wrap 1700 + 2h OT"\n"Gaffer, Monday, 6am–9pm, £568"\n"3 day shoot as DoP at £1200. Mon–Wed, call 0730, wrap around 2000"\n"Saturday night shoot as Sound Mixer. Called 6pm, wrapped 5am."`}
               className="min-h-[180px] text-sm"
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleParse(); }}
             />
-
             <div className="flex gap-2 items-center">
               <Button onClick={handleParse} disabled={loading || !input.trim()}>
                 {loading
@@ -251,7 +450,6 @@ export function AIInputPage() {
               <Button variant="outline" onClick={() => navigate('/calculator')}>Manual Calculator</Button>
               <span className="text-xs text-muted-foreground ml-auto hidden sm:block">⌘ + Enter to parse</span>
             </div>
-
             {error && (
               <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-xl text-sm flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
@@ -261,7 +459,6 @@ export function AIInputPage() {
           </CardContent>
         </Card>
 
-        {/* Example prompts */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Try an example</CardTitle>
@@ -289,7 +486,7 @@ export function AIInputPage() {
     );
   }
 
-  // ─── Render: Review stage ─────────────────────────────────────────────────
+  // ─── Review stage ─────────────────────────────────────────────────────────
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
@@ -301,26 +498,27 @@ export function AIInputPage() {
         </Button>
         <div>
           <h2 className="text-lg font-bold">Review & Complete</h2>
-          <p className="text-sm text-muted-foreground">{entries.length} day{entries.length !== 1 ? 's' : ''} detected — fill in any highlighted fields below</p>
+          <p className="text-sm text-muted-foreground">
+            {entries.length} day{entries.length !== 1 ? 's' : ''} detected — fill in any highlighted fields
+          </p>
         </div>
       </div>
 
-      {/* Missing fields banner */}
-      {totalMissing > 0 && (
+      {/* Status banner */}
+      {totalMissing > 0 ? (
         <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
           <TriangleAlert className="h-4 w-4 shrink-0" />
           <span>
             <strong>{totalMissing} field{totalMissing !== 1 ? 's' : ''} still needed</strong>
-            {' '}— highlighted in yellow below. Fill them in to see the full calculation.
+            {' '}— highlighted in yellow below.
           </span>
         </div>
-      )}
-      {totalMissing === 0 && allCalculated && (
+      ) : allCalculated ? (
         <div className="flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           <span><strong>All fields complete</strong> — ready to save.</span>
         </div>
-      )}
+      ) : null}
 
       {/* Entry cards */}
       {entries.map((entry, i) => {
@@ -339,98 +537,70 @@ export function AIInputPage() {
                     <p className="font-semibold text-sm">{entry.role || 'Unknown role'}</p>
                     <p className="text-xs text-muted-foreground">
                       {entry.callTime && entry.wrapTime ? `${entry.callTime} – ${entry.wrapTime}` : 'Times not set'}
-                      {entry.workDate && ` · ${entry.workDate}`}
+                      {entry.workDate && ` · ${format(parseISO(entry.workDate), 'd MMM yyyy')}`}
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  {result ? (
-                    <p className="font-bold text-base">£{result.grandTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                  ) : (
-                    <Badge variant="secondary" className="text-xs">Incomplete</Badge>
-                  )}
-                </div>
+                {result
+                  ? <p className="font-bold text-base">£{result.grandTotal.toLocaleString('en-GB', { minimumFractionDigits: 2 })}</p>
+                  : <Badge variant="secondary" className="text-xs">Incomplete</Badge>
+                }
               </div>
             </CardHeader>
 
             <CardContent className="space-y-4">
-              {/* Row 1: Role + Rate */}
+              {/* Role + Rate */}
               <div className="grid grid-cols-2 gap-3">
                 <FieldWrap label="Crew Role" missing={isMissing('role')}>
-                  <Select
-                    value={entry.role || '__none__'}
-                    onValueChange={v => updateEntry(entry._id, { role: v === '__none__' ? '' : v })}
-                  >
-                    <SelectTrigger className={cn('text-sm', !entry.role && 'text-muted-foreground')}>
-                      <SelectValue placeholder="Select a role…" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-64">
-                      {APA_CREW_ROLES.map(r => (
-                        <SelectItem key={r.role} value={r.role} className="text-sm">
-                          {r.role}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <RoleSelect
+                    value={entry.role}
+                    onChange={v => updateEntry(entry._id, { role: v })}
+                    missing={isMissing('role')}
+                    favouriteRoles={favouriteRoles}
+                    userDepartment={userDepartment}
+                  />
                 </FieldWrap>
-
                 <FieldWrap label="Agreed Daily Rate (£)" missing={isMissing('rate')}>
-                  <div className="relative">
+                  <div className={cn('relative', isMissing('rate') && 'ring-2 ring-[#FFD528] rounded-xl')}>
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">£</span>
                     <Input
                       type="number"
                       className="pl-7 text-sm"
                       value={entry.agreedRate || ''}
-                      placeholder={
-                        entry.role
-                          ? `${APA_CREW_ROLES.find(r => r.role === entry.role)?.maxRate ?? ''}`
-                          : '0'
-                      }
+                      placeholder={entry.role ? String(APA_CREW_ROLES.find(r => r.role === entry.role)?.maxRate ?? '') : '0'}
                       onChange={e => updateEntry(entry._id, { agreedRate: parseFloat(e.target.value) || 0 })}
                     />
                   </div>
                 </FieldWrap>
               </div>
 
-              {/* Row 2: Call + Wrap time */}
+              {/* Call + Wrap */}
               <div className="grid grid-cols-2 gap-3">
                 <FieldWrap label="Call Time" missing={isMissing('callTime')}>
-                  <Input
-                    type="time"
-                    className="text-sm"
-                    value={entry.callTime || ''}
-                    onChange={e => updateEntry(entry._id, { callTime: e.target.value })}
-                  />
+                  <div className={cn(isMissing('callTime') && 'ring-2 ring-[#FFD528] rounded-xl')}>
+                    <Input type="time" className="text-sm" value={entry.callTime || ''}
+                      onChange={e => updateEntry(entry._id, { callTime: e.target.value })} />
+                  </div>
                 </FieldWrap>
                 <FieldWrap label="Wrap Time" missing={isMissing('wrapTime')}>
-                  <Input
-                    type="time"
-                    className="text-sm"
-                    value={entry.wrapTime || ''}
-                    onChange={e => updateEntry(entry._id, { wrapTime: e.target.value })}
-                  />
+                  <div className={cn(isMissing('wrapTime') && 'ring-2 ring-[#FFD528] rounded-xl')}>
+                    <Input type="time" className="text-sm" value={entry.wrapTime || ''}
+                      onChange={e => updateEntry(entry._id, { wrapTime: e.target.value })} />
+                  </div>
                 </FieldWrap>
               </div>
 
-              {/* Row 3: Date + Day type */}
+              {/* Date + Day Type */}
               <div className="grid grid-cols-2 gap-3">
                 <FieldWrap label="Work Date" missing={isMissing('date')}>
-                  <Input
-                    type="date"
-                    className="text-sm"
+                  <DatePickerField
                     value={entry.workDate || ''}
-                    onChange={e => {
-                      const d = new Date(e.target.value);
-                      const dow = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][d.getDay()] as DayOfWeek;
-                      updateEntry(entry._id, { workDate: e.target.value, dayOfWeek: dow });
-                    }}
+                    missing={isMissing('date')}
+                    onChange={(date, dow) => updateEntry(entry._id, { workDate: date, dayOfWeek: dow })}
                   />
                 </FieldWrap>
                 <FieldWrap label="Day Type">
-                  <Select
-                    value={entry.dayType}
-                    onValueChange={v => updateEntry(entry._id, { dayType: v as DayType })}
-                  >
+                  <Select value={entry.dayType} onValueChange={v => updateEntry(entry._id, { dayType: v as DayType })}>
                     <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {DAY_TYPE_OPTIONS.map(o => (
@@ -441,13 +611,10 @@ export function AIInputPage() {
                 </FieldWrap>
               </div>
 
-              {/* If no date but day of week needed */}
+              {/* Day of week fallback if no date */}
               {!entry.workDate && (
                 <FieldWrap label="Day of Week">
-                  <Select
-                    value={entry.dayOfWeek}
-                    onValueChange={v => updateEntry(entry._id, { dayOfWeek: v as DayOfWeek })}
-                  >
+                  <Select value={entry.dayOfWeek} onValueChange={v => updateEntry(entry._id, { dayOfWeek: v as DayOfWeek })}>
                     <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {DAY_OF_WEEK_OPTIONS.map(o => (
@@ -458,12 +625,11 @@ export function AIInputPage() {
                 </FieldWrap>
               )}
 
-              {/* Notes */}
               {entry.notes && (
                 <p className="text-xs text-muted-foreground italic px-1">📝 {entry.notes}</p>
               )}
 
-              {/* Calculation breakdown */}
+              {/* Breakdown */}
               {result && (result.lineItems.length > 0 || result.penalties.length > 0) && (
                 <>
                   <Separator />
@@ -488,7 +654,7 @@ export function AIInputPage() {
         );
       })}
 
-      {/* Grand total + save */}
+      {/* Total + Save */}
       <Card className="bg-[#1F1F21] border-[#1F1F21]">
         <CardContent className="pt-5 space-y-4">
           <div className="flex items-center justify-between">
@@ -528,7 +694,7 @@ export function AIInputPage() {
             }
           </Button>
           <p className="text-xs text-white/40 text-center">
-            You can fine-tune breaks, penalties and equipment in the calculator
+            Fine-tune breaks, penalties and equipment in the calculator
           </p>
         </CardContent>
       </Card>
