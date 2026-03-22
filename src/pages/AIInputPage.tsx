@@ -40,16 +40,6 @@ const DAY_TYPE_OPTIONS: { value: DayType; label: string }[] = [
   { value: 'rest',               label: 'Rest Day' },
 ];
 
-const DAY_OF_WEEK_OPTIONS: { value: DayOfWeek; label: string }[] = [
-  { value: 'monday',       label: 'Monday' },
-  { value: 'tuesday',      label: 'Tuesday' },
-  { value: 'wednesday',    label: 'Wednesday' },
-  { value: 'thursday',     label: 'Thursday' },
-  { value: 'friday',       label: 'Friday' },
-  { value: 'saturday',     label: 'Saturday' },
-  { value: 'sunday',       label: 'Sunday' },
-  { value: 'bank_holiday', label: 'Bank Holiday' },
-];
 
 const WEEK_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -321,11 +311,24 @@ export function AIInputPage() {
     setEntries(prev => prev.map(e => {
       if (e._id !== id) return e;
       const updated = { ...e, ...patch };
+
+      // Auto-fill rate when role is selected and rate is missing/zero
+      if (patch.role && patch.role !== e.role) {
+        const roleData = APA_CREW_ROLES.find(r => r.role === patch.role);
+        if (roleData && (!updated.agreedRate || updated.agreedRate === 0)) {
+          updated.agreedRate = roleData.maxRate;
+        }
+      }
+
       const fieldMap: Record<string, string> = {
         role: 'role', agreedRate: 'rate', workDate: 'date',
-        dayOfWeek: 'date', callTime: 'callTime', wrapTime: 'wrapTime',
+        callTime: 'callTime', wrapTime: 'wrapTime',
       };
       const resolvedMissing = Object.keys(patch).map(k => fieldMap[k]).filter(Boolean);
+
+      // If role was set and rate is now populated, also clear 'rate' from missing
+      if (patch.role && updated.agreedRate > 0) resolvedMissing.push('rate');
+
       updated.missingFields = updated.missingFields.filter(f => !resolvedMissing.includes(f));
       return updated;
     }));
@@ -610,20 +613,6 @@ export function AIInputPage() {
                   </Select>
                 </FieldWrap>
               </div>
-
-              {/* Day of week fallback if no date */}
-              {!entry.workDate && (
-                <FieldWrap label="Day of Week">
-                  <Select value={entry.dayOfWeek} onValueChange={v => updateEntry(entry._id, { dayOfWeek: v as DayOfWeek })}>
-                    <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {DAY_OF_WEEK_OPTIONS.map(o => (
-                        <SelectItem key={o.value} value={o.value} className="text-sm">{o.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FieldWrap>
-              )}
 
               {entry.notes && (
                 <p className="text-xs text-muted-foreground italic px-1">📝 {entry.notes}</p>
