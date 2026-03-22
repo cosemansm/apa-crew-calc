@@ -370,17 +370,18 @@ export function DashboardPage() {
                             backgroundColor: colour,
                             borderRadius: br,
                             marginTop: 2,
-                            padding: '1px 4px',
+                            padding: '2px 4px',
                             fontSize: 10,
                             fontWeight: 500,
                             color: '#fff',
                             lineHeight: '1.4',
+                            minHeight: 16,
                             overflow: 'hidden',
                             whiteSpace: 'nowrap',
                             textOverflow: 'ellipsis',
                           }}
                         >
-                          {connPrev ? '' : dp.projectName}
+                          {connPrev ? '\u00A0' : dp.projectName}
                         </div>
                       );
                     })}
