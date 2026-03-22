@@ -316,7 +316,7 @@ export function AIInputPage() {
       if (patch.role && patch.role !== e.role) {
         const roleData = APA_CREW_ROLES.find(r => r.role === patch.role);
         if (roleData && (!updated.agreedRate || updated.agreedRate === 0)) {
-          updated.agreedRate = roleData.maxRate;
+          updated.agreedRate = roleData.maxRate ?? 0;
         }
       }
 
