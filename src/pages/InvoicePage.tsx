@@ -67,6 +67,7 @@ export function InvoicePage() {
   const [emailMessage, setEmailMessage] = useState('');
   const [emailSending, setEmailSending] = useState(false);
   const [emailError, setEmailError] = useState('');
+  const [emailSent, setEmailSent] = useState(false);
 
   const projectPickerRef = useRef<HTMLDivElement>(null);
   const invoiceRef = useRef<HTMLDivElement>(null);
@@ -259,6 +260,7 @@ export function InvoicePage() {
 
       if (response.ok && result.success) {
         setShowEmailModal(false);
+        setEmailSent(true);
       } else {
         setEmailError(result.error || 'Failed to send email. Please try again.');
       }
@@ -741,6 +743,27 @@ export function InvoicePage() {
                 }
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Sent Confirmation ────────────────────────────────────── */}
+      {emailSent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm text-center px-8 py-10">
+            <div className="mx-auto mb-4 flex items-center justify-center w-16 h-16 rounded-full bg-green-100">
+              <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Invoice Sent!</h2>
+            <p className="text-sm text-muted-foreground mb-1">
+              Your invoice has been delivered to:
+            </p>
+            <p className="text-sm font-medium text-gray-800 mb-6 break-all">{emailTo}</p>
+            <Button className="w-full" onClick={() => setEmailSent(false)}>
+              Done
+            </Button>
           </div>
         </div>
       )}
