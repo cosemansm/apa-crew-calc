@@ -150,10 +150,14 @@ export function InvoicePage() {
     if (!invoiceRef.current) return null;
     const el = invoiceRef.current;
 
-    // Invoice is always rendered at 794px wide (A4 at 96dpi), so no width override needed.
-    // Scale: 2 gives 2× resolution for crisp output.
+    // Temporarily force A4 width (794px ≈ 210mm at 96dpi) for capture,
+    // then restore the original width so the preview stays responsive.
+    const prevWidth = el.style.width;
+    const prevPosition = el.style.position;
+    el.style.width = '794px';
+
     const canvas = await html2canvas(el, {
-      scale: 2,
+      scale: 2,           // 2× for crisp hi-res output
       useCORS: true,
       backgroundColor: '#ffffff',
       logging: false,
@@ -161,12 +165,15 @@ export function InvoicePage() {
       windowWidth: 794,
     });
 
+    el.style.width = prevWidth;
+    el.style.position = prevPosition;
+
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pdfWidth = pdf.internal.pageSize.getWidth();   // 210mm
     const pdfHeight = pdf.internal.pageSize.getHeight(); // 297mm
 
-    // Scale image to exactly fit A4 width; split into pages if the content is taller
+    // Scale image to fill A4 width exactly; add pages if content overflows
     const imgHeightMm = (canvas.height / canvas.width) * pdfWidth;
 
     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeightMm);
@@ -479,11 +486,10 @@ export function InvoicePage() {
             <p className="text-xs text-muted-foreground text-center">Add a client email address to enable sending</p>
           )}
 
-          {/* Invoice document — fixed at 794px (A4 width at 96dpi) */}
-          <div className="overflow-x-auto">
+          {/* Invoice document — responsive in preview, forced to 794px only during PDF export */}
           <div
             ref={invoiceRef}
-            style={{ backgroundColor: '#ffffff', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', width: '794px', minHeight: '1123px', boxSizing: 'border-box' }}
+            style={{ backgroundColor: '#ffffff', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
             className="rounded-2xl shadow-lg overflow-hidden"
           >
             {/* Top bar */}
@@ -642,7 +648,6 @@ export function InvoicePage() {
               </div>
             </div>
           </div>
-          </div>{/* /overflow-x-auto */}
         </div>
       </div>
 
