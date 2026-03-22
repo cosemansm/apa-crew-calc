@@ -1,49 +1,138 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Send, Loader2, ArrowRight, AlertCircle } from 'lucide-react';
+import {
+  Sparkles, Send, Loader2, AlertCircle, ChevronLeft,
+  CheckCircle2, Save, TriangleAlert,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { APA_CREW_ROLES } from '@/data/apa-rates';
-import { calculateCrewCost, type CalculationResult } from '@/data/calculation-engine';
+import { calculateCrewCost, type DayType, type DayOfWeek } from '@/data/calculation-engine';
 import { parseTimesheetWithGemini, type ParsedEntry } from '@/lib/gemini';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
-const DAY_TYPE_LABELS: Record<string, string> = {
-  basic_working: 'Basic Working Day',
-  continuous_working: 'Continuous Working Day',
-  travel: 'Travel Day',
-  rest: 'Rest Day',
-  prep: 'Prep Day',
-  recce: 'Recce Day',
-  build_strike: 'Build/Strike',
-  pre_light: 'Pre-light',
-};
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const DAY_TYPE_OPTIONS: { value: DayType; label: string }[] = [
+  { value: 'basic_working',      label: 'Basic Working Day (Shoot)' },
+  { value: 'continuous_working', label: 'Continuous Working Day' },
+  { value: 'prep',               label: 'Prep Day' },
+  { value: 'recce',              label: 'Recce Day' },
+  { value: 'build_strike',       label: 'Build / Strike Day' },
+  { value: 'pre_light',          label: 'Pre-light Day' },
+  { value: 'travel',             label: 'Travel Day' },
+  { value: 'rest',               label: 'Rest Day' },
+];
+
+const DAY_OF_WEEK_OPTIONS: { value: DayOfWeek; label: string }[] = [
+  { value: 'monday',       label: 'Monday' },
+  { value: 'tuesday',      label: 'Tuesday' },
+  { value: 'wednesday',    label: 'Wednesday' },
+  { value: 'thursday',     label: 'Thursday' },
+  { value: 'friday',       label: 'Friday' },
+  { value: 'saturday',     label: 'Saturday' },
+  { value: 'sunday',       label: 'Sunday' },
+  { value: 'bank_holiday', label: 'Bank Holiday' },
+];
+
+type Stage = 'input' | 'review';
+
+interface EditableEntry extends ParsedEntry {
+  _id: string;
+}
+
+// ─── Field wrapper — highlights missing fields in yellow ──────────────────────
+
+function FieldWrap({
+  label, missing, children, className,
+}: {
+  label: string;
+  missing?: boolean;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn('space-y-1', className)}>
+      <div className="flex items-center gap-1.5">
+        <Label className="text-xs">{label}</Label>
+        {missing && <span className="text-[10px] font-semibold text-amber-600 uppercase tracking-wide">Required</span>}
+      </div>
+      <div className={cn(missing && 'ring-2 ring-[#FFD528] rounded-lg')}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export function AIInputPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const [stage, setStage] = useState<Stage>('input');
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [parsed, setParsed] = useState<ParsedEntry[] | null>(null);
-  const [results, setResults] = useState<CalculationResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [entries, setEntries] = useState<EditableEntry[]>([]);
+  const [projectName, setProjectName] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const handleSubmit = async () => {
+  // ── Parse ─────────────────────────────────────────────────────────────────
+
+  const handleParse = async () => {
     if (!input.trim()) return;
     setLoading(true);
     setError(null);
-    setParsed(null);
-    setResults(null);
-
     try {
-      const entries = await parseTimesheetWithGemini(input);
-      setParsed(entries);
+      const parsed = await parseTimesheetWithGemini(input);
+      setEntries(parsed.map((e, i) => ({ ...e, _id: `entry-${i}-${Date.now()}` })));
+      // Default project name from today's date
+      setProjectName(`AI Import — ${format(new Date(), 'd MMM yyyy')}`);
+      setStage('review');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      // Calculate results for each parsed entry
-      const calculationResults = entries.map(entry => {
-        const role = APA_CREW_ROLES.find(r => r.role === entry.role);
-        if (!role) return null;
+  // ── Update a single entry field ───────────────────────────────────────────
+
+  const updateEntry = (id: string, patch: Partial<EditableEntry>) => {
+    setEntries(prev => prev.map(e => {
+      if (e._id !== id) return e;
+      const updated = { ...e, ...patch };
+      // When a field is filled in, remove it from missingFields
+      const resolved = Object.keys(patch) as string[];
+      const fieldMap: Record<string, string> = {
+        role: 'role', agreedRate: 'rate', workDate: 'date',
+        dayOfWeek: 'date', callTime: 'callTime', wrapTime: 'wrapTime',
+      };
+      const resolvedMissing = resolved.map(k => fieldMap[k]).filter(Boolean);
+      updated.missingFields = updated.missingFields.filter(f => !resolvedMissing.includes(f));
+      return updated;
+    }));
+  };
+
+  // ── Auto-calculate results from current entries ───────────────────────────
+
+  const results = useMemo(() => {
+    return entries.map(entry => {
+      if (!entry.role || !entry.agreedRate || !entry.callTime || !entry.wrapTime) return null;
+      const role = APA_CREW_ROLES.find(r => r.role === entry.role);
+      if (!role) return null;
+      try {
         return calculateCrewCost({
           role,
           agreedDailyRate: entry.agreedRate,
@@ -60,186 +149,387 @@ export function AIInputPage() {
           travelHours: 0,
           mileageOutsideM25: 0,
         });
-      }).filter(Boolean) as CalculationResult[];
+      } catch {
+        return null;
+      }
+    });
+  }, [entries]);
 
-      setResults(calculationResults);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
-    } finally {
-      setLoading(false);
+  // ── Totals / missing count ────────────────────────────────────────────────
+
+  const totalMissing = entries.reduce((sum, e) => sum + e.missingFields.length, 0);
+  const grandTotal = results.reduce((sum, r) => sum + (r?.grandTotal ?? 0), 0);
+  const allCalculated = results.every(r => r !== null);
+
+  // ── Save to Supabase → navigate to Calculator ─────────────────────────────
+
+  const handleSaveProject = async () => {
+    if (!user) return;
+    setSaving(true);
+    setSaveError(null);
+
+    const { data: project, error: projErr } = await supabase
+      .from('projects')
+      .insert({ user_id: user.id, name: projectName.trim() || 'AI Import' })
+      .select()
+      .single();
+
+    if (projErr || !project) {
+      setSaveError(projErr?.message ?? 'Could not create project');
+      setSaving(false);
+      return;
     }
+
+    for (let i = 0; i < entries.length; i++) {
+      const entry = entries[i];
+      const result = results[i];
+      const role = APA_CREW_ROLES.find(r => r.role === entry.role);
+
+      await supabase.from('project_days').insert({
+        project_id: project.id,
+        day_number: i + 1,
+        work_date: entry.workDate || new Date().toISOString().split('T')[0],
+        role_name: entry.role,
+        department: role?.department ?? '',
+        agreed_rate: entry.agreedRate,
+        day_type: entry.dayType,
+        day_of_week: entry.dayOfWeek,
+        call_time: entry.callTime || '08:00',
+        wrap_time: entry.wrapTime || '18:00',
+        is_bank_holiday: entry.dayOfWeek === 'bank_holiday',
+        first_break_given: true,
+        first_break_time: '13:00',
+        first_break_duration: entry.dayType === 'continuous_working' ? 30 : 60,
+        second_break_given: entry.dayType !== 'continuous_working',
+        second_break_time: '17:00',
+        second_break_duration: 30,
+        continuous_first_break_given: entry.dayType === 'continuous_working',
+        continuous_additional_break_given: entry.dayType === 'continuous_working',
+        travel_hours: 0,
+        mileage: 0,
+        equipment_value: 0,
+        equipment_discount: 0,
+        grand_total: result?.grandTotal ?? 0,
+        result_json: result ?? null,
+      });
+    }
+
+    setSaving(false);
+    navigate(`/calculator?project=${project.id}&name=${encodeURIComponent(projectName.trim() || 'AI Import')}`);
   };
 
-  const totalCost = results?.reduce((sum, r) => sum + r.grandTotal, 0) ?? 0;
+  // ─── Render: Input stage ──────────────────────────────────────────────────
 
-  // Count matched vs unmatched roles
-  const unmatchedRoles = parsed?.filter(e => !APA_CREW_ROLES.find(r => r.role === e.role)) ?? [];
-
-  return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-[#1F1F21]" />
-            AI Timesheet Input
-          </CardTitle>
-          <CardDescription>
-            Describe your shoot days in plain English and we'll calculate the costs for you using APA rates.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Textarea
-            placeholder={`Example:\n"I worked as a Gaffer on Monday, called at 6am and wrapped at 9pm. Missed my second break."\n\nOr:\n"3 day shoot - DoP at £1200/day\nDay 1 (Wed): Call 0800, Wrap 2100\nDay 2 (Thu): Call 0700, Wrap 2200, continuous day\nDay 3 (Fri): Call 0900, Wrap 1900"`}
-            className="min-h-[200px]"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-          />
-
-          <div className="flex gap-2">
-            <Button onClick={handleSubmit} disabled={loading || !input.trim()}>
-              {loading ? (
-                <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Parsing with AI...</>
-              ) : (
-                <><Send className="h-4 w-4 mr-1" /> Calculate</>
-              )}
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/calculator')}>
-              Manual Calculator
-            </Button>
-          </div>
-
-          {error && (
-            <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-xl text-sm flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-              <div>
-                <p>{error}</p>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Parsed Results */}
-      {parsed && results && (
+  if (stage === 'input') {
+    return (
+      <div className="max-w-3xl mx-auto space-y-6">
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Parsed Results</CardTitle>
-              <Badge variant="secondary">{parsed.length} day{parsed.length !== 1 ? 's' : ''} detected</Badge>
-            </div>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5" /> AI Timesheet Input
+            </CardTitle>
+            <CardDescription>
+              Describe your shoot days in plain English. Anything missing can be filled in on the next screen.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {unmatchedRoles.length > 0 && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800 flex items-start gap-2">
+          <CardContent className="space-y-4">
+            <Textarea
+              placeholder={`Just type what you know — even partial info works:\n\n"Call 0800 wrap 1700 + 2h OT"\n"Gaffer, Monday, 6am–9pm, £568"\n"3 day shoot as DoP at £1200. Mon–Wed, call 0730, wrap around 2000"\n"Saturday night shoot as Sound Mixer. Called 6pm, wrapped 5am."`}
+              className="min-h-[180px] text-sm"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleParse(); }}
+            />
+
+            <div className="flex gap-2 items-center">
+              <Button onClick={handleParse} disabled={loading || !input.trim()}>
+                {loading
+                  ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Parsing…</>
+                  : <><Send className="h-4 w-4 mr-1" /> Parse & Review</>
+                }
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/calculator')}>Manual Calculator</Button>
+              <span className="text-xs text-muted-foreground ml-auto hidden sm:block">⌘ + Enter to parse</span>
+            </div>
+
+            {error && (
+              <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-xl text-sm flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                <div>
-                  <p className="font-medium">Some roles couldn't be matched:</p>
-                  <p className="text-xs mt-0.5">{unmatchedRoles.map(e => e.role).join(', ')} — open in the manual calculator to fix.</p>
-                </div>
+                <p>{error}</p>
               </div>
             )}
-
-            {parsed.map((entry, i) => {
-              const matched = APA_CREW_ROLES.find(r => r.role === entry.role);
-              return (
-                <div key={i} className="rounded-xl border border-border overflow-hidden">
-                  <div className="flex items-center justify-between px-4 py-3 bg-muted/40">
-                    <div className="flex items-center gap-3">
-                      <div className="h-7 w-7 rounded-full bg-[#1F1F21] flex items-center justify-center shrink-0">
-                        <span className="text-[11px] font-bold text-white">{i + 1}</span>
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-semibold">{entry.role}</span>
-                          {!matched && <Badge variant="destructive" className="text-[10px]">Unmatched</Badge>}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {DAY_TYPE_LABELS[entry.dayType] || entry.dayType}
-                          {' · '}
-                          <span className="capitalize">{entry.dayOfWeek.replace('_', ' ')}</span>
-                          {' · '}
-                          {entry.callTime} – {entry.wrapTime}
-                          {' · '}
-                          £{entry.agreedRate}/day
-                        </p>
-                      </div>
-                    </div>
-                    {results[i] && (
-                      <div className="text-right shrink-0">
-                        <p className="text-sm font-bold">
-                          £{results[i].grandTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Line items breakdown */}
-                  {results[i] && (results[i].lineItems.length > 0 || results[i].penalties.length > 0) && (
-                    <div className="px-4 py-2 space-y-1">
-                      {results[i].lineItems.map((item, j) => (
-                        <div key={j} className="flex justify-between text-xs text-muted-foreground">
-                          <span>{item.description}</span>
-                          <span className="font-medium text-foreground">£{item.total.toFixed(2)}</span>
-                        </div>
-                      ))}
-                      {results[i].penalties.map((item, j) => (
-                        <div key={`pen-${j}`} className="flex justify-between text-xs text-orange-600">
-                          <span>{item.description}</span>
-                          <span className="font-medium">£{item.total.toFixed(2)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {entry.notes && (
-                    <div className="px-4 py-2 border-t border-border/50">
-                      <p className="text-xs text-muted-foreground italic">{entry.notes}</p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            <Separator />
-
-            {/* Total */}
-            <div className="flex items-center justify-between rounded-xl bg-[#1F1F21] px-4 py-3">
-              <span className="text-sm font-bold text-white">Total</span>
-              <span className="text-lg font-bold text-[#FFD528]">
-                £{totalCost.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </span>
-            </div>
-
-            <Button className="w-full gap-2" onClick={() => navigate('/calculator')}>
-              <ArrowRight className="h-4 w-4" />
-              Open in Calculator for fine-tuning
-            </Button>
           </CardContent>
         </Card>
+
+        {/* Example prompts */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Try an example</CardTitle>
+            <CardDescription>Click any example to load it</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {[
+              'Call 0800 wrap 1700 + 2h OT',
+              'I was a Focus Puller on Monday at £558. Called at 7am, wrapped at 10pm.',
+              '2 day shoot as Gaffer at £568. Monday 0800–2100, Tuesday 0700–1900 continuous day.',
+              'Saturday night shoot as Sound Mixer at £649. Called 6pm, wrapped 5am.',
+              '5 day shoot as DoP at £1200. Mon–Fri, call 0730, wrap around 2000 each day.',
+            ].map((example, i) => (
+              <button
+                key={i}
+                className="w-full text-left p-3 rounded-xl border border-border text-sm text-muted-foreground hover:bg-muted/50 hover:border-[#1F1F21]/20 transition-all"
+                onClick={() => setInput(example)}
+              >
+                "{example}"
+              </button>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ─── Render: Review stage ─────────────────────────────────────────────────
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-4">
+
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={() => setStage('input')}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <div>
+          <h2 className="text-lg font-bold">Review & Complete</h2>
+          <p className="text-sm text-muted-foreground">{entries.length} day{entries.length !== 1 ? 's' : ''} detected — fill in any highlighted fields below</p>
+        </div>
+      </div>
+
+      {/* Missing fields banner */}
+      {totalMissing > 0 && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+          <TriangleAlert className="h-4 w-4 shrink-0" />
+          <span>
+            <strong>{totalMissing} field{totalMissing !== 1 ? 's' : ''} still needed</strong>
+            {' '}— highlighted in yellow below. Fill them in to see the full calculation.
+          </span>
+        </div>
+      )}
+      {totalMissing === 0 && allCalculated && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <span><strong>All fields complete</strong> — ready to save.</span>
+        </div>
       )}
 
-      {/* Example prompts */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Example Prompts</CardTitle>
-          <CardDescription>Click any example to try it out</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {[
-            'I was a Focus Puller on Monday at £558. Called at 7am, wrapped at 10pm.',
-            '2 day shoot as Gaffer at £568. Monday 0800-2100, Tuesday 0700-1900 continuous day.',
-            'Saturday night shoot as Sound Mixer at £649. Called at 6pm, wrapped at 5am.',
-            'Prep day on Wednesday as Art Director at £852. 10am to 6pm.',
-            '5 day shoot as DoP at £1200. Mon-Fri, call 0730, wrap around 2000 each day.',
-          ].map((example, i) => (
-            <button
-              key={i}
-              className="w-full text-left p-3 rounded-xl border border-border text-sm text-muted-foreground hover:bg-muted/50 hover:border-[#1F1F21]/20 transition-all cursor-pointer"
-              onClick={() => setInput(example)}
-            >
-              "{example}"
-            </button>
-          ))}
+      {/* Entry cards */}
+      {entries.map((entry, i) => {
+        const result = results[i];
+        const isMissing = (f: string) => entry.missingFields.includes(f as never);
+
+        return (
+          <Card key={entry._id} className={cn(entry.missingFields.length > 0 && 'border-amber-200')}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="h-7 w-7 rounded-full bg-[#1F1F21] flex items-center justify-center shrink-0">
+                    <span className="text-[11px] font-bold text-white">{i + 1}</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm">{entry.role || 'Unknown role'}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {entry.callTime && entry.wrapTime ? `${entry.callTime} – ${entry.wrapTime}` : 'Times not set'}
+                      {entry.workDate && ` · ${entry.workDate}`}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  {result ? (
+                    <p className="font-bold text-base">£{result.grandTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                  ) : (
+                    <Badge variant="secondary" className="text-xs">Incomplete</Badge>
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-4">
+              {/* Row 1: Role + Rate */}
+              <div className="grid grid-cols-2 gap-3">
+                <FieldWrap label="Crew Role" missing={isMissing('role')}>
+                  <Select
+                    value={entry.role || '__none__'}
+                    onValueChange={v => updateEntry(entry._id, { role: v === '__none__' ? '' : v })}
+                  >
+                    <SelectTrigger className={cn('text-sm', !entry.role && 'text-muted-foreground')}>
+                      <SelectValue placeholder="Select a role…" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-64">
+                      {APA_CREW_ROLES.map(r => (
+                        <SelectItem key={r.role} value={r.role} className="text-sm">
+                          {r.role}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FieldWrap>
+
+                <FieldWrap label="Agreed Daily Rate (£)" missing={isMissing('rate')}>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">£</span>
+                    <Input
+                      type="number"
+                      className="pl-7 text-sm"
+                      value={entry.agreedRate || ''}
+                      placeholder={
+                        entry.role
+                          ? `${APA_CREW_ROLES.find(r => r.role === entry.role)?.maxRate ?? ''}`
+                          : '0'
+                      }
+                      onChange={e => updateEntry(entry._id, { agreedRate: parseFloat(e.target.value) || 0 })}
+                    />
+                  </div>
+                </FieldWrap>
+              </div>
+
+              {/* Row 2: Call + Wrap time */}
+              <div className="grid grid-cols-2 gap-3">
+                <FieldWrap label="Call Time" missing={isMissing('callTime')}>
+                  <Input
+                    type="time"
+                    className="text-sm"
+                    value={entry.callTime || ''}
+                    onChange={e => updateEntry(entry._id, { callTime: e.target.value })}
+                  />
+                </FieldWrap>
+                <FieldWrap label="Wrap Time" missing={isMissing('wrapTime')}>
+                  <Input
+                    type="time"
+                    className="text-sm"
+                    value={entry.wrapTime || ''}
+                    onChange={e => updateEntry(entry._id, { wrapTime: e.target.value })}
+                  />
+                </FieldWrap>
+              </div>
+
+              {/* Row 3: Date + Day type */}
+              <div className="grid grid-cols-2 gap-3">
+                <FieldWrap label="Work Date" missing={isMissing('date')}>
+                  <Input
+                    type="date"
+                    className="text-sm"
+                    value={entry.workDate || ''}
+                    onChange={e => {
+                      const d = new Date(e.target.value);
+                      const dow = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][d.getDay()] as DayOfWeek;
+                      updateEntry(entry._id, { workDate: e.target.value, dayOfWeek: dow });
+                    }}
+                  />
+                </FieldWrap>
+                <FieldWrap label="Day Type">
+                  <Select
+                    value={entry.dayType}
+                    onValueChange={v => updateEntry(entry._id, { dayType: v as DayType })}
+                  >
+                    <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {DAY_TYPE_OPTIONS.map(o => (
+                        <SelectItem key={o.value} value={o.value} className="text-sm">{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FieldWrap>
+              </div>
+
+              {/* If no date but day of week needed */}
+              {!entry.workDate && (
+                <FieldWrap label="Day of Week">
+                  <Select
+                    value={entry.dayOfWeek}
+                    onValueChange={v => updateEntry(entry._id, { dayOfWeek: v as DayOfWeek })}
+                  >
+                    <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {DAY_OF_WEEK_OPTIONS.map(o => (
+                        <SelectItem key={o.value} value={o.value} className="text-sm">{o.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FieldWrap>
+              )}
+
+              {/* Notes */}
+              {entry.notes && (
+                <p className="text-xs text-muted-foreground italic px-1">📝 {entry.notes}</p>
+              )}
+
+              {/* Calculation breakdown */}
+              {result && (result.lineItems.length > 0 || result.penalties.length > 0) && (
+                <>
+                  <Separator />
+                  <div className="space-y-1">
+                    {result.lineItems.map((item, j) => (
+                      <div key={j} className="flex justify-between text-xs text-muted-foreground">
+                        <span>{item.description}</span>
+                        <span className="font-medium text-foreground">£{item.total.toFixed(2)}</span>
+                      </div>
+                    ))}
+                    {result.penalties.map((item, j) => (
+                      <div key={`pen-${j}`} className="flex justify-between text-xs text-orange-600">
+                        <span>{item.description}</span>
+                        <span className="font-medium">£{item.total.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
+
+      {/* Grand total + save */}
+      <Card className="bg-[#1F1F21] border-[#1F1F21]">
+        <CardContent className="pt-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-white font-semibold">Total ({entries.length} day{entries.length !== 1 ? 's' : ''})</span>
+            <span className="text-2xl font-bold text-[#FFD528]">
+              £{grandTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+
+          <Separator className="bg-white/10" />
+
+          <div className="space-y-2">
+            <Label className="text-white/70 text-xs">Project Name</Label>
+            <Input
+              value={projectName}
+              onChange={e => setProjectName(e.target.value)}
+              placeholder="e.g. Nike Summer Campaign"
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-[#FFD528]"
+            />
+          </div>
+
+          {saveError && (
+            <div className="p-3 bg-red-500/20 border border-red-400/30 rounded-xl text-sm text-red-300 flex items-start gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>{saveError}</span>
+            </div>
+          )}
+
+          <Button
+            className="w-full bg-[#FFD528] text-[#1F1F21] hover:brightness-105 font-bold"
+            onClick={handleSaveProject}
+            disabled={saving || !projectName.trim()}
+          >
+            {saving
+              ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
+              : <><Save className="h-4 w-4 mr-2" /> Save as Project & Open in Calculator</>
+            }
+          </Button>
+          <p className="text-xs text-white/40 text-center">
+            You can fine-tune breaks, penalties and equipment in the calculator
+          </p>
         </CardContent>
       </Card>
     </div>

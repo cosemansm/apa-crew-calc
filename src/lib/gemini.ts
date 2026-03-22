@@ -13,38 +13,46 @@ export interface ParsedEntry {
   wrapTime: string;
   workDate?: string;
   notes: string;
+  // Which fields were NOT explicitly stated in the input (need user confirmation)
+  missingFields: Array<'role' | 'rate' | 'date' | 'callTime' | 'wrapTime'>;
 }
 
 const ROLE_LIST = APA_CREW_ROLES.map(r => `${r.role} (${r.department}, max £${r.maxRate ?? 'N/A'})`).join('\n');
 
-const SYSTEM_PROMPT = `You are a UK commercials crew rate parser. Your job is to extract structured timesheet data from natural language descriptions of shoot days.
+const SYSTEM_PROMPT = `You are a UK commercials crew rate parser. Extract structured timesheet data from natural language shoot day descriptions.
 
-You MUST return valid JSON — an array of objects. No markdown, no commentary, no explanation. Just the JSON array.
+Return ONLY a valid JSON array — no markdown, no commentary.
 
-Each object must have these exact fields:
-- "role": string — Must match one of the available roles EXACTLY (see list below). Use fuzzy matching: "DoP" = "Director Of Photography", "spark" = "Lighting Technician", "chippie" = "Carpenter", "best boy" = "Lighting Technician", "focus puller" = "Focus Puller (1st AC)", "1st AC" = "Focus Puller (1st AC)", "clapper" = "Clapper Loader", "boom op" = "Boom Operator", "art director" = "Art Director", "AD" or "1st AD" = "1st Assistant Director", "2nd AD" = "2nd Assistant Director", "3rd AD" = "3rd Assistant Director", "runner" = "Floor Runner / AD Trainee", "prod runner" = "Production Runner", "sparks" = "Lighting Technician", "grip" = "Key Grip or has NVQ3" etc.
-- "agreedRate": number — The daily rate in GBP. If the user specifies a rate, use it. If not, use the maxRate from the role data.
-- "dayType": one of "basic_working", "continuous_working", "prep", "recce", "build_strike", "pre_light", "rest", "travel". Default to "basic_working" unless stated otherwise. "Continuous" or "no breaks" = "continuous_working". "Prep" or "prep day" = "prep". "Recce" = "recce". "Travel day" = "travel". "Rest day" = "rest". "Build" or "strike" = "build_strike". "Pre-light" = "pre_light".
-- "dayOfWeek": one of "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "bank_holiday". Infer from date if given, or from context. Default to "monday" if completely ambiguous.
-- "callTime": string in "HH:MM" 24h format. "6am" = "06:00", "7:30am" = "07:30", "6pm" = "18:00" etc.
-- "wrapTime": string in "HH:MM" 24h format. Same conversion rules. Handle overnight wraps (e.g. call 18:00, wrap 05:00 next day).
-- "workDate": string in "YYYY-MM-DD" format if a specific date is mentioned, otherwise omit.
-- "notes": string — any extra context like missed breaks, special conditions, etc. Empty string if none.
+Each object must have EXACTLY these fields:
+- "role": string — Match from the available roles list below using fuzzy matching. "DoP"="Director Of Photography", "spark"/"sparks"="Lighting Technician", "chippie"="Carpenter", "best boy"="Lighting Technician", "focus puller"/"1st AC"="Focus Puller (1st AC)", "clapper"="Clapper Loader", "boom op"="Boom Operator", "AD"/"1st AD"="1st Assistant Director", "2nd AD"="2nd Assistant Director", "3rd AD"="3rd Assistant Director", "runner"="Floor Runner / AD Trainee". If role is completely unknown, set to empty string "".
+- "agreedRate": number — Daily rate in GBP. Use explicit rate if given. If not given, use the maxRate from the role. If role is unknown, use 0.
+- "dayType": one of "basic_working"|"continuous_working"|"prep"|"recce"|"build_strike"|"pre_light"|"rest"|"travel". Default "basic_working". "Continuous"/"no breaks"="continuous_working". OT mentioned on a basic day stays "basic_working".
+- "dayOfWeek": one of "monday"|"tuesday"|"wednesday"|"thursday"|"friday"|"saturday"|"sunday"|"bank_holiday". Infer from date if given. Default "monday" if unknown.
+- "callTime": string "HH:MM" 24h. "6am"="06:00", "6pm"="18:00". If not given, set to "".
+- "wrapTime": string "HH:MM" 24h. If not given, set to "". Handle overnight wraps.
+- "workDate": string "YYYY-MM-DD" if a specific date is mentioned, else omit entirely.
+- "notes": string — extra context (missed breaks, OT hours mentioned, special conditions). Empty string if none.
+- "missingFields": array of strings — list ONLY the fields that were NOT explicitly stated by the user. Possible values: "role", "rate", "date", "callTime", "wrapTime". If role was guessed/inferred (not explicitly named), include "role". If rate was defaulted from role max rate (not explicitly stated), include "rate". If no specific date or day of week was given, include "date". If call time not given, include "callTime". If wrap time not given, include "wrapTime".
 
 AVAILABLE ROLES:
 ${ROLE_LIST}
 
 RULES:
-1. If a user says "3 day shoot" or similar, output 3 separate entries
-2. If the user mentions a rate, apply it to all days unless they specify different rates per day
-3. If no role is specified, ask via notes field: "Role not specified — please clarify"
-4. Times like "0800" or "08:00" or "8am" are all valid — normalise to "HH:MM"
-5. Saturday/Sunday should be detected as weekend days
-6. If user says "night shoot", the call is typically evening (18:00+) and wrap is early morning
-7. Today's date is ${new Date().toISOString().split('T')[0]}
+1. "3 day shoot" or similar → output 3 separate objects
+2. Explicit rate applies to all days unless per-day rates are specified
+3. Times like "0800", "08:00", "8am" all normalise to "HH:MM"
+4. Saturday/Sunday → weekend dayOfWeek
+5. "Night shoot" → call typically 18:00+, wrap early morning
+6. OT/overtime mentioned in notes field — do not change dayType
+7. Today's date: ${new Date().toISOString().split('T')[0]}
 
-Return ONLY the JSON array. Example:
-[{"role":"Gaffer","agreedRate":568,"dayType":"basic_working","dayOfWeek":"monday","callTime":"08:00","wrapTime":"21:00","notes":""}]`;
+Example — input "call 0800 wrap 1700":
+[{"role":"","agreedRate":0,"dayType":"basic_working","dayOfWeek":"monday","callTime":"08:00","wrapTime":"17:00","workDate":undefined,"notes":"","missingFields":["role","rate","date"]}]
+
+Example — input "Gaffer Monday call 0800 wrap 2100 £568":
+[{"role":"Gaffer","agreedRate":568,"dayType":"basic_working","dayOfWeek":"monday","callTime":"08:00","wrapTime":"21:00","notes":"","missingFields":[]}]
+
+Return ONLY the JSON array.`;
 
 export async function parseTimesheetWithGemini(userInput: string): Promise<ParsedEntry[]> {
   if (!GEMINI_API_KEY) {
@@ -80,14 +88,9 @@ export async function parseTimesheetWithGemini(userInput: string): Promise<Parse
   }
 
   const data = await response.json();
-
-  // Extract the text from Gemini response
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    throw new Error('No response from Gemini. Please try again.');
-  }
+  if (!text) throw new Error('No response from Gemini. Please try again.');
 
-  // Parse the JSON — Gemini sometimes wraps in markdown code blocks
   let cleaned = text.trim();
   if (cleaned.startsWith('```')) {
     cleaned = cleaned.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
@@ -104,15 +107,15 @@ export async function parseTimesheetWithGemini(userInput: string): Promise<Parse
     throw new Error('AI returned no entries. Try being more specific about your shoot days.');
   }
 
-  // Validate and clean up entries
   return entries.map(entry => ({
-    role: entry.role || 'Unknown',
+    role: entry.role ?? '',
     agreedRate: Number(entry.agreedRate) || 0,
     dayType: entry.dayType || 'basic_working',
     dayOfWeek: entry.dayOfWeek || 'monday',
-    callTime: entry.callTime || '08:00',
-    wrapTime: entry.wrapTime || '18:00',
+    callTime: entry.callTime ?? '',
+    wrapTime: entry.wrapTime ?? '',
     workDate: entry.workDate,
     notes: entry.notes || '',
+    missingFields: Array.isArray(entry.missingFields) ? entry.missingFields : [],
   }));
 }
