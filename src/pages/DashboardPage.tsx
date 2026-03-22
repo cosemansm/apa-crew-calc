@@ -340,40 +340,54 @@ export function DashboardPage() {
                 return (
                   <div
                     key={date.toISOString()}
-                    className={`min-h-[52px] p-1.5 text-sm transition-all overflow-visible ${
-                      isToday
-                        ? 'bg-[#FFD528] rounded-xl'
-                        : 'hover:bg-muted rounded-xl'
+                    className={`min-h-[52px] p-1 text-sm transition-all overflow-hidden ${
+                      isToday ? 'bg-[#FFD528] rounded-xl' : 'hover:bg-muted rounded-xl'
                     }`}
                   >
-                    <span className={isToday
-                      ? 'text-xs font-bold text-[#1F1F21]'
-                      : 'text-xs text-muted-foreground'
-                    }>
+                    <span className={`block text-xs mb-0.5 ${isToday ? 'font-bold text-[#1F1F21]' : 'text-muted-foreground'}`}>
                       {format(date, 'd')}
                     </span>
                     {dayProjects.slice(0, 2).map((dp, i) => {
-                      const prevDate = format(addDays(date, -1), 'yyyy-MM-dd');
-                      const nextDate = format(addDays(date, 1), 'yyyy-MM-dd');
-                      const connPrev = bookedProjectsByDate[prevDate]?.has(dp.project_id);
-                      const connNext = bookedProjectsByDate[nextDate]?.has(dp.project_id);
+                      const dateStr   = format(date, 'yyyy-MM-dd');
+                      const prevDate  = format(addDays(date, -1), 'yyyy-MM-dd');
+                      const nextDate  = format(addDays(date, 1),  'yyyy-MM-dd');
+                      const connPrev  = bookedProjectsByDate[prevDate]?.has(dp.project_id);
+                      const connNext  = bookedProjectsByDate[nextDate]?.has(dp.project_id);
+                      const colour    = STATUS_CONFIG[dp.projectStatus].calendarBg;
+
+                      // Border-radius only — no negative margins, so bars never collide
+                      const br =
+                        connPrev && connNext ? '0'          :
+                        connPrev             ? '0 4px 4px 0':
+                        connNext             ? '4px 0 0 4px':
+                                               '4px';
+
                       return (
                         <div
-                          key={i}
-                          className={`mt-0.5 py-0.5 text-[10px] font-medium text-white leading-tight truncate ${
-                            connPrev && connNext ? 'rounded-none -mx-[7px] px-2' :
-                            connPrev            ? 'rounded-r-md rounded-l-none -ml-[7px] pl-2 pr-1' :
-                            connNext            ? 'rounded-l-md rounded-r-none -mr-[7px] pl-1 pr-2' :
-                            'rounded-md px-1'
-                          }`}
-                          style={{ backgroundColor: STATUS_CONFIG[dp.projectStatus].calendarBg }}
+                          key={`${dp.project_id}-${i}`}
+                          title={dp.projectName}
+                          style={{
+                            backgroundColor: colour,
+                            borderRadius: br,
+                            marginTop: 2,
+                            padding: '1px 4px',
+                            fontSize: 10,
+                            fontWeight: 500,
+                            color: '#fff',
+                            lineHeight: '1.4',
+                            overflow: 'hidden',
+                            whiteSpace: 'nowrap',
+                            textOverflow: 'ellipsis',
+                          }}
                         >
-                          {connPrev ? '\u00A0' : dp.projectName}
+                          {connPrev ? '' : dp.projectName}
                         </div>
                       );
                     })}
                     {dayProjects.length > 2 && (
-                      <div className="text-[10px] text-muted-foreground mt-0.5">+{dayProjects.length - 2} more</div>
+                      <div className="text-[9px] text-muted-foreground mt-0.5 leading-none">
+                        +{dayProjects.length - 2}
+                      </div>
                     )}
                   </div>
                 );

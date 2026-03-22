@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   FolderOpen, Plus, Clock, PoundSterling, ChevronRight,
-  Calendar, User, ArrowLeft, Edit3, X, Sparkles
+  Calendar, User, ArrowLeft, Edit3, X, Sparkles, Trash2
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { supabase } from '@/lib/supabase';
@@ -102,6 +102,7 @@ export function ProjectsPage() {
   const [projectDays, setProjectDays] = useState<ProjectDay[]>([]);
   const [daysLoading, setDaysLoading] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [deletingDayId, setDeletingDayId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) loadProjects();
@@ -148,6 +149,14 @@ export function ProjectsPage() {
       setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
     }
     setStatusUpdating(false);
+  };
+
+  const removeDay = async (dayId: string) => {
+    if (!confirm('Remove this day from the project?')) return;
+    setDeletingDayId(dayId);
+    const { error } = await supabase.from('project_days').delete().eq('id', dayId);
+    if (!error) setProjectDays(prev => prev.filter(d => d.id !== dayId));
+    setDeletingDayId(null);
   };
 
   const projectTotal = projectDays.reduce((sum, d) => sum + (d.grand_total || 0), 0);
@@ -344,9 +353,19 @@ export function ProjectsPage() {
                                   </p>
                                 </div>
                               </div>
-                              <div className="text-right shrink-0">
-                                <p className="text-sm font-bold">£{(day.grand_total || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                                <p className="text-xs text-muted-foreground">{day.role_name}</p>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <div className="text-right">
+                                  <p className="text-sm font-bold">£{(day.grand_total || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                  <p className="text-xs text-muted-foreground">{day.role_name}</p>
+                                </div>
+                                <button
+                                  onClick={() => removeDay(day.id)}
+                                  disabled={deletingDayId === day.id}
+                                  className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors"
+                                  title="Remove day"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
                               </div>
                             </div>
 
