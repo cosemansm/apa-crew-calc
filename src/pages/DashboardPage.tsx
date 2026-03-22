@@ -359,26 +359,29 @@ export function DashboardPage() {
                   <div
                     key={date.toISOString()}
                     className={`min-h-[52px] p-1 text-sm transition-all overflow-hidden ${
-                      isToday ? 'bg-[#FFD528] rounded-lg' : 'hover:bg-muted rounded-lg'
+                      isToday ? 'bg-gray-100 rounded' : 'hover:bg-muted rounded'
                     }`}
                   >
                     <span className={`block text-xs mb-0.5 ${isToday ? 'font-bold text-[#1F1F21]' : 'text-muted-foreground'}`}>
                       {format(date, 'd')}
                     </span>
                     {dayProjects.slice(0, 2).map((dp, i) => {
-                      const dateStr   = format(date, 'yyyy-MM-dd');
-                      const prevDate  = format(addDays(date, -1), 'yyyy-MM-dd');
-                      const nextDate  = format(addDays(date, 1),  'yyyy-MM-dd');
-                      const connPrev  = bookedProjectsByDate[prevDate]?.has(dp.project_id);
-                      const connNext  = bookedProjectsByDate[nextDate]?.has(dp.project_id);
-                      const colour    = STATUS_CONFIG[dp.projectStatus].calendarBg;
+                      const prevDate = format(addDays(date, -1), 'yyyy-MM-dd');
+                      const nextDate = format(addDays(date,  1), 'yyyy-MM-dd');
+                      const connPrev = bookedProjectsByDate[prevDate]?.has(dp.project_id);
+                      const connNext = bookedProjectsByDate[nextDate]?.has(dp.project_id);
+                      const colour   = STATUS_CONFIG[dp.projectStatus].calendarBg;
 
-                      // Border-radius: flat on sides that connect to adjacent cells
+                      // Bleed bar to cell edges on connecting sides by negating the cell's p-1 (4px) padding
+                      const ml = connPrev ? -4 : 0;
+                      const mr = connNext ? -4 : 0;
+
+                      // Flat border-radius on sides that bleed into adjacent cells
                       const br =
                         connPrev && connNext ? '0'          :
-                        connPrev             ? '0 3px 3px 0':
-                        connNext             ? '3px 0 0 3px':
-                                               '3px';
+                        connPrev             ? '0 2px 2px 0':
+                        connNext             ? '2px 0 0 2px':
+                                               '2px';
 
                       return (
                         <div
@@ -388,6 +391,8 @@ export function DashboardPage() {
                             backgroundColor: colour,
                             borderRadius: br,
                             marginTop: 2,
+                            marginLeft: ml,
+                            marginRight: mr,
                             padding: '2px 4px',
                             fontSize: 10,
                             fontWeight: 500,
