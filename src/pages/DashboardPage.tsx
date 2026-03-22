@@ -288,7 +288,7 @@ export function DashboardPage() {
             <Sparkles className="h-4 w-4" /> AI Input
           </Button>
           <Button onClick={() => setShowNewProject(true)} className="gap-2">
-            <Plus className="h-4 w-4" /> New Project
+            <Plus className="h-4 w-4" /> New Job
           </Button>
         </div>
       </div>
@@ -298,14 +298,14 @@ export function DashboardPage() {
         <Card className="border-[#FFD528]/40">
           <CardContent className="pt-6">
             <div className="flex items-start justify-between mb-4">
-              <h3 className="text-lg font-semibold">Create New Project</h3>
+              <h3 className="text-lg font-semibold">Create New Job</h3>
               <Button variant="ghost" size="icon" onClick={() => setShowNewProject(false)}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Project Name</Label>
+                <Label>Job Name</Label>
                 <Input placeholder="e.g. Nike Summer Campaign" value={newProjectName} onChange={e => setNewProjectName(e.target.value)} autoFocus />
               </div>
               <div className="space-y-2">
@@ -548,7 +548,7 @@ export function DashboardPage() {
       {/* Projects */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Recent Projects</h2>
+          <h2 className="text-lg font-semibold">Recent Jobs</h2>
           {projects.length > 0 && (
             <button
               onClick={() => navigate('/projects')}
@@ -559,14 +559,14 @@ export function DashboardPage() {
           )}
         </div>
         {loading ? (
-          <div className="text-muted-foreground text-sm">Loading projects...</div>
+          <div className="text-muted-foreground text-sm">Loading jobs...</div>
         ) : projects.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
-              <p className="text-muted-foreground">No projects yet. Create your first project to get started.</p>
+              <p className="text-muted-foreground">No jobs yet. Create your first job to get started.</p>
               <Button className="mt-4" onClick={() => setShowNewProject(true)}>
-                <Plus className="h-4 w-4 mr-1" /> Create Project
+                <Plus className="h-4 w-4 mr-1" /> Create Job
               </Button>
             </CardContent>
           </Card>
@@ -621,7 +621,7 @@ export function DashboardPage() {
                 onClick={() => navigate('/projects')}
                 className="mt-3 w-full rounded-xl border border-dashed border-border py-3 text-sm text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
               >
-                + {projects.length - 6} more project{projects.length - 6 !== 1 ? 's' : ''} — View all
+                + {projects.length - 6} more job{projects.length - 6 !== 1 ? 's' : ''} — View all
               </button>
             )}
           </>

@@ -285,13 +285,13 @@ export function InvoicePage() {
         <Card>
           <CardHeader>
             <CardTitle>Invoice Details</CardTitle>
-            <CardDescription>Select a project, then fill in your details</CardDescription>
+            <CardDescription>Select a job, then fill in your details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
 
             {/* Project selector */}
             <div className="space-y-2">
-              <Label>Project</Label>
+              <Label>Job</Label>
               <div className="relative" ref={projectPickerRef}>
                 <button
                   onClick={() => setShowProjectPicker(!showProjectPicker)}
@@ -310,7 +310,7 @@ export function InvoicePage() {
                         )}
                       </div>
                     ) : (
-                      <span className="text-muted-foreground">Select a project…</span>
+                      <span className="text-muted-foreground">Select a job…</span>
                     )}
                   </div>
                   {selectedProject && (
@@ -323,10 +323,10 @@ export function InvoicePage() {
                 {showProjectPicker && (
                   <div className="absolute left-0 right-0 top-11 rounded-2xl border border-border bg-white shadow-xl z-50 overflow-hidden">
                     <div className="px-4 py-2.5 border-b border-border/40">
-                      <p className="text-xs font-semibold text-muted-foreground">Choose project to invoice</p>
+                      <p className="text-xs font-semibold text-muted-foreground">Choose job to invoice</p>
                     </div>
                     {projects.length === 0 ? (
-                      <div className="px-4 py-6 text-sm text-muted-foreground text-center">No projects yet</div>
+                      <div className="px-4 py-6 text-sm text-muted-foreground text-center">No jobs yet</div>
                     ) : (
                       <div className="max-h-56 overflow-y-auto py-1">
                         {projects.map(proj => {
@@ -447,7 +447,7 @@ export function InvoicePage() {
           </div>
 
           {selectedDays.length === 0 && (
-            <p className="text-xs text-muted-foreground text-center">Select a project to enable download</p>
+            <p className="text-xs text-muted-foreground text-center">Select a job to enable download</p>
           )}
           {selectedDays.length > 0 && !clientEmail.trim() && (
             <p className="text-xs text-muted-foreground text-center">Add a client email address to enable sending</p>
@@ -514,7 +514,7 @@ export function InvoicePage() {
                 <div style={{ display: 'flex', gap: '12px', marginBottom: '28px', flexWrap: 'wrap' }}>
                   {selectedProject && (
                     <div style={{ backgroundColor: '#F5F3EE', borderRadius: '8px', padding: '10px 20px' }}>
-                      <p style={{ fontSize: '10px', fontWeight: '700', color: '#9A9A9A', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 3px', textAlign: 'center' }}>Project</p>
+                      <p style={{ fontSize: '10px', fontWeight: '700', color: '#9A9A9A', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 3px', textAlign: 'center' }}>Job</p>
                       <p style={{ fontWeight: '600', fontSize: '13px', color: '#1F1F21', margin: '0', textAlign: 'center' }}>{selectedProject.name}</p>
                     </div>
                   )}

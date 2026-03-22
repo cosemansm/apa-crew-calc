@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Settings, User, Building2, CreditCard, Plug, Save,
   Eye, EyeOff, Briefcase, Plus, Trash2, Pencil, X, Check,
-  Package, Lock, ChevronRight,
+  Package, Lock, ChevronRight, AlertTriangle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -132,9 +132,9 @@ function CustomRoleForm({ initial, onSave, onCancel }: {
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
 
-type SectionId = 'user-details' | 'company-details' | 'custom-rates' | 'my-equipment' | 'password' | 'billing' | 'integrations';
+type SectionId = 'user-details' | 'company-details' | 'custom-rates' | 'my-equipment' | 'password' | 'billing' | 'integrations' | 'danger-zone';
 
-const NAV_ITEMS: { id: SectionId; label: string; icon: React.ElementType; badge?: string }[] = [
+const NAV_ITEMS: { id: SectionId; label: string; icon: React.ElementType; badge?: string; danger?: boolean }[] = [
   { id: 'user-details',     label: 'User Details',     icon: User },
   { id: 'company-details',  label: 'Company Details',  icon: Building2 },
   { id: 'custom-rates',     label: 'Custom Rates',     icon: Briefcase },
@@ -142,6 +142,7 @@ const NAV_ITEMS: { id: SectionId; label: string; icon: React.ElementType; badge?
   { id: 'password',         label: 'Password',         icon: Lock },
   { id: 'billing',          label: 'Billing',          icon: CreditCard, badge: 'Soon' },
   { id: 'integrations',     label: 'Integrations',     icon: Plug,       badge: 'Soon' },
+  { id: 'danger-zone',      label: 'Danger Zone',      icon: AlertTriangle, danger: true },
 ];
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -183,6 +184,12 @@ export function SettingsPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [customRolesError, setCustomRolesError] = useState<string | null>(null);
+
+  // Delete account
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Equipment packages
   const [equipmentPackages, setEquipmentPackages] = useState<EquipmentPackage[]>([]);
@@ -253,6 +260,32 @@ export function SettingsPage() {
     setSavingPwd(false);
     if (error) { setPwdError(error.message); }
     else { setPwdSuccess(true); setNewPassword(''); setConfirmPassword(''); setTimeout(() => setPwdSuccess(false), 4000); }
+  };
+
+  // ── Delete account ────────────────────────────────────────────────────────
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch('/api/delete-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: 'Unknown error' }));
+        setDeleteError(data.error || 'Failed to delete account');
+        setIsDeleting(false);
+        return;
+      }
+      // Account deleted — sign out and let AuthContext redirect to login
+      await supabase.auth.signOut();
+    } catch (err) {
+      setDeleteError(String(err));
+      setIsDeleting(false);
+    }
   };
 
   // ── Custom roles ──────────────────────────────────────────────────────────
@@ -334,10 +367,12 @@ export function SettingsPage() {
                 className={cn(
                   'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left',
                   activeSection === item.id
-                    ? 'bg-[#1F1F21] text-white'
+                    ? item.danger ? 'bg-red-600 text-white' : 'bg-[#1F1F21] text-white'
                     : item.badge
                       ? 'text-muted-foreground/50 cursor-not-allowed'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      : item.danger
+                        ? 'text-red-500 hover:bg-red-50 hover:text-red-600'
+                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 )}
               >
                 <item.icon className="h-4 w-4 shrink-0" />
@@ -681,6 +716,109 @@ export function SettingsPage() {
                 <p className="text-sm text-muted-foreground">Accounting integrations will be available in a future update.</p>
               </CardContent>
             </Card>
+          )}
+
+          {/* DANGER ZONE */}
+          {activeSection === 'danger-zone' && (
+            <Card className="border-red-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-red-600">
+                  <AlertTriangle className="h-5 w-5" /> Danger Zone
+                </CardTitle>
+                <CardDescription>Irreversible and destructive actions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="rounded-xl border border-red-200 bg-red-50 p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-semibold text-red-700">Delete Account</p>
+                      <p className="text-sm text-red-600/80 mt-1">
+                        Permanently delete your account and all associated data including jobs, days, invoices, and settings.
+                        This action <strong>cannot be undone</strong>.
+                      </p>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => { setShowDeleteModal(true); setDeleteConfirmText(''); setDeleteError(null); }}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1.5" />
+                      Delete Account
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* DELETE ACCOUNT MODAL */}
+          {showDeleteModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
+                {/* Header */}
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-red-100 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="h-5 w-5 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-red-700">Delete Account</h3>
+                    <p className="text-sm text-muted-foreground">This action cannot be undone</p>
+                  </div>
+                </div>
+
+                {/* Warning */}
+                <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-700 space-y-1">
+                  <p className="font-semibold">You will permanently lose:</p>
+                  <ul className="list-disc list-inside space-y-0.5 text-red-600/90 mt-1">
+                    <li>All your jobs and booking days</li>
+                    <li>All invoice history</li>
+                    <li>All custom rates and equipment packages</li>
+                    <li>All settings and account data</li>
+                  </ul>
+                  <p className="mt-2 font-medium">All data will be removed from our servers immediately.</p>
+                </div>
+
+                {/* Confirm input */}
+                <div className="space-y-2">
+                  <Label className="text-sm">
+                    Type <span className="font-mono font-bold text-red-600">DELETE</span> to confirm
+                  </Label>
+                  <Input
+                    value={deleteConfirmText}
+                    onChange={e => setDeleteConfirmText(e.target.value)}
+                    placeholder="Type DELETE here"
+                    className="border-red-200 focus:border-red-400"
+                    autoFocus
+                  />
+                </div>
+
+                {deleteError && (
+                  <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+                    {deleteError}
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  <Button
+                    variant="destructive"
+                    className="flex-1"
+                    disabled={deleteConfirmText !== 'DELETE' || isDeleting}
+                    onClick={handleDeleteAccount}
+                  >
+                    {isDeleting ? 'Deleting…' : 'Permanently Delete My Account'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowDeleteModal(false)}
+                    disabled={isDeleting}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
           )}
 
         </div>

@@ -656,7 +656,7 @@ export function AIInputPage() {
           <Separator className="bg-white/10" />
 
           <div className="space-y-2">
-            <Label className="text-white/70 text-xs">Project Name</Label>
+            <Label className="text-white/70 text-xs">Job Name</Label>
             <Input
               value={projectName}
               onChange={e => setProjectName(e.target.value)}
@@ -679,7 +679,7 @@ export function AIInputPage() {
           >
             {saving
               ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
-              : <><Save className="h-4 w-4 mr-2" /> Save as Project & Open in Calculator</>
+              : <><Save className="h-4 w-4 mr-2" /> Save as Job & Open in Calculator</>
             }
           </Button>
           <p className="text-xs text-white/40 text-center">

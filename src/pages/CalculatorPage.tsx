@@ -906,7 +906,7 @@ export function CalculatorPage() {
           <CardContent className="space-y-6">
             {/* Project Name */}
             <div className="space-y-2">
-              <Label htmlFor="project">Project Name</Label>
+              <Label htmlFor="project">Job Name</Label>
               <div className="flex gap-2">
                 <Input id="project" placeholder="e.g. Nike Summer Campaign" value={projectName} onChange={e => setProjectName(e.target.value)} className="flex-1" />
                 <div className="relative" ref={projectPickerRef}>
@@ -922,10 +922,10 @@ export function CalculatorPage() {
                   {showProjectPicker && (
                     <div className="absolute right-0 top-11 w-72 rounded-2xl border border-border bg-white shadow-xl z-50 overflow-hidden">
                       <div className="px-4 py-2.5 border-b border-border/40">
-                        <p className="text-xs font-semibold text-muted-foreground">Switch to project</p>
+                        <p className="text-xs font-semibold text-muted-foreground">Switch to job</p>
                       </div>
                       {allProjects.length === 0 ? (
-                        <div className="px-4 py-6 text-sm text-muted-foreground text-center">No projects yet</div>
+                        <div className="px-4 py-6 text-sm text-muted-foreground text-center">No jobs yet</div>
                       ) : (
                         <div className="max-h-60 overflow-y-auto py-1">
                           {allProjects.map(proj => (
@@ -1397,7 +1397,7 @@ export function CalculatorPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-              <CalendarDays className="h-4 w-4" /> Project Days
+              <CalendarDays className="h-4 w-4" /> Job Days
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
@@ -1411,7 +1411,7 @@ export function CalculatorPage() {
             />
             {!projectId && (
               <p className="text-xs text-muted-foreground text-center mt-2">
-                Save your first day to start tracking project days.
+                Save your first day to start tracking job days.
               </p>
             )}
           </CardContent>
@@ -1594,7 +1594,7 @@ export function CalculatorPage() {
                     <>
                       <Separator />
                       <div className="flex justify-between text-base font-bold px-1">
-                        <span>Project Total</span>
+                        <span>Job Total</span>
                         <span className="font-mono text-foreground">£{projectTotal.toFixed(2)}</span>
                       </div>
                     </>

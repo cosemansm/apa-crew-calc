@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/calculator', label: 'Calculator', icon: Calculator },
-  { path: '/projects', label: 'Projects', icon: FolderOpen },
+  { path: '/projects', label: 'Jobs', icon: FolderOpen },
   { path: '/ai-input', label: 'AI Input', icon: Sparkles },
   { path: '/history', label: 'History', icon: History },
   { path: '/invoices', label: 'Invoices', icon: FileText },
@@ -17,7 +17,7 @@ export function AppLayout() {
   const { user, signOut } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  const [sidebarExpanded, setSidebarExpanded] = useState(true);
 
   return (
     <div className="min-h-screen">

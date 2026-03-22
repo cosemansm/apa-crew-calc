@@ -174,29 +174,29 @@ export function ProjectsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
-          <p className="text-muted-foreground mt-1">All your crew booking projects</p>
+          <h1 className="text-3xl font-bold tracking-tight">Jobs</h1>
+          <p className="text-muted-foreground mt-1">All your crew booking jobs</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => navigate('/ai-input')} className="gap-2">
             <Sparkles className="h-4 w-4" /> AI Input
           </Button>
           <Button onClick={() => navigate('/calculator')} className="gap-2">
-            <Plus className="h-4 w-4" /> New Project
+            <Plus className="h-4 w-4" /> New Job
           </Button>
         </div>
       </div>
 
       {loading ? (
-        <div className="text-muted-foreground text-sm">Loading projects…</div>
+        <div className="text-muted-foreground text-sm">Loading jobs…</div>
       ) : projects.length === 0 ? (
         <Card>
           <CardContent className="py-16 text-center">
             <FolderOpen className="h-14 w-14 mx-auto text-muted-foreground/30 mb-4" />
-            <p className="text-muted-foreground font-medium">No projects yet</p>
-            <p className="text-sm text-muted-foreground mt-1 mb-4">Create your first project to get started</p>
+            <p className="text-muted-foreground font-medium">No jobs yet</p>
+            <p className="text-sm text-muted-foreground mt-1 mb-4">Create your first job to get started</p>
             <Button onClick={() => navigate('/calculator')}>
-              <Plus className="h-4 w-4 mr-1" /> Create Project
+              <Plus className="h-4 w-4 mr-1" /> Create Job
             </Button>
           </CardContent>
         </Card>
@@ -406,7 +406,7 @@ export function ProjectsPage() {
                       <div className="flex items-center justify-between rounded-xl bg-[#1F1F21] px-4 py-3 mt-2">
                         <div className="flex items-center gap-2">
                           <PoundSterling className="h-4 w-4 text-[#FFD528]" />
-                          <span className="text-sm font-bold text-white">Project Total</span>
+                          <span className="text-sm font-bold text-white">Job Total</span>
                         </div>
                         <span className="text-lg font-bold text-[#FFD528]">
                           £{projectTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
