@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { FileText, FolderOpen, CheckSquare, Square, Download, Mail, Loader2 } from 'lucide-react';
+import { FileText, FolderOpen, CheckSquare, Square, Download, Mail, Loader2, X, Send, AlertCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
@@ -54,8 +55,18 @@ export function InvoicePage() {
   const [bankSortCode, setBankSortCode] = useState('');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
 
+  const [clientEmail, setClientEmail] = useState('');
+
   const [downloading, setDownloading] = useState(false);
   const [sending, setSending] = useState(false);
+
+  // Email compose modal
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailTo, setEmailTo] = useState('');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailMessage, setEmailMessage] = useState('');
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailError, setEmailError] = useState('');
 
   const projectPickerRef = useRef<HTMLDivElement>(null);
   const invoiceRef = useRef<HTMLDivElement>(null);
@@ -139,27 +150,25 @@ export function InvoicePage() {
     if (!invoiceRef.current) return null;
     const el = invoiceRef.current;
 
-    // Force A4 width (794px ≈ 210mm at 96dpi) before capture so proportions are correct
-    const prevWidth = el.style.width;
-    el.style.width = '794px';
-
+    // Invoice is always rendered at 794px wide (A4 at 96dpi), so no width override needed.
+    // Scale: 2 gives 2× resolution for crisp output.
     const canvas = await html2canvas(el, {
       scale: 2,
       useCORS: true,
       backgroundColor: '#ffffff',
       logging: false,
       width: 794,
+      windowWidth: 794,
     });
-
-    el.style.width = prevWidth;
 
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pdfWidth = pdf.internal.pageSize.getWidth();   // 210mm
     const pdfHeight = pdf.internal.pageSize.getHeight(); // 297mm
-    const imgHeightMm = (canvas.height * pdfWidth) / canvas.width;
 
-    // Add first page, then continue with additional pages if content overflows
+    // Scale image to exactly fit A4 width; split into pages if the content is taller
+    const imgHeightMm = (canvas.height / canvas.width) * pdfWidth;
+
     pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeightMm);
     let remaining = imgHeightMm - pdfHeight;
     while (remaining > 0) {
@@ -181,18 +190,58 @@ export function InvoicePage() {
     }
   };
 
-  const handleSendToClient = async () => {
-    setSending(true);
+  const openEmailModal = () => {
+    setEmailTo(clientEmail);
+    setEmailSubject(`Invoice ${invoiceNumber} – ${selectedProject?.name || 'Services Rendered'}`);
+    setEmailMessage(
+      `Hi ${clientName || 'there'},\n\nPlease find attached invoice ${invoiceNumber} for ${selectedProject?.name || 'recent work'}.\n\nTotal amount due: £${totalAmount.toFixed(2)}\nPayment terms: 30 days from receipt.\n\nKind regards,\n${companyName || 'Your Name'}`
+    );
+    setEmailError('');
+    setShowEmailModal(true);
+  };
+
+  const handleSendEmail = async () => {
+    const toAddresses = emailTo.split(',').map(e => e.trim()).filter(Boolean);
+    if (toAddresses.length === 0) {
+      setEmailError('Please enter at least one email address.');
+      return;
+    }
+
+    setEmailSending(true);
+    setEmailError('');
     try {
       const pdf = await generatePDF();
-      pdf?.save(`${invoiceNumber}.pdf`);
-      const subject = encodeURIComponent(`Invoice ${invoiceNumber} — ${selectedProject?.name || 'Services Rendered'}`);
-      const body = encodeURIComponent(
-        `Hi ${clientName || 'there'},\n\nPlease find attached invoice ${invoiceNumber} for ${selectedProject?.name || 'recent work'}.\n\nTotal amount due: £${totalAmount.toFixed(2)}\nPayment terms: 30 days from receipt\n\nKind regards,\n${companyName}`
-      );
-      window.open(`mailto:?subject=${subject}&body=${body}`);
+      if (!pdf) {
+        setEmailError('Failed to generate PDF. Please try again.');
+        return;
+      }
+
+      // Convert to base64 (strip the data URI prefix)
+      const pdfBase64 = pdf.output('datauristring').split(',')[1];
+
+      const response = await fetch('/api/send-invoice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: toAddresses,
+          subject: emailSubject,
+          message: emailMessage,
+          pdfBase64,
+          fileName: `${invoiceNumber}.pdf`,
+          fromName: companyName,
+        }),
+      });
+
+      const result = await response.json() as { success?: boolean; error?: string };
+      if (response.ok && result.success) {
+        setShowEmailModal(false);
+      } else {
+        setEmailError(result.error || 'Failed to send email. Please try again.');
+      }
+    } catch (err) {
+      setEmailError(`Unexpected error: ${String(err)}`);
     } finally {
-      setSending(false);
+      setEmailSending(false);
     }
   };
 
@@ -332,6 +381,16 @@ export function InvoicePage() {
               <Label>Client Address</Label>
               <Input value={clientAddress} onChange={e => setClientAddress(e.target.value)} placeholder="456 Studio Road, London" />
             </div>
+            <div className="space-y-2">
+              <Label>Client Email <span className="text-muted-foreground font-normal">(for sending invoice)</span></Label>
+              <Input
+                type="email"
+                value={clientEmail}
+                onChange={e => setClientEmail(e.target.value)}
+                placeholder="finance@productioncо.com, producer@example.com"
+              />
+              <p className="text-xs text-muted-foreground">Separate multiple addresses with a comma</p>
+            </div>
 
             <Separator />
 
@@ -405,24 +464,26 @@ export function InvoicePage() {
             <Button
               variant="outline"
               className="flex-1 gap-2"
-              onClick={handleSendToClient}
-              disabled={downloading || sending || selectedDays.length === 0}
+              onClick={openEmailModal}
+              disabled={downloading || emailSending || selectedDays.length === 0 || !clientEmail.trim()}
+              title={!clientEmail.trim() ? 'Add a client email address in the form to enable sending' : undefined}
             >
-              {sending
-                ? <><Loader2 className="h-4 w-4 animate-spin" /> Preparing…</>
-                : <><Mail className="h-4 w-4" /> Send to Client</>
-              }
+              <Mail className="h-4 w-4" /> Send to Client
             </Button>
           </div>
 
           {selectedDays.length === 0 && (
             <p className="text-xs text-muted-foreground text-center">Select days on the left to enable download</p>
           )}
+          {selectedDays.length > 0 && !clientEmail.trim() && (
+            <p className="text-xs text-muted-foreground text-center">Add a client email address to enable sending</p>
+          )}
 
-          {/* Invoice document */}
+          {/* Invoice document — fixed at 794px (A4 width at 96dpi) */}
+          <div className="overflow-x-auto">
           <div
             ref={invoiceRef}
-            style={{ backgroundColor: '#ffffff', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}
+            style={{ backgroundColor: '#ffffff', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', width: '794px', minHeight: '1123px', boxSizing: 'border-box' }}
             className="rounded-2xl shadow-lg overflow-hidden"
           >
             {/* Top bar */}
@@ -581,8 +642,86 @@ export function InvoicePage() {
               </div>
             </div>
           </div>
+          </div>{/* /overflow-x-auto */}
         </div>
       </div>
+
+      {/* ── Email Compose Modal ──────────────────────────────────── */}
+      {showEmailModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Mail className="h-5 w-5 text-primary" />
+                <h2 className="font-semibold text-base">Send Invoice to Client</h2>
+              </div>
+              <button
+                onClick={() => setShowEmailModal(false)}
+                className="rounded-lg p-1.5 hover:bg-muted transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <div className="px-6 py-5 space-y-4">
+              <div className="space-y-2">
+                <Label>To</Label>
+                <Input
+                  value={emailTo}
+                  onChange={e => setEmailTo(e.target.value)}
+                  placeholder="client@example.com, finance@example.com"
+                />
+                <p className="text-xs text-muted-foreground">Separate multiple addresses with a comma</p>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Subject</Label>
+                <Input
+                  value={emailSubject}
+                  onChange={e => setEmailSubject(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Message</Label>
+                <Textarea
+                  value={emailMessage}
+                  onChange={e => setEmailMessage(e.target.value)}
+                  rows={7}
+                  className="resize-none text-sm"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
+                <Mail className="h-3.5 w-3.5 shrink-0" />
+                <span>The invoice PDF (<strong>{invoiceNumber}.pdf</strong>) will be attached automatically.</span>
+              </div>
+
+              {emailError && (
+                <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span>{emailError}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Modal footer */}
+            <div className="flex gap-3 px-6 py-4 border-t border-border">
+              <Button variant="outline" className="flex-1" onClick={() => setShowEmailModal(false)} disabled={emailSending}>
+                Cancel
+              </Button>
+              <Button className="flex-1 gap-2" onClick={handleSendEmail} disabled={emailSending}>
+                {emailSending
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
+                  : <><Send className="h-4 w-4" /> Send Invoice</>
+                }
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
