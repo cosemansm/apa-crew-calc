@@ -17,12 +17,14 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
+import { STATUS_CONFIG, StatusBadge, type ProjectStatus } from './ProjectsPage';
 
 interface Project {
   id: string;
   name: string;
   client_name: string | null;
   created_at: string;
+  status: ProjectStatus;
   days: ProjectDay[];
 }
 
@@ -164,7 +166,11 @@ export function DashboardPage() {
   const startDayOfWeek = getDay(monthStart);
 
   const allProjectDays = useMemo(() => {
-    return projects.flatMap(p => p.days.map(d => ({ ...d, projectName: p.name })));
+    return projects.flatMap(p => p.days.map(d => ({
+      ...d,
+      projectName: p.name,
+      projectStatus: (p.status ?? 'ongoing') as ProjectStatus,
+    })));
   }, [projects]);
 
   const getDayProjects = (date: Date) => {
@@ -354,12 +360,13 @@ export function DashboardPage() {
                       return (
                         <div
                           key={i}
-                          className={`mt-0.5 bg-[#1F1F21] py-0.5 text-[10px] font-medium text-white leading-tight truncate ${
+                          className={`mt-0.5 py-0.5 text-[10px] font-medium text-white leading-tight truncate ${
                             connPrev && connNext ? 'rounded-none -mx-[7px] px-2' :
                             connPrev            ? 'rounded-r-md rounded-l-none -ml-[7px] pl-2 pr-1' :
                             connNext            ? 'rounded-l-md rounded-r-none -mr-[7px] pl-1 pr-2' :
                             'rounded-md px-1'
                           }`}
+                          style={{ backgroundColor: STATUS_CONFIG[dp.projectStatus].calendarBg }}
                         >
                           {connPrev ? '\u00A0' : dp.projectName}
                         </div>
@@ -542,16 +549,19 @@ export function DashboardPage() {
                     onClick={() => navigate(`/calculator?project=${project.id}`)}
                   >
                     <CardContent className="p-5">
-                      <div className="flex items-start justify-between">
+                      <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold truncate">{project.name}</h3>
                           {project.client_name && (
                             <p className="text-sm text-muted-foreground truncate">{project.client_name}</p>
                           )}
                         </div>
-                        <Badge variant="outline" className="ml-2 shrink-0">
-                          {project.days.length} day{project.days.length !== 1 ? 's' : ''}
-                        </Badge>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <StatusBadge status={project.status ?? 'ongoing'} />
+                          <Badge variant="outline" className="text-xs">
+                            {project.days.length} day{project.days.length !== 1 ? 's' : ''}
+                          </Badge>
+                        </div>
                       </div>
                       <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">

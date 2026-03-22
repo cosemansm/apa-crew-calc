@@ -11,11 +11,28 @@ import { format, parseISO } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
+// ── Status config ────────────────────────────────────────────────────────────
+export type ProjectStatus = 'ongoing' | 'finished' | 'invoiced';
+
+export const STATUS_CONFIG: Record<ProjectStatus, {
+  label: string;
+  calendarBg: string;   // used in calendar bars
+  badgeBg: string;
+  badgeText: string;
+  badgeBorder: string;
+}> = {
+  ongoing:  { label: 'Ongoing',  calendarBg: '#3B82F6', badgeBg: '#EFF6FF', badgeText: '#1D4ED8', badgeBorder: '#BFDBFE' },
+  finished: { label: 'Finished', calendarBg: '#22C55E', badgeBg: '#F0FDF4', badgeText: '#15803D', badgeBorder: '#BBF7D0' },
+  invoiced: { label: 'Invoiced', calendarBg: '#8B5CF6', badgeBg: '#F5F3FF', badgeText: '#6D28D9', badgeBorder: '#DDD6FE' },
+};
+
+// ── Interfaces ───────────────────────────────────────────────────────────────
 interface Project {
   id: string;
   name: string;
   client_name: string | null;
   created_at: string;
+  status: ProjectStatus;
 }
 
 interface ProjectDay {
@@ -49,6 +66,33 @@ const DAY_TYPE_LABELS: Record<string, string> = {
   pre_light: 'Pre-light',
 };
 
+// ── StatusBadge ──────────────────────────────────────────────────────────────
+export function StatusBadge({ status }: { status: ProjectStatus }) {
+  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.ongoing;
+  return (
+    <span
+      style={{
+        backgroundColor: cfg.badgeBg,
+        color: cfg.badgeText,
+        border: `1px solid ${cfg.badgeBorder}`,
+        borderRadius: '999px',
+        fontSize: '11px',
+        fontWeight: 600,
+        padding: '2px 8px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '5px',
+        lineHeight: 1.5,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: cfg.calendarBg, display: 'inline-block', flexShrink: 0 }} />
+      {cfg.label}
+    </span>
+  );
+}
+
+// ── Main component ───────────────────────────────────────────────────────────
 export function ProjectsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -57,6 +101,7 @@ export function ProjectsPage() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [projectDays, setProjectDays] = useState<ProjectDay[]>([]);
   const [daysLoading, setDaysLoading] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(false);
 
   useEffect(() => {
     if (user) loadProjects();
@@ -69,7 +114,7 @@ export function ProjectsPage() {
       .select('*')
       .eq('user_id', user!.id)
       .order('created_at', { ascending: false });
-    if (data) setProjects(data);
+    if (data) setProjects(data as Project[]);
     setLoading(false);
   };
 
@@ -88,6 +133,21 @@ export function ProjectsPage() {
   const closeDetail = () => {
     setSelectedProject(null);
     setProjectDays([]);
+  };
+
+  const updateStatus = async (status: ProjectStatus) => {
+    if (!selectedProject) return;
+    setStatusUpdating(true);
+    const { error } = await supabase
+      .from('projects')
+      .update({ status })
+      .eq('id', selectedProject.id);
+    if (!error) {
+      const updated = { ...selectedProject, status };
+      setSelectedProject(updated);
+      setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
+    }
+    setStatusUpdating(false);
   };
 
   const projectTotal = projectDays.reduce((sum, d) => sum + (d.grand_total || 0), 0);
@@ -161,10 +221,13 @@ export function ProjectsPage() {
                       </div>
                       <ChevronRight className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isSelected ? 'rotate-90' : ''}`} />
                     </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      <Calendar className="h-3 w-3 inline mr-1" />
-                      Created {format(parseISO(project.created_at), 'dd MMM yyyy')}
-                    </p>
+                    <div className="flex items-center justify-between mt-2">
+                      <p className="text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3 inline mr-1" />
+                        Created {format(parseISO(project.created_at), 'dd MMM yyyy')}
+                      </p>
+                      <StatusBadge status={project.status ?? 'ongoing'} />
+                    </div>
                   </div>
                 );
               })}
@@ -205,6 +268,39 @@ export function ProjectsPage() {
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
+                </div>
+
+                {/* Status selector */}
+                <div className="px-6 py-3 border-b border-border flex items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground mr-1">Status:</span>
+                  {(['ongoing', 'finished', 'invoiced'] as ProjectStatus[]).map(s => {
+                    const cfg = STATUS_CONFIG[s];
+                    const isActive = (selectedProject.status ?? 'ongoing') === s;
+                    return (
+                      <button
+                        key={s}
+                        disabled={statusUpdating}
+                        onClick={() => updateStatus(s)}
+                        style={{
+                          backgroundColor: isActive ? cfg.badgeBg : 'transparent',
+                          color: isActive ? cfg.badgeText : '#6B7280',
+                          border: `1px solid ${isActive ? cfg.badgeBorder : '#E5E7EB'}`,
+                          borderRadius: '999px',
+                          fontSize: '12px',
+                          fontWeight: isActive ? 600 : 400,
+                          padding: '4px 12px',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: isActive ? cfg.calendarBg : '#D1D5DB', display: 'inline-block' }} />
+                        {cfg.label}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 <CardContent className="p-6">
