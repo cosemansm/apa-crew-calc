@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown } from 'lucide-react';
+import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown, Trash2 } from 'lucide-react';
 import { format, getDay, addDays, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek, type CalculationResult } from '@/data/calculation-engine';
@@ -702,6 +702,19 @@ export function CalculatorPage() {
       .eq('project_id', projId)
       .order('work_date', { ascending: true });
     if (data) setProjectDays(data as ProjectDaySummary[]);
+  };
+
+  const removeDay = async (dayId: string) => {
+    if (!confirm('Remove this day from the project?')) return;
+    const { error } = await supabase.from('project_days').delete().eq('id', dayId);
+    if (!error) {
+      setProjectDays(prev => prev.filter(d => d.id !== dayId));
+      // If we were editing this day, reset the form
+      if (currentDayId === dayId) {
+        setCurrentDayId(null);
+        setIsDirty(false);
+      }
+    }
   };
 
   const handleReset = () => {
@@ -1498,9 +1511,20 @@ export function CalculatorPage() {
                               </p>
                             </div>
                           </div>
-                          <span className="font-mono text-sm font-semibold shrink-0 ml-2">
-                            £{(day.grand_total || 0).toFixed(2)}
-                          </span>
+                          <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                            <span className="font-mono text-sm font-semibold">
+                              £{(day.grand_total || 0).toFixed(2)}
+                            </span>
+                            {!day.isCurrent && (
+                              <button
+                                onClick={e => { e.stopPropagation(); removeDay(day.key); }}
+                                className="p-1 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors"
+                                title="Remove day"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
 
                         {/* Expandable detail */}
