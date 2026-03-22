@@ -153,8 +153,13 @@ export function InvoicePage() {
     if (!invoiceRef.current) return null;
     const el = invoiceRef.current;
 
-    const prevWidth = el.style.width;
-    el.style.width = '794px';
+    // Temporarily strip rounded corners + shadow so they don't bleed grey into the PDF
+    const prevWidth        = el.style.width;
+    const prevBorderRadius = el.style.borderRadius;
+    const prevBoxShadow    = el.style.boxShadow;
+    el.style.width        = '794px';
+    el.style.borderRadius = '0';
+    el.style.boxShadow    = 'none';
 
     const canvas = await html2canvas(el, {
       scale,
@@ -165,7 +170,9 @@ export function InvoicePage() {
       windowWidth: 794,
     });
 
-    el.style.width = prevWidth;
+    el.style.width        = prevWidth;
+    el.style.borderRadius = prevBorderRadius;
+    el.style.boxShadow    = prevBoxShadow;
 
     const mimeType = format === 'JPEG' ? 'image/jpeg' : 'image/png';
     const quality  = format === 'JPEG' ? 0.85 : 1;
@@ -565,13 +572,13 @@ export function InvoicePage() {
               {(selectedProject || jobReference) && (
                 <div style={{ display: 'flex', gap: '12px', marginBottom: '28px', flexWrap: 'wrap' }}>
                   {selectedProject && (
-                    <div style={{ backgroundColor: '#F5F3EE', borderRadius: '8px', padding: '8px 14px' }}>
+                    <div style={{ backgroundColor: '#F5F3EE', borderRadius: '8px', padding: '10px 20px', textAlign: 'center' }}>
                       <p style={{ fontSize: '10px', fontWeight: '700', color: '#9A9A9A', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 3px' }}>Project</p>
                       <p style={{ fontWeight: '600', fontSize: '13px', color: '#1F1F21', margin: '0' }}>{selectedProject.name}</p>
                     </div>
                   )}
                   {jobReference && (
-                    <div style={{ backgroundColor: '#F5F3EE', borderRadius: '8px', padding: '8px 14px' }}>
+                    <div style={{ backgroundColor: '#F5F3EE', borderRadius: '8px', padding: '10px 20px', textAlign: 'center' }}>
                       <p style={{ fontSize: '10px', fontWeight: '700', color: '#9A9A9A', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 3px' }}>Job Reference</p>
                       <p style={{ fontWeight: '600', fontSize: '13px', color: '#1F1F21', margin: '0' }}>{jobReference}</p>
                     </div>
@@ -621,16 +628,14 @@ export function InvoicePage() {
               {/* Total */}
               {selectedDays.length > 0 && (
                 <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
-                  <div style={{ backgroundColor: '#1F1F21', borderRadius: '12px', padding: '16px 24px', minWidth: '220px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '24px' }}>
-                      <span style={{ color: '#9A9A9A', fontSize: '13px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                        Total Due
-                      </span>
-                      <span style={{ color: '#FFD528', fontWeight: '800', fontSize: '22px', fontFamily: 'monospace' }}>
-                        £{totalAmount.toFixed(2)}
-                      </span>
-                    </div>
-                    <p style={{ color: '#6B6B6B', fontSize: '11px', margin: '6px 0 0', textAlign: 'right' }}>
+                  <div style={{ backgroundColor: '#1F1F21', borderRadius: '12px', padding: '16px 28px', minWidth: '220px', textAlign: 'center' }}>
+                    <p style={{ color: '#9A9A9A', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 6px' }}>
+                      Total Due
+                    </p>
+                    <p style={{ color: '#FFD528', fontWeight: '800', fontSize: '26px', fontFamily: 'monospace', margin: '0 0 6px' }}>
+                      £{totalAmount.toFixed(2)}
+                    </p>
+                    <p style={{ color: '#6B6B6B', fontSize: '11px', margin: '0' }}>
                       Payment within 30 days of invoice
                     </p>
                   </div>
