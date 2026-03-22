@@ -59,7 +59,7 @@ export default async function handler(req: Request) {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: `${senderName} via Crew Dock <noreply@crewdock.app>`,
+        from: `Crew Dock <noreply@crewdock.app>`,
         to: toArray,
         subject,
         text: message,

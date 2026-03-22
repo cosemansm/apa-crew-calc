@@ -223,8 +223,12 @@ export function InvoicePage() {
         return;
       }
 
-      // Convert to base64 (strip the data URI prefix)
-      const pdfBase64 = pdf.output('datauristring').split(',')[1];
+      // Convert PDF to base64 via ArrayBuffer (reliable cross-browser)
+      const pdfArrayBuffer = pdf.output('arraybuffer');
+      const uint8Array = new Uint8Array(pdfArrayBuffer);
+      let binary = '';
+      uint8Array.forEach(byte => { binary += String.fromCharCode(byte); });
+      const pdfBase64 = btoa(binary);
 
       const response = await fetch('/api/send-invoice', {
         method: 'POST',
@@ -239,7 +243,15 @@ export function InvoicePage() {
         }),
       });
 
-      const result = await response.json() as { success?: boolean; error?: string };
+      // Read response text first so we can show a useful error if it's not JSON
+      const responseText = await response.text();
+      let result: { success?: boolean; error?: string };
+      try {
+        result = JSON.parse(responseText);
+      } catch {
+        result = { error: `Server error (${response.status}): ${responseText.slice(0, 300)}` };
+      }
+
       if (response.ok && result.success) {
         setShowEmailModal(false);
       } else {
