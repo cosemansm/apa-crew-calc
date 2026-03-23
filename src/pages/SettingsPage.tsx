@@ -575,7 +575,6 @@ export function SettingsPage() {
                               <span>·</span>
                               <span>OT x{role.ot_coefficient}{role.ot_coefficient > 0 && <span className="font-mono ml-1">(£{Math.round((role.custom_bhr ?? Math.round(role.daily_rate / 10)) * role.ot_coefficient)}/hr)</span>}</span>
                             </>)}
-                            {role.is_buyout && <><span>·</span><span>flat rate, no OT</span></>}
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
