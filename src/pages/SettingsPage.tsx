@@ -171,7 +171,7 @@ const NAV_ITEMS: { id: SectionId; label: string; icon: React.ElementType; badge?
   { id: 'my-equipment',     label: 'My Equipment',     icon: Package },
   { id: 'password',         label: 'Password',         icon: Lock },
   { id: 'billing',          label: 'Billing',          icon: CreditCard, badge: 'Soon' },
-  { id: 'integrations',     label: 'Integrations',     icon: Plug,       badge: 'Soon' },
+  { id: 'integrations',     label: 'Integrations',     icon: Plug },
   { id: 'danger-zone',      label: 'Danger Zone',      icon: AlertTriangle, danger: true },
 ];
 
@@ -741,13 +741,42 @@ export function SettingsPage() {
 
           {/* INTEGRATIONS */}
           {activeSection === 'integrations' && (
-            <Card className="opacity-60">
+            <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Plug className="h-5 w-5" /> Integrations <Badge variant="secondary">Coming Soon</Badge></CardTitle>
-                <CardDescription>Connect with Xero, QuickBooks, FreeAgent and more</CardDescription>
+                <CardTitle className="flex items-center gap-2"><Plug className="h-5 w-5" /> Integrations</CardTitle>
+                <CardDescription>Connect your accounting software to sync invoices and expenses automatically</CardDescription>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">Accounting integrations will be available in a future update.</p>
+              <CardContent className="space-y-3">
+                {[
+                  {
+                    name: 'Xero',
+                    description: 'Sync invoices and expenses directly to Xero',
+                    logo: 'https://logo.clearbit.com/xero.com',
+                  },
+                  {
+                    name: 'QuickBooks',
+                    description: 'Push invoices and track income in QuickBooks',
+                    logo: 'https://logo.clearbit.com/quickbooks.intuit.com',
+                  },
+                  {
+                    name: 'FreeAgent',
+                    description: 'Send invoices and log expenses in FreeAgent',
+                    logo: 'https://logo.clearbit.com/freeagent.com',
+                  },
+                ].map(({ name, description, logo }) => (
+                  <div key={name} className="flex items-center justify-between gap-4 p-4 rounded-xl border border-border">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-lg border border-border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
+                        <img src={logo} alt={name} className="h-7 w-7 object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">{name}</p>
+                        <p className="text-xs text-muted-foreground">{description}</p>
+                      </div>
+                    </div>
+                    <Badge variant="secondary" className="shrink-0">Coming Soon</Badge>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           )}
