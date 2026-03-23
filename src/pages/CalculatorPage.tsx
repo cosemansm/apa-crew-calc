@@ -124,6 +124,8 @@ interface ProjectDaySummary {
   result_json?: DayResultJson;
   wrap_time?: string;
   call_time?: string;
+  expenses_amount?: number;
+  expenses_notes?: string;
 }
 
 interface FullProjectDay {
@@ -152,6 +154,8 @@ interface FullProjectDay {
   mileage: number;
   equipment_value: number;
   equipment_discount: number;
+  expenses_amount: number;
+  expenses_notes: string;
   previous_wrap: string | null;
   is_bank_holiday: boolean;
 }
@@ -365,6 +369,8 @@ export function CalculatorPage() {
   const [mileage, setMileage] = useState(ss?.mileage ?? '0');
   const [equipmentValue, setEquipmentValue] = useState(ss?.equipmentValue ?? '0');
   const [equipmentDiscount, setEquipmentDiscount] = useState(ss?.equipmentDiscount ?? '0');
+  const [expensesDayAmount, setExpensesDayAmount] = useState(ss?.expensesDayAmount ?? '');
+  const [expensesDayNotes, setExpensesDayNotes] = useState(ss?.expensesDayNotes ?? '');
   const [previousWrap, setPreviousWrap] = useState(ss?.previousWrap ?? '');
   const [projectName, setProjectName] = useState(ss?.projectName ?? '');
   const [saving, setSaving] = useState(false);
@@ -442,11 +448,13 @@ export function CalculatorPage() {
       mileage,
       equipmentValue,
       equipmentDiscount,
+      expensesDayAmount,
+      expensesDayNotes,
       previousWrap,
       currentDayId,
       isDirty,
     });
-  }, [projectId, projectName, selectedRole, agreedRate, dayType, workDate, isBankHoliday, callTime, wrapTime, firstBreakGiven, firstBreakTime, firstBreakDuration, secondBreakGiven, secondBreakTime, secondBreakDuration, continuousFirstBreakGiven, continuousAdditionalBreakGiven, travelHours, mileage, equipmentValue, equipmentDiscount, previousWrap, currentDayId, isDirty]);
+  }, [projectId, projectName, selectedRole, agreedRate, dayType, workDate, isBankHoliday, callTime, wrapTime, firstBreakGiven, firstBreakTime, firstBreakDuration, secondBreakGiven, secondBreakTime, secondBreakDuration, continuousFirstBreakGiven, continuousAdditionalBreakGiven, travelHours, mileage, equipmentValue, equipmentDiscount, expensesDayAmount, expensesDayNotes, previousWrap, currentDayId, isDirty]);
 
   // Load projects list for the picker
   useEffect(() => {
@@ -725,6 +733,8 @@ export function CalculatorPage() {
     setMileage(String(day.mileage ?? 0));
     setEquipmentValue(String(day.equipment_value ?? 0));
     setEquipmentDiscount(String(day.equipment_discount ?? 0));
+    setExpensesDayAmount(day.expenses_amount ? String(day.expenses_amount) : '');
+    setExpensesDayNotes(day.expenses_notes ?? '');
     setPreviousWrap(day.previous_wrap ?? '');
     const role = customRoles.find(r => r.role === day.role_name) ?? APA_CREW_ROLES.find(r => r.role === day.role_name);
     if (role) {
@@ -796,6 +806,8 @@ export function CalculatorPage() {
     setMileage('0');
     setEquipmentValue('0');
     setEquipmentDiscount('0');
+    setExpensesDayAmount('');
+    setExpensesDayNotes('');
     setPreviousWrap('');
   };
 
@@ -822,6 +834,8 @@ export function CalculatorPage() {
     setMileage('0');
     setEquipmentValue('0');
     setEquipmentDiscount('0');
+    setExpensesDayAmount('');
+    setExpensesDayNotes('');
     setPreviousWrap('');
     setSaveSuccess(false);
     // Scroll form back to top
@@ -856,7 +870,7 @@ export function CalculatorPage() {
       call_time: callTime,
       wrap_time: wrapTime,
       result_json: result,
-      grand_total: result.grandTotal,
+      grand_total: result.grandTotal + (parseFloat(expensesDayAmount) || 0),
       first_break_given: firstBreakGiven,
       first_break_time: firstBreakTime,
       first_break_duration: parseInt(firstBreakDuration),
@@ -869,6 +883,8 @@ export function CalculatorPage() {
       mileage: parseFloat(mileage),
       equipment_value: parseFloat(equipmentValue) || 0,
       equipment_discount: parseFloat(equipmentDiscount) || 0,
+      expenses_amount: parseFloat(expensesDayAmount) || 0,
+      expenses_notes: expensesDayNotes.trim(),
       previous_wrap: autoPreviousWrap || null,
       is_bank_holiday: isBankHoliday,
     };
@@ -1416,6 +1432,41 @@ export function CalculatorPage() {
               </div>
             </div>
 
+            {/* Expenses */}
+            <div className="space-y-3">
+              <h3 className="font-medium flex items-center gap-2">
+                <Receipt className="h-4 w-4" /> Expenses
+                <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="expenses-amount">Amount (£)</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">£</span>
+                    <Input
+                      id="expenses-amount"
+                      type="number"
+                      className="pl-7"
+                      value={expensesDayAmount}
+                      onChange={e => setExpensesDayAmount(e.target.value)}
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="expenses-notes">Description</Label>
+                  <Input
+                    id="expenses-notes"
+                    value={expensesDayNotes}
+                    onChange={e => setExpensesDayNotes(e.target.value)}
+                    placeholder="e.g. Parking, taxi, meals…"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Time Off The Clock — auto-calculated from project days */}
             {autoPreviousWrap && callTime && (() => {
               let prevMins = parseInt(autoPreviousWrap.split(':')[0]) * 60 + parseInt(autoPreviousWrap.split(':')[1]);
@@ -1504,6 +1555,8 @@ export function CalculatorPage() {
                 grand_total: number;
                 isCurrent: boolean;
                 rj?: DayResultJson;
+                expensesAmount?: number;
+                expensesNotes?: string;
               }> = [
                 ...savedOthers.map(d => ({
                   key: d.id,
@@ -1512,13 +1565,17 @@ export function CalculatorPage() {
                   grand_total: d.grand_total,
                   isCurrent: false,
                   rj: d.result_json,
+                  expensesAmount: d.expenses_amount,
+                  expensesNotes: d.expenses_notes,
                 })),
                 {
                   key: currentKey,
                   work_date: workDate,
                   role_name: selectedRole?.role ?? '—',
-                  grand_total: result.grandTotal,
+                  grand_total: result.grandTotal + (parseFloat(expensesDayAmount) || 0),
                   isCurrent: true,
+                  expensesAmount: parseFloat(expensesDayAmount) || 0,
+                  expensesNotes: expensesDayNotes,
                   rj: {
                     lineItems: result.lineItems,
                     penalties: result.penalties,
@@ -1642,6 +1699,16 @@ export function CalculatorPage() {
                                   Equipment{(rj.equipmentDiscount ?? 0) > 0 ? ` (−${rj.equipmentDiscount}%)` : ''}
                                 </span>
                                 <span className="font-mono text-xs">£{(rj.equipmentTotal ?? 0).toFixed(2)}</span>
+                              </div>
+                            )}
+
+                            {/* Expenses */}
+                            {(day.expensesAmount ?? 0) > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">
+                                  Expenses{day.expensesNotes ? ` (${day.expensesNotes})` : ''}
+                                </span>
+                                <span className="font-mono text-xs">£{(day.expensesAmount ?? 0).toFixed(2)}</span>
                               </div>
                             )}
 
