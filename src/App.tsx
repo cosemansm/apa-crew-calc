@@ -5,12 +5,10 @@ import { LoginPage } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { CalculatorPage } from '@/pages/CalculatorPage';
 import { AIInputPage } from '@/pages/AIInputPage';
-import { HistoryPage } from '@/pages/HistoryPage';
 import { InvoicePage } from '@/pages/InvoicePage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { ProjectsPage } from '@/pages/ProjectsPage';
 import { SupportPage } from '@/pages/SupportPage';
-import { HistoryPage } from '@/pages/HistoryPage';
 import type { ReactNode } from 'react';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -38,9 +36,8 @@ export default function App() {
             <Route path="/calculator" element={<CalculatorPage />} />
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/ai-input" element={<AIInputPage />} />
-            <Route path="/history" element={<HistoryPage />} />
-            <Route path="/invoices" element={<InvoicePage />} />
             <Route path="/history" element={<Navigate to="/projects" replace />} />
+            <Route path="/invoices" element={<InvoicePage />} />
             <Route path="/support" element={<SupportPage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
