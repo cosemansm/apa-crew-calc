@@ -312,6 +312,8 @@ interface SessionState {
   mileage: string;
   equipmentValue: string;
   equipmentDiscount: string;
+  expensesDayAmount: string;
+  expensesDayNotes: string;
   previousWrap: string;
   currentDayId: string | null;
   isDirty: boolean;
