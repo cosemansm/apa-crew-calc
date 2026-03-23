@@ -562,7 +562,7 @@ export function SettingsPage() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium text-sm">{role.role_name}</span>
                             <Badge variant="secondary" className="text-xs">Custom</Badge>
-                            {role.is_buyout && <Badge variant="outline" className="text-xs text-muted-foreground">All-in</Badge>}
+                            {role.is_buyout && <Badge variant="outline" className="text-xs text-muted-foreground">Buyout</Badge>}
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
                             <span className="font-mono">£{role.daily_rate}/day</span>
