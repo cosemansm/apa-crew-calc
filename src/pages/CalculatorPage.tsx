@@ -1091,67 +1091,68 @@ export function CalculatorPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-[1fr_auto_1fr] gap-4 items-end">
+            <div className="grid grid-cols-[1fr_auto_1fr_auto] gap-4 items-end">
               <TimePicker
                 label={dayType === 'travel' ? 'Departure Time' : 'Call Time'}
                 value={callTime}
                 onChange={setCallTime}
               />
-              <div className="hidden md:flex items-center pb-2 text-muted-foreground text-sm">→</div>
+              <div className="flex items-center pb-2 text-muted-foreground text-sm">→</div>
               <TimePicker
                 label={dayType === 'travel' ? 'Arrival Time' : 'Wrap Time'}
                 value={wrapTime}
                 onChange={setWrapTime}
               />
+              {/* Info popover — right of wrap/arrival time */}
+              <div className="flex items-center pb-2">
+                {(() => {
+                  const hasTimes = !!(callTime && wrapTime);
+                  let isUnderMin = false;
+                  let hrs = 0, mins = 0, effectiveHrs = 0;
+                  if (hasTimes) {
+                    let callMins = parseInt(callTime.split(':')[0]) * 60 + parseInt(callTime.split(':')[1]);
+                    let wrapMins = parseInt(wrapTime.split(':')[0]) * 60 + parseInt(wrapTime.split(':')[1]);
+                    if (wrapMins <= callMins) wrapMins += 24 * 60;
+                    const totalHrs = (wrapMins - callMins) / 60;
+                    effectiveHrs = dayType === 'travel' ? Math.max(totalHrs, 5) : totalHrs;
+                    hrs = Math.floor(totalHrs);
+                    mins = Math.round((totalHrs - hrs) * 60);
+                    isUnderMin = dayType === 'travel' && totalHrs < 5;
+                  }
+                  if (!hasTimes && dayType !== 'travel') return null;
+                  return (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className={`flex items-center justify-center h-8 w-8 rounded-full transition-colors ${isUnderMin ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50' : 'text-muted-foreground/30 hover:text-muted-foreground/70 hover:bg-muted/60'}`}>
+                          <Info className="h-4 w-4" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-72 px-4 py-3 text-sm text-muted-foreground space-y-2">
+                        {dayType === 'travel' && (
+                          <div className="space-y-1">
+                            <p className="font-medium text-foreground">Travel Day Rules</p>
+                            <p>Minimum 5 hours, paid at Basic Hourly Rate (single time). Applies any day of the week. Not applicable to PM, PA, or Runners.</p>
+                          </div>
+                        )}
+                        {hasTimes && (
+                          <div className="space-y-1">
+                            <p className="font-medium text-foreground">{dayType === 'travel' ? 'Travel Duration' : 'Day Length'}</p>
+                            {isUnderMin ? (
+                              <>
+                                <p>Actual duration: <strong className="text-foreground">{hrs}h{mins > 0 ? ` ${mins}m` : ''}</strong></p>
+                                <p>Travel days have a <strong className="text-foreground">5-hour minimum</strong>. This day will be billed at <strong className="text-foreground">{effectiveHrs}h</strong>.</p>
+                              </>
+                            ) : (
+                              <p>Total from {dayType === 'travel' ? 'departure to arrival' : 'call to wrap'}: <strong className="text-foreground">{hrs}h{mins > 0 ? ` ${mins}m` : ''}</strong></p>
+                            )}
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  );
+                })()}
+              </div>
             </div>
-            {dayType === 'travel' && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button className="flex items-center gap-1 text-xs text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors w-fit">
-                    <Info className="h-3.5 w-3.5" />
-                    <span>Travel day</span>
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-72 px-4 py-3 text-sm text-muted-foreground space-y-1">
-                  <p className="font-medium text-foreground">Travel Day Rules</p>
-                  <p>Minimum 5 hours, paid at Basic Hourly Rate (single time).</p>
-                  <p>Applies any day of the week. Not applicable to PM, PA, or Runners.</p>
-                </PopoverContent>
-              </Popover>
-            )}
-            {callTime && wrapTime && (() => {
-              let callMins = parseInt(callTime.split(':')[0]) * 60 + parseInt(callTime.split(':')[1]);
-              let wrapMins = parseInt(wrapTime.split(':')[0]) * 60 + parseInt(wrapTime.split(':')[1]);
-              if (wrapMins <= callMins) wrapMins += 24 * 60;
-              const totalHrs = (wrapMins - callMins) / 60;
-              const effectiveHrs = dayType === 'travel' ? Math.max(totalHrs, 5) : totalHrs;
-              const hrs = Math.floor(totalHrs);
-              const mins = Math.round((totalHrs - hrs) * 60);
-              const isUnderMin = dayType === 'travel' && totalHrs < 5;
-              return (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button className={`flex items-center gap-1 text-xs transition-colors w-fit ${isUnderMin ? 'text-amber-500 hover:text-amber-600' : 'text-muted-foreground/40 hover:text-muted-foreground/70'}`}>
-                      <Info className="h-3.5 w-3.5 shrink-0" />
-                      <span>{dayType === 'travel' ? 'Travel duration:' : 'Day length:'}</span>
-                      <span className="font-medium">{hrs}h{mins > 0 ? ` ${mins}m` : ''}</span>
-                      {isUnderMin && <span>— min 5h applies</span>}
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-72 px-4 py-3 text-sm text-muted-foreground space-y-1">
-                    <p className="font-medium text-foreground">{dayType === 'travel' ? 'Travel Duration' : 'Day Length'}</p>
-                    {isUnderMin ? (
-                      <>
-                        <p>Actual duration: <strong className="text-foreground">{hrs}h{mins > 0 ? ` ${mins}m` : ''}</strong></p>
-                        <p>Travel days have a <strong className="text-foreground">5-hour minimum</strong>. This day will be billed at <strong className="text-foreground">{effectiveHrs}h</strong>.</p>
-                      </>
-                    ) : (
-                      <p>Total time from {dayType === 'travel' ? 'departure to arrival' : 'call to wrap'}: <strong className="text-foreground">{hrs}h{mins > 0 ? ` ${mins}m` : ''}</strong></p>
-                    )}
-                  </PopoverContent>
-                </Popover>
-              );
-            })()}
 
             <Separator />
 
