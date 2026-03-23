@@ -115,7 +115,35 @@ export function ProjectsPage() {
       .select('*')
       .eq('user_id', user!.id)
       .order('created_at', { ascending: false });
-    if (data) setProjects(data as Project[]);
+
+    let projects: Project[] = (data as Project[]) ?? [];
+
+    // ── Auto-finish: promote ongoing → finished when all days are in the past ──
+    const today = new Date().toISOString().split('T')[0];
+    const ongoingIds = projects.filter(p => p.status === 'ongoing').map(p => p.id);
+    if (ongoingIds.length > 0) {
+      const { data: dayRows } = await supabase
+        .from('project_days')
+        .select('project_id, work_date')
+        .in('project_id', ongoingIds);
+
+      // Find max work_date per project
+      const maxDate: Record<string, string> = {};
+      dayRows?.forEach(d => {
+        if (!maxDate[d.project_id] || d.work_date > maxDate[d.project_id]) {
+          maxDate[d.project_id] = d.work_date;
+        }
+      });
+
+      // Projects whose latest day is strictly before today
+      const toFinish = ongoingIds.filter(id => maxDate[id] && maxDate[id] < today);
+      if (toFinish.length > 0) {
+        await supabase.from('projects').update({ status: 'finished' }).in('id', toFinish);
+        projects = projects.map(p => toFinish.includes(p.id) ? { ...p, status: 'finished' as ProjectStatus } : p);
+      }
+    }
+
+    setProjects(projects);
     setLoading(false);
   };
 

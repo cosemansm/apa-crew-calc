@@ -261,6 +261,14 @@ export function InvoicePage() {
       if (response.ok && result.success) {
         setShowEmailModal(false);
         setEmailSent(true);
+        // Auto-promote job status → invoiced
+        if (selectedProjectId) {
+          await supabase
+            .from('projects')
+            .update({ status: 'invoiced' })
+            .eq('id', selectedProjectId)
+            .neq('status', 'invoiced'); // no-op if already invoiced
+        }
       } else {
         setEmailError(result.error || 'Failed to send email. Please try again.');
       }
