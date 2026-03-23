@@ -141,8 +141,10 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
   // PM/PA/Runner special handling (Appendix 1)
   const isPMPARunner = role.specialRules === 'pm_pa_runner';
 
-  // Per APA T&Cs Section 6.2: If first break is not given within 6.5 hours of call,
-  // the day becomes a Continuous Working Day. No late lunch penalties apply.
+  // Per APA T&Cs Section 6.2 (two thresholds):
+  //   > 5.5 hrs after call  → first break is "delayed" → £10 penalty
+  //   > 6.5 hrs after call  → day converts to Continuous Working Day (no further lunch penalties)
+  // If no break is given at all the day is treated as Continuous Working Day.
   let convertedToContinuous = false;
   if (dayType === 'basic_working' && !isPMPARunner) {
     let breakMissedOrTooLate = false;

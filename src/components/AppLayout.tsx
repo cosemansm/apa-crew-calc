@@ -116,6 +116,19 @@ export function AppLayout() {
             )}
           </div>
 
+          {/* APA T&Cs link */}
+          {sidebarExpanded && (
+            <a
+              href="https://www.a-p-a.net/resources/crew-agreements/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-white/25 hover:text-white/50 transition-colors text-[10px] font-mono"
+              title="APA Recommended Terms for Crew 2025"
+            >
+              <span>APA T&Cs 2025 ↗</span>
+            </a>
+          )}
+
           {/* Expand/Collapse toggle */}
           <button
             onClick={() => setSidebarExpanded(!sidebarExpanded)}

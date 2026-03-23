@@ -1174,7 +1174,18 @@ export function CalculatorPage() {
             {(dayType === 'basic_working' || dayType === 'continuous_working') && (
               <>
                 <div className="space-y-4">
-                  <h3 className="font-medium">Breaks & Penalties</h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-medium">Breaks & Penalties</h3>
+                    <a
+                      href="https://www.a-p-a.net/resources/crew-agreements/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors font-mono"
+                      title="APA Recommended Terms for Crew 2025"
+                    >
+                      APA T&Cs ↗
+                    </a>
+                  </div>
 
                   {dayType === 'basic_working' && (
                     <>
