@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown, Trash2, Receipt } from 'lucide-react';
+import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown, Trash2, Receipt, Info } from 'lucide-react';
 import { format, getDay, addDays, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek, type CalculationResult } from '@/data/calculation-engine';
@@ -1104,9 +1104,10 @@ export function CalculatorPage() {
               />
             </div>
             {dayType === 'travel' && (
-              <div className="flex items-center gap-2 rounded-md bg-blue-50 border border-blue-200 px-3 py-2 text-sm text-blue-800">
-                <span>Minimum 5 hours · Paid at BHR (single time, any day) · Not applicable to PM/PA/Runners</span>
-              </div>
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground/60">
+                <Info className="h-3.5 w-3.5 shrink-0" />
+                Min 5h · paid at BHR (single time, any day) · not applicable to PM/PA/Runners
+              </p>
             )}
             {callTime && wrapTime && (() => {
               let callMins = parseInt(callTime.split(':')[0]) * 60 + parseInt(callTime.split(':')[1]);
@@ -1118,16 +1119,14 @@ export function CalculatorPage() {
               const mins = Math.round((totalHrs - hrs) * 60);
               const isUnderMin = dayType === 'travel' && totalHrs < 5;
               return (
-                <div className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm ${isUnderMin ? 'bg-amber-50 border border-amber-200' : 'bg-muted/50'}`}>
-                  <span className="text-muted-foreground">{dayType === 'travel' ? 'Travel duration:' : 'Day length:'}</span>
-                  <span className="font-medium">{hrs}h {mins > 0 ? `${mins}m` : ''}</span>
+                <p className="flex items-center gap-1.5 text-xs text-muted-foreground/60">
+                  <Info className="h-3.5 w-3.5 shrink-0" />
+                  <span>{dayType === 'travel' ? 'Travel duration:' : 'Day length:'}</span>
+                  <span className="font-medium text-foreground/70">{hrs}h{mins > 0 ? ` ${mins}m` : ''}</span>
                   {isUnderMin && (
-                    <span className="text-amber-700">— charged at minimum 5h ({effectiveHrs}h billed)</span>
+                    <span className="text-amber-600">— min 5h applies ({effectiveHrs}h billed)</span>
                   )}
-                  {!isUnderMin && dayType !== 'travel' && (
-                    <span className="text-muted-foreground">({totalHrs} hours)</span>
-                  )}
-                </div>
+                </p>
               );
             })()}
 
@@ -1424,13 +1423,16 @@ export function CalculatorPage() {
               const gapMins = gap % 60;
               const isTOC = gap / 60 < 11;
               return (
-                <div className={`rounded-xl border px-4 py-3 text-sm space-y-1 ${isTOC ? 'bg-orange-50 border-orange-200 text-orange-800' : 'bg-green-50 border-green-200 text-green-800'}`}>
-                  <div className="font-medium">{isTOC ? '⚠ Time Off The Clock penalty applies' : '✓ Rest gap OK'}</div>
-                  <div className="text-xs opacity-80">
-                    Previous wrap <strong>{autoPreviousWrap}</strong> → Today's call <strong>{callTime}</strong> = rest gap <strong>{gapHrs}h{gapMins > 0 ? ` ${gapMins}m` : ''}</strong>
-                    {isTOC && ` (minimum 11h required — TOC: 1hr at OT rate added automatically)`}
-                  </div>
-                </div>
+                <p className="flex items-start gap-1.5 text-xs text-muted-foreground/60">
+                  <Info className="h-3.5 w-3.5 shrink-0 mt-px" />
+                  <span>
+                    Rest gap: prev wrap <strong className="text-foreground/60">{autoPreviousWrap}</strong> → call <strong className="text-foreground/60">{callTime}</strong> = <strong className="text-foreground/60">{gapHrs}h{gapMins > 0 ? ` ${gapMins}m` : ''}</strong>
+                    {isTOC
+                      ? <span className="text-amber-600"> — TOC penalty applies (under 11h min · 1h OT added automatically)</span>
+                      : <span> — rest gap OK</span>
+                    }
+                  </span>
+                </p>
               );
             })()}
 
