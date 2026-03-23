@@ -23,10 +23,28 @@ interface FeatureRequest {
   title: string;
   description: string;
   status: 'submitted' | 'planned' | 'in_progress' | 'completed';
+  tags: string[];
   vote_count: number;
   user_voted: boolean;
   created_at: string;
 }
+
+const FEATURE_TAGS = [
+  'General',
+  'Bug Report',
+  'Calculator',
+  'Invoices',
+  'AI Input',
+  'Jobs',
+  'Integrations',
+  'Equipment',
+  'Expenses',
+  'Mobile',
+  'Settings',
+  'Custom Rates',
+  'PDF / Export',
+  'Performance',
+];
 
 // ─── Nav ──────────────────────────────────────────────────────────────────────
 
@@ -164,9 +182,11 @@ export function SupportPage() {
   const [featureRequests, setFeatureRequests] = useState<FeatureRequest[]>([]);
   const [featureTitle, setFeatureTitle] = useState('');
   const [featureDescription, setFeatureDescription] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [submittingFeature, setSubmittingFeature] = useState(false);
   const [featureError, setFeatureError] = useState<string | null>(null);
   const [featureSort, setFeatureSort] = useState<'top' | 'new'>('top');
+  const [activeTagFilter, setActiveTagFilter] = useState<string | null>(null);
   const [showFeatureForm, setShowFeatureForm] = useState(false);
 
   // Help accordion
@@ -271,6 +291,7 @@ export function SupportPage() {
       user_name: settings?.display_name || user.email?.split('@')[0] || 'Anonymous',
       title: featureTitle.trim(),
       description: featureDescription.trim(),
+      tags: selectedTags,
     });
 
     setSubmittingFeature(false);
@@ -279,6 +300,7 @@ export function SupportPage() {
     } else {
       setFeatureTitle('');
       setFeatureDescription('');
+      setSelectedTags([]);
       setShowFeatureForm(false);
       await loadFeatureRequests();
     }
@@ -301,12 +323,14 @@ export function SupportPage() {
     await loadFeatureRequests();
   };
 
-  // Sorted requests
-  const sortedRequests = [...featureRequests].sort((a, b) =>
-    featureSort === 'top'
-      ? b.vote_count - a.vote_count
-      : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  );
+  // Filtered + sorted requests
+  const sortedRequests = [...featureRequests]
+    .filter(r => !activeTagFilter || r.tags?.includes(activeTagFilter))
+    .sort((a, b) =>
+      featureSort === 'top'
+        ? b.vote_count - a.vote_count
+        : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 
@@ -396,7 +420,7 @@ export function SupportPage() {
                       <CardTitle className="flex items-center gap-2"><Lightbulb className="h-5 w-5" /> Feature Requests</CardTitle>
                       <CardDescription>Suggest features you'd like to see and vote on others</CardDescription>
                     </div>
-                    <Button size="sm" onClick={() => setShowFeatureForm(!showFeatureForm)}>
+                    <Button size="sm" onClick={() => { setShowFeatureForm(!showFeatureForm); setFeatureError(null); }}>
                       {showFeatureForm ? 'Cancel' : '+ Suggest Feature'}
                     </Button>
                   </div>
@@ -422,6 +446,30 @@ export function SupportPage() {
                           rows={3}
                         />
                       </div>
+                      <div className="space-y-2">
+                        <Label>Tags <span className="text-xs font-normal text-muted-foreground">(optional — pick up to 2)</span></Label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {FEATURE_TAGS.map(tag => (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => setSelectedTags(prev =>
+                                prev.includes(tag)
+                                  ? prev.filter(t => t !== tag)
+                                  : prev.length < 2 ? [...prev, tag] : prev
+                              )}
+                              className={cn(
+                                'px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
+                                selectedTags.includes(tag)
+                                  ? 'bg-[#1F1F21] text-white border-[#1F1F21]'
+                                  : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'
+                              )}
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                       {featureError && <p className="text-sm text-destructive">{featureError}</p>}
                       <Button
                         onClick={handleSubmitFeature}
@@ -433,8 +481,8 @@ export function SupportPage() {
                     </div>
                   )}
 
-                  {/* Sort toggle */}
-                  <div className="flex items-center gap-2">
+                  {/* Sort + tag filter bar */}
+                  <div className="flex items-center gap-2 flex-wrap">
                     <button
                       onClick={() => setFeatureSort('top')}
                       className={cn(
@@ -453,46 +501,68 @@ export function SupportPage() {
                     >
                       New
                     </button>
+                    <div className="w-px h-4 bg-border mx-1" />
+                    {FEATURE_TAGS.map(tag => (
+                      <button
+                        key={tag}
+                        onClick={() => setActiveTagFilter(activeTagFilter === tag ? null : tag)}
+                        className={cn(
+                          'px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
+                          activeTagFilter === tag
+                            ? 'bg-[#1F1F21] text-white border-[#1F1F21]'
+                            : 'border-border text-muted-foreground hover:border-foreground/40 hover:text-foreground'
+                        )}
+                      >
+                        {tag}
+                      </button>
+                    ))}
                   </div>
 
                   {/* Request list */}
                   {sortedRequests.length === 0 && (
                     <div className="text-center py-8 text-muted-foreground">
                       <Lightbulb className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                      <p className="text-sm">No feature requests yet. Be the first!</p>
+                      <p className="text-sm">{activeTagFilter ? `No requests tagged "${activeTagFilter}"` : 'No feature requests yet. Be the first!'}</p>
                     </div>
                   )}
 
                   {sortedRequests.map(request => (
-                    <div key={request.id} className="flex gap-3 p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors">
-                      {/* Vote button */}
+                    <div key={request.id} className="flex gap-4 p-4 rounded-xl border border-border hover:bg-muted/30 transition-colors">
+                      {/* Vote button — bigger and more prominent */}
                       <button
                         onClick={() => handleVote(request.id, request.user_voted)}
                         className={cn(
-                          'flex flex-col items-center justify-center w-12 shrink-0 rounded-lg border transition-colors py-2',
+                          'flex flex-col items-center justify-center w-16 shrink-0 rounded-xl border-2 transition-all py-3 gap-0.5',
                           request.user_voted
-                            ? 'border-primary bg-primary/5 text-primary'
-                            : 'border-border text-muted-foreground hover:border-primary/40 hover:text-primary'
+                            ? 'border-[#1F1F21] bg-[#1F1F21] text-white'
+                            : 'border-border text-muted-foreground hover:border-[#1F1F21] hover:text-[#1F1F21]'
                         )}
                       >
-                        <ChevronUp className="h-4 w-4" />
-                        <span className="text-sm font-semibold">{request.vote_count}</span>
+                        <ChevronUp className="h-5 w-5" />
+                        <span className="text-base font-bold leading-none">{request.vote_count}</span>
                       </button>
 
                       {/* Content */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium text-sm">{request.title}</p>
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <p className="font-semibold text-sm">{request.title}</p>
                           <Badge className={cn('text-[10px] px-1.5 py-0', STATUS_STYLES[request.status])}>
                             {STATUS_LABELS[request.status]}
                           </Badge>
                         </div>
                         {request.description && (
-                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{request.description}</p>
+                          <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{request.description}</p>
                         )}
-                        <p className="text-[11px] text-muted-foreground/60 mt-1.5">
-                          {request.user_name} · {new Date(request.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {request.tags?.map(tag => (
+                            <span key={tag} className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground border border-border">
+                              {tag}
+                            </span>
+                          ))}
+                          <span className="text-[11px] text-muted-foreground/50">
+                            {request.user_name} · {new Date(request.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   ))}
