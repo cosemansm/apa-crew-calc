@@ -469,26 +469,38 @@ export function InvoicePage() {
           >
             {/* Top bar */}
             <div style={{ backgroundColor: '#1F1F21', padding: '28px 36px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-                    <div style={{ backgroundColor: '#FFD528', borderRadius: '10px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', lineHeight: '1', textAlign: 'center' }}>
-                      ⚓
-                    </div>
-                    <span style={{ color: '#ffffff', fontWeight: '700', fontSize: '18px', letterSpacing: '-0.3px' }}>Crew Dock</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {/* Left: logo + name */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    backgroundColor: '#FFD528', borderRadius: '10px',
+                    width: '40px', height: '40px', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '20px', lineHeight: '40px', textAlign: 'center',
+                  }}>
+                    ⚓
                   </div>
-                  <p style={{ color: '#9A9A9A', fontSize: '12px', margin: '0' }}>APA Crew Rate Calculator</p>
+                  <div>
+                    <div style={{ color: '#ffffff', fontWeight: '700', fontSize: '18px', letterSpacing: '-0.3px', lineHeight: '1.2' }}>Crew Dock</div>
+                    <div style={{ color: '#9A9A9A', fontSize: '11px', lineHeight: '1.2', marginTop: '2px' }}>APA Crew Rate Calculator</div>
+                  </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ backgroundColor: '#FFD528', color: '#1F1F21', fontWeight: '800', fontSize: '22px', letterSpacing: '3px', padding: '8px 20px', borderRadius: '8px', display: 'inline-block', textAlign: 'center', lineHeight: '1' }}>
+                {/* Right: INVOICE badge + number + date */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                  <div style={{
+                    backgroundColor: '#FFD528', color: '#1F1F21',
+                    fontWeight: '800', fontSize: '18px', letterSpacing: '3px',
+                    padding: '8px 22px', borderRadius: '8px',
+                    lineHeight: '1.2', display: 'inline-block',
+                  }}>
                     INVOICE
                   </div>
-                  <p style={{ color: '#FFD528', fontWeight: '600', fontSize: '14px', margin: '8px 0 2px', fontFamily: 'monospace' }}>
+                  <div style={{ color: '#FFD528', fontWeight: '600', fontSize: '13px', fontFamily: 'monospace' }}>
                     #{invoiceNumber}
-                  </p>
-                  <p style={{ color: '#9A9A9A', fontSize: '12px', margin: '0' }}>
+                  </div>
+                  <div style={{ color: '#9A9A9A', fontSize: '11px' }}>
                     {format(new Date(), 'dd MMMM yyyy')}
-                  </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -519,17 +531,17 @@ export function InvoicePage() {
 
               {/* Project / Job ref pills */}
               {(selectedProject || jobReference) && (
-                <div style={{ display: 'flex', gap: '12px', marginBottom: '28px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '28px', flexWrap: 'wrap', alignItems: 'stretch' }}>
                   {selectedProject && (
-                    <div style={{ backgroundColor: '#F5F3EE', borderRadius: '8px', padding: '10px 20px' }}>
-                      <p style={{ fontSize: '10px', fontWeight: '700', color: '#9A9A9A', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 3px', textAlign: 'center' }}>Job</p>
-                      <p style={{ fontWeight: '600', fontSize: '13px', color: '#1F1F21', margin: '0', textAlign: 'center' }}>{selectedProject.name}</p>
+                    <div style={{ backgroundColor: '#F5F3EE', borderRadius: '8px', padding: '8px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                      <div style={{ fontSize: '9px', fontWeight: '700', color: '#ABABAB', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px' }}>Job</div>
+                      <div style={{ fontWeight: '600', fontSize: '13px', color: '#1F1F21' }}>{selectedProject.name}</div>
                     </div>
                   )}
                   {jobReference && (
-                    <div style={{ backgroundColor: '#F5F3EE', borderRadius: '8px', padding: '10px 20px' }}>
-                      <p style={{ fontSize: '10px', fontWeight: '700', color: '#9A9A9A', textTransform: 'uppercase', letterSpacing: '1px', margin: '0 0 3px', textAlign: 'center' }}>Job Reference</p>
-                      <p style={{ fontWeight: '600', fontSize: '13px', color: '#1F1F21', margin: '0', textAlign: 'center' }}>{jobReference}</p>
+                    <div style={{ backgroundColor: '#F5F3EE', borderRadius: '8px', padding: '8px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                      <div style={{ fontSize: '9px', fontWeight: '700', color: '#ABABAB', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '2px' }}>Ref</div>
+                      <div style={{ fontWeight: '600', fontSize: '13px', color: '#1F1F21' }}>{jobReference}</div>
                     </div>
                   )}
                 </div>

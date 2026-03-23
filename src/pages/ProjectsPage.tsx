@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
 // ── Status config ────────────────────────────────────────────────────────────
-export type ProjectStatus = 'ongoing' | 'finished' | 'invoiced';
+export type ProjectStatus = 'ongoing' | 'finished' | 'invoiced' | 'paid';
 
 export const STATUS_CONFIG: Record<ProjectStatus, {
   label: string;
@@ -24,6 +24,7 @@ export const STATUS_CONFIG: Record<ProjectStatus, {
   ongoing:  { label: 'Ongoing',  calendarBg: '#3B82F6', badgeBg: '#EFF6FF', badgeText: '#1D4ED8', badgeBorder: '#BFDBFE' },
   finished: { label: 'Finished', calendarBg: '#22C55E', badgeBg: '#F0FDF4', badgeText: '#15803D', badgeBorder: '#BBF7D0' },
   invoiced: { label: 'Invoiced', calendarBg: '#8B5CF6', badgeBg: '#F5F3FF', badgeText: '#6D28D9', badgeBorder: '#DDD6FE' },
+  paid:     { label: 'Paid',     calendarBg: '#F59E0B', badgeBg: '#FFFBEB', badgeText: '#92400E', badgeBorder: '#FDE68A' },
 };
 
 // ── Interfaces ───────────────────────────────────────────────────────────────
@@ -310,7 +311,7 @@ export function ProjectsPage() {
                 {/* Status selector */}
                 <div className="px-6 py-3 border-b border-border flex items-center gap-2">
                   <span className="text-xs font-medium text-muted-foreground mr-1">Status:</span>
-                  {(['ongoing', 'finished', 'invoiced'] as ProjectStatus[]).map(s => {
+                  {(['ongoing', 'finished', 'invoiced', 'paid'] as ProjectStatus[]).map(s => {
                     const cfg = STATUS_CONFIG[s];
                     const isActive = (selectedProject.status ?? 'ongoing') === s;
                     return (
