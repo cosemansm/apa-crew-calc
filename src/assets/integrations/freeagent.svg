@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240">
+  <rect width="240" height="240" fill="white"/>
+  <!-- Wing/feather mark - 3 swoosh lines -->
+  <g fill="#1B7FC4">
+    <!-- Top feather blade -->
+    <path d="M28 90 C38 72 58 65 75 72 L48 90 Z"/>
+    <!-- Middle feather blade -->
+    <path d="M22 110 C32 88 60 80 82 88 L50 110 Z"/>
+    <!-- Bottom feather blade -->
+    <path d="M20 132 C30 108 62 98 88 108 L52 132 Z"/>
+    <!-- FreeAgent text -->
+    <text x="98" y="138" font-family="Arial Rounded MT Bold, Arial, Helvetica, sans-serif" font-size="52" font-weight="700" fill="#1B7FC4" letter-spacing="-1">FreeAgent</text>
+  </g>
+</svg>

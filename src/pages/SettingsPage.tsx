@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import xeroLogo from '@/assets/integrations/xero.svg';
+import quickbooksLogo from '@/assets/integrations/quickbooks.svg';
+import freeagentLogo from '@/assets/integrations/freeagent.svg';
 import {
   Settings, User, Building2, CreditCard, Plug, Save,
   Eye, EyeOff, Briefcase, Plus, Trash2, Pencil, X, Check,
@@ -751,23 +754,23 @@ export function SettingsPage() {
                   {
                     name: 'Xero',
                     description: 'Sync invoices and expenses directly to Xero',
-                    logo: 'https://logo.clearbit.com/xero.com',
+                    logo: xeroLogo,
                   },
                   {
                     name: 'QuickBooks',
                     description: 'Push invoices and track income in QuickBooks',
-                    logo: 'https://logo.clearbit.com/quickbooks.intuit.com',
+                    logo: quickbooksLogo,
                   },
                   {
                     name: 'FreeAgent',
                     description: 'Send invoices and log expenses in FreeAgent',
-                    logo: 'https://logo.clearbit.com/freeagent.com',
+                    logo: freeagentLogo,
                   },
                 ].map(({ name, description, logo }) => (
                   <div key={name} className="flex items-center justify-between gap-4 p-4 rounded-xl border border-border">
                     <div className="flex items-center gap-4">
                       <div className="h-10 w-10 rounded-lg border border-border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
-                        <img src={logo} alt={name} className="h-7 w-7 object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        <img src={logo} alt={name} className="h-7 w-7 object-contain" />
                       </div>
                       <div>
                         <p className="font-medium text-sm">{name}</p>
