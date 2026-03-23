@@ -5,11 +5,33 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   FolderOpen, Plus, Clock, PoundSterling, ChevronRight,
-  Calendar, User, ArrowLeft, Edit3, X, Sparkles, Trash2
+  Calendar, User, Edit3, X, Sparkles, Trash2,
+  History, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+
+// ── History types ─────────────────────────────────────────────────────────────
+interface HistoryDay {
+  id: string;
+  created_at: string;
+  work_date: string;
+  role_name: string;
+  day_type: string;
+  call_time: string;
+  wrap_time: string;
+  agreed_rate: number;
+  grand_total: number;
+  result_json: {
+    lineItems?: { description: string; total: number }[];
+    penalties?: { description: string; total: number }[];
+    travelPay?: number;
+    mileage?: number;
+    mileageMiles?: number;
+  };
+  projects: { name: string; client_name: string | null } | null;
+}
 
 // ── Status config ────────────────────────────────────────────────────────────
 export type ProjectStatus = 'ongoing' | 'finished' | 'invoiced' | 'paid';
@@ -97,6 +119,7 @@ export function StatusBadge({ status }: { status: ProjectStatus }) {
 export function ProjectsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'jobs' | 'history'>('jobs');
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -105,9 +128,33 @@ export function ProjectsPage() {
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [deletingDayId, setDeletingDayId] = useState<string | null>(null);
 
+  // History state
+  const [historyDays, setHistoryDays] = useState<HistoryDay[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
+
   useEffect(() => {
     if (user) loadProjects();
   }, [user]);
+
+  useEffect(() => {
+    if (user && activeTab === 'history' && historyDays.length === 0) loadHistory();
+  }, [activeTab, user]);
+
+  const loadHistory = async () => {
+    setHistoryLoading(true);
+    const { data } = await supabase
+      .from('project_days')
+      .select('*, projects(name, client_name)')
+      .order('work_date', { ascending: false });
+    if (data) setHistoryDays(data as HistoryDay[]);
+    setHistoryLoading(false);
+  };
+
+  const deleteHistoryDay = async (id: string) => {
+    await supabase.from('project_days').delete().eq('id', id);
+    setHistoryDays(prev => prev.filter(d => d.id !== id));
+  };
 
   const loadProjects = async () => {
     setLoading(true);
@@ -198,6 +245,8 @@ export function ProjectsPage() {
       }`
     : null;
 
+  const historyTotal = historyDays.reduce((sum, d) => sum + (d.grand_total || 0), 0);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -216,7 +265,118 @@ export function ProjectsPage() {
         </div>
       </div>
 
-      {loading ? (
+      {/* Tab bar */}
+      <div className="flex gap-1 p-1 bg-muted rounded-xl w-fit">
+        <button
+          onClick={() => setActiveTab('jobs')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeTab === 'jobs' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <FolderOpen className="h-4 w-4" /> Jobs
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeTab === 'history' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <History className="h-4 w-4" /> History
+        </button>
+      </div>
+
+      {/* ── History tab ── */}
+      {activeTab === 'history' && (
+        <div className="space-y-4">
+          {historyDays.length > 0 && (
+            <div className="flex justify-end">
+              <Badge variant="outline" className="text-base px-4 py-1">
+                Total: £{historyTotal.toFixed(2)}
+              </Badge>
+            </div>
+          )}
+          {historyLoading ? (
+            <div className="text-center py-12 text-muted-foreground text-sm">Loading…</div>
+          ) : historyDays.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                No saved calculations yet. Use the calculator to create and save your first one.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {historyDays.map(day => (
+                <Card key={day.id}>
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium">{day.projects?.name ?? 'Untitled'}</span>
+                          {day.projects?.client_name && (
+                            <span className="text-sm text-muted-foreground">— {day.projects.client_name}</span>
+                          )}
+                          <Badge variant="secondary">{day.role_name}</Badge>
+                          <Badge variant="outline">{day.day_type.replace(/_/g, ' ')}</Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {day.work_date ? format(parseISO(day.work_date), 'dd MMM yyyy') : '—'} | Call: {day.call_time} – Wrap: {day.wrap_time} | Rate: £{day.agreed_rate}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-bold font-mono">£{(day.grand_total || 0).toFixed(2)}</span>
+                        <Button variant="ghost" size="icon" onClick={() => setExpandedHistoryId(expandedHistoryId === day.id ? null : day.id)}>
+                          {expandedHistoryId === day.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => deleteHistoryDay(day.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                    {expandedHistoryId === day.id && day.result_json && (
+                      <div className="mt-4 p-4 bg-muted/40 rounded-xl space-y-1 text-sm">
+                        {day.result_json.lineItems?.map((item, i) => (
+                          <div key={i} className="flex justify-between">
+                            <span className="text-muted-foreground">{item.description}</span>
+                            <span className="font-mono">£{item.total.toFixed(2)}</span>
+                          </div>
+                        ))}
+                        {day.result_json.penalties?.map((p, i) => (
+                          <div key={i} className="flex justify-between text-orange-600">
+                            <span>{p.description}</span>
+                            <span className="font-mono">£{p.total.toFixed(2)}</span>
+                          </div>
+                        ))}
+                        {(day.result_json.travelPay ?? 0) > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Travel</span>
+                            <span className="font-mono">£{(day.result_json.travelPay ?? 0).toFixed(2)}</span>
+                          </div>
+                        )}
+                        {(day.result_json.mileage ?? 0) > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Mileage ({day.result_json.mileageMiles} miles @ 50p)</span>
+                            <span className="font-mono">£{(day.result_json.mileage ?? 0).toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between font-bold pt-2 border-t border-border">
+                          <span>Total</span>
+                          <span className="font-mono">£{(day.grand_total || 0).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground text-center">
+            Data is retained for 1 year from creation date, in compliance with our data retention policy.
+          </p>
+        </div>
+      )}
+
+      {/* ── Jobs tab ── */}
+      {activeTab === 'jobs' && (loading ? (
         <div className="text-muted-foreground text-sm">Loading jobs…</div>
       ) : projects.length === 0 ? (
         <Card>
@@ -456,7 +616,7 @@ export function ProjectsPage() {
             </div>
           )}
         </div>
-      )}
+      ))}
     </div>
   );
 }
