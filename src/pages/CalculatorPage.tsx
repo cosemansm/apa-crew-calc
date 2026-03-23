@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown, Trash2, Receipt, Info } from 'lucide-react';
 import { format, getDay, addDays, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
@@ -1104,10 +1105,19 @@ export function CalculatorPage() {
               />
             </div>
             {dayType === 'travel' && (
-              <p className="flex items-center gap-1.5 text-xs text-muted-foreground/60">
-                <Info className="h-3.5 w-3.5 shrink-0" />
-                Min 5h · paid at BHR (single time, any day) · not applicable to PM/PA/Runners
-              </p>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="flex items-center gap-1 text-xs text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors w-fit">
+                    <Info className="h-3.5 w-3.5" />
+                    <span>Travel day</span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 px-4 py-3 text-sm text-muted-foreground space-y-1">
+                  <p className="font-medium text-foreground">Travel Day Rules</p>
+                  <p>Minimum 5 hours, paid at Basic Hourly Rate (single time).</p>
+                  <p>Applies any day of the week. Not applicable to PM, PA, or Runners.</p>
+                </PopoverContent>
+              </Popover>
             )}
             {callTime && wrapTime && (() => {
               let callMins = parseInt(callTime.split(':')[0]) * 60 + parseInt(callTime.split(':')[1]);
@@ -1119,14 +1129,27 @@ export function CalculatorPage() {
               const mins = Math.round((totalHrs - hrs) * 60);
               const isUnderMin = dayType === 'travel' && totalHrs < 5;
               return (
-                <p className="flex items-center gap-1.5 text-xs text-muted-foreground/60">
-                  <Info className="h-3.5 w-3.5 shrink-0" />
-                  <span>{dayType === 'travel' ? 'Travel duration:' : 'Day length:'}</span>
-                  <span className="font-medium text-foreground/70">{hrs}h{mins > 0 ? ` ${mins}m` : ''}</span>
-                  {isUnderMin && (
-                    <span className="text-amber-600">— min 5h applies ({effectiveHrs}h billed)</span>
-                  )}
-                </p>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button className={`flex items-center gap-1 text-xs transition-colors w-fit ${isUnderMin ? 'text-amber-500 hover:text-amber-600' : 'text-muted-foreground/40 hover:text-muted-foreground/70'}`}>
+                      <Info className="h-3.5 w-3.5 shrink-0" />
+                      <span>{dayType === 'travel' ? 'Travel duration:' : 'Day length:'}</span>
+                      <span className="font-medium">{hrs}h{mins > 0 ? ` ${mins}m` : ''}</span>
+                      {isUnderMin && <span>— min 5h applies</span>}
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-72 px-4 py-3 text-sm text-muted-foreground space-y-1">
+                    <p className="font-medium text-foreground">{dayType === 'travel' ? 'Travel Duration' : 'Day Length'}</p>
+                    {isUnderMin ? (
+                      <>
+                        <p>Actual duration: <strong className="text-foreground">{hrs}h{mins > 0 ? ` ${mins}m` : ''}</strong></p>
+                        <p>Travel days have a <strong className="text-foreground">5-hour minimum</strong>. This day will be billed at <strong className="text-foreground">{effectiveHrs}h</strong>.</p>
+                      </>
+                    ) : (
+                      <p>Total time from {dayType === 'travel' ? 'departure to arrival' : 'call to wrap'}: <strong className="text-foreground">{hrs}h{mins > 0 ? ` ${mins}m` : ''}</strong></p>
+                    )}
+                  </PopoverContent>
+                </Popover>
               );
             })()}
 
@@ -1423,16 +1446,22 @@ export function CalculatorPage() {
               const gapMins = gap % 60;
               const isTOC = gap / 60 < 11;
               return (
-                <p className="flex items-start gap-1.5 text-xs text-muted-foreground/60">
-                  <Info className="h-3.5 w-3.5 shrink-0 mt-px" />
-                  <span>
-                    Rest gap: prev wrap <strong className="text-foreground/60">{autoPreviousWrap}</strong> → call <strong className="text-foreground/60">{callTime}</strong> = <strong className="text-foreground/60">{gapHrs}h{gapMins > 0 ? ` ${gapMins}m` : ''}</strong>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button className={`flex items-center gap-1 text-xs transition-colors w-fit ${isTOC ? 'text-amber-500 hover:text-amber-600' : 'text-muted-foreground/40 hover:text-muted-foreground/70'}`}>
+                      <Info className="h-3.5 w-3.5 shrink-0" />
+                      <span>{isTOC ? 'TOC penalty applies' : 'Rest gap OK'}</span>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 px-4 py-3 text-sm text-muted-foreground space-y-1.5">
+                    <p className="font-medium text-foreground">Time Off The Clock</p>
+                    <p>Prev wrap <strong className="text-foreground">{autoPreviousWrap}</strong> → today's call <strong className="text-foreground">{callTime}</strong> = <strong className="text-foreground">{gapHrs}h{gapMins > 0 ? ` ${gapMins}m` : ''}</strong> rest gap</p>
                     {isTOC
-                      ? <span className="text-amber-600"> — TOC penalty applies (under 11h min · 1h OT added automatically)</span>
-                      : <span> — rest gap OK</span>
+                      ? <p className="text-amber-600">Under the 11-hour minimum rest — a 1-hour TOC penalty at OT rate is added automatically.</p>
+                      : <p>Rest gap meets the 11-hour minimum. No penalty.</p>
                     }
-                  </span>
-                </p>
+                  </PopoverContent>
+                </Popover>
               );
             })()}
 
