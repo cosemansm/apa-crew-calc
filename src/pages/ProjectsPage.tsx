@@ -227,6 +227,15 @@ export function ProjectsPage() {
     setStatusUpdating(false);
   };
 
+  const deleteProject = async (projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // don't trigger card click
+    if (!confirm('Delete this job and all its days? This cannot be undone.')) return;
+    await supabase.from('project_days').delete().eq('project_id', projectId);
+    await supabase.from('projects').delete().eq('id', projectId);
+    if (selectedProject?.id === projectId) closeDetail();
+    setProjects(prev => prev.filter(p => p.id !== projectId));
+  };
+
   const removeDay = async (dayId: string) => {
     if (!confirm('Remove this day from the project?')) return;
     setDeletingDayId(dayId);
@@ -417,7 +426,16 @@ export function ProjectsPage() {
                           </p>
                         )}
                       </div>
-                      <ChevronRight className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isSelected ? 'rotate-90' : ''}`} />
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={(e) => deleteProject(project.id, e)}
+                          className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-red-500 hover:bg-red-50 transition-colors"
+                          title="Delete job"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                        <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isSelected ? 'rotate-90' : ''}`} />
+                      </div>
                     </div>
                     <div className="flex items-center justify-between mt-2">
                       <p className="text-xs text-muted-foreground">
