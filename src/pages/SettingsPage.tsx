@@ -135,8 +135,7 @@ function CustomRoleForm({ initial, onSave, onCancel }: {
           )} />
         </button>
         <div>
-          <Label className="text-sm cursor-pointer" onClick={() => setIsBuyout(b => !b)}>All-in flat rate</Label>
-          <p className="text-xs text-muted-foreground">Day rate covers everything — no OT calculation applied</p>
+          <Label className="text-sm cursor-pointer" onClick={() => setIsBuyout(b => !b)}>Buyout</Label>
         </div>
       </div>
       {rate > 0 && !isBuyout && (
@@ -155,7 +154,7 @@ function CustomRoleForm({ initial, onSave, onCancel }: {
       {error && <p className="text-sm text-destructive">{error}</p>}
       <div className="flex gap-2 justify-end">
         <Button variant="outline" size="sm" onClick={onCancel} disabled={saving}><X className="h-3.5 w-3.5 mr-1" /> Cancel</Button>
-        <Button size="sm" onClick={handleSubmit} disabled={saving}><Check className="h-3.5 w-3.5 mr-1" />{saving ? 'Saving…' : 'Save Grade'}</Button>
+        <Button size="sm" onClick={handleSubmit} disabled={saving}><Check className="h-3.5 w-3.5 mr-1" />{saving ? 'Saving…' : 'Save Rate'}</Button>
       </div>
     </div>
   );
@@ -535,7 +534,7 @@ export function SettingsPage() {
                   </div>
                   {!showAddForm && (
                     <Button size="sm" variant="outline" onClick={() => { setShowAddForm(true); setEditingId(null); }}>
-                      <Plus className="h-4 w-4 mr-1" /> Add Grade
+                      <Plus className="h-4 w-4 mr-1" /> Add Rate
                     </Button>
                   )}
                 </div>
@@ -551,7 +550,7 @@ export function SettingsPage() {
                   <CustomRoleForm onSave={handleAddCustomRole} onCancel={() => setShowAddForm(false)} />
                 )}
                 {customRoles.length === 0 && !showAddForm && !customRolesError && (
-                  <p className="text-sm text-muted-foreground text-center py-8">No custom grades yet. Click "Add Grade" to create one.</p>
+                  <p className="text-sm text-muted-foreground text-center py-8">No custom rates yet. Click "Add Rate" to create one.</p>
                 )}
                 {customRoles.map(role => (
                   <div key={role.id}>
