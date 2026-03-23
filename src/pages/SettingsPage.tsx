@@ -22,6 +22,7 @@ interface EquipmentPackage { id: string; name: string; day_rate: number; }
 interface CustomRole {
   id: string; role_name: string; daily_rate: number;
   ot_coefficient: number; custom_bhr: number | null;
+  is_buyout: boolean;
 }
 
 const OT_PRESETS = [
@@ -55,6 +56,7 @@ function CustomRoleForm({ initial, onSave, onCancel }: {
   const [customBhr, setCustomBhr] = useState(
     initial?.custom_bhr != null ? String(initial.custom_bhr) : ''
   );
+  const [isBuyout, setIsBuyout] = useState(initial?.is_buyout ?? false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -70,8 +72,9 @@ function CustomRoleForm({ initial, onSave, onCancel }: {
     const err = await onSave({
       role_name: roleName.trim(),
       daily_rate: Math.round(rate),
-      ot_coefficient: otCoefficient,
-      custom_bhr: customBhr ? Math.round(parseFloat(customBhr)) : null,
+      ot_coefficient: isBuyout ? 0 : otCoefficient,
+      custom_bhr: isBuyout ? null : (customBhr ? Math.round(parseFloat(customBhr)) : null),
+      is_buyout: isBuyout,
     });
     setSaving(false);
     if (err) setError(err);
@@ -91,9 +94,9 @@ function CustomRoleForm({ initial, onSave, onCancel }: {
             <Input type="number" className="pl-7" value={dailyRate} onChange={e => setDailyRate(e.target.value)} placeholder="500" min={0} />
           </div>
         </div>
-        <div className="space-y-2">
+        <div className={cn('space-y-2', isBuyout && 'opacity-40 pointer-events-none')}>
           <Label>Overtime Coefficient</Label>
-          <Select value={otPreset} onValueChange={setOtPreset}>
+          <Select value={otPreset} onValueChange={setOtPreset} disabled={isBuyout}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               {OT_PRESETS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
@@ -104,21 +107,49 @@ function CustomRoleForm({ initial, onSave, onCancel }: {
           )}
         </div>
       </div>
-      <div className="space-y-2">
+      <div className={cn('space-y-2', isBuyout && 'opacity-40 pointer-events-none')}>
         <div className="flex items-center justify-between">
           <Label>BHR override</Label>
           <span className="text-xs text-muted-foreground">Blank = daily rate ÷ 10</span>
         </div>
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">£</span>
-          <Input type="number" className="pl-7" value={customBhr} onChange={e => setCustomBhr(e.target.value)} placeholder={rate > 0 ? `${Math.round(rate / 10)} (auto)` : 'Auto'} min={0} />
+          <Input type="number" className="pl-7" value={customBhr} onChange={e => setCustomBhr(e.target.value)} placeholder={rate > 0 ? `${Math.round(rate / 10)} (auto)` : 'Auto'} min={0} disabled={isBuyout} />
         </div>
       </div>
-      {rate > 0 && (
+      {/* Flat rate toggle — discrete, no mention of the b-word in the UI */}
+      <div className="flex items-center gap-3 pt-1">
+        <button
+          type="button"
+          onClick={() => setIsBuyout(b => !b)}
+          className={cn(
+            'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none',
+            isBuyout ? 'bg-primary' : 'bg-input'
+          )}
+          role="switch"
+          aria-checked={isBuyout}
+        >
+          <span className={cn(
+            'pointer-events-none inline-block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform',
+            isBuyout ? 'translate-x-4' : 'translate-x-0'
+          )} />
+        </button>
+        <div>
+          <Label className="text-sm cursor-pointer" onClick={() => setIsBuyout(b => !b)}>All-in flat rate</Label>
+          <p className="text-xs text-muted-foreground">Day rate covers everything — no OT calculation applied</p>
+        </div>
+      </div>
+      {rate > 0 && !isBuyout && (
         <div className="grid grid-cols-3 gap-2 rounded-lg bg-muted/50 p-3 text-sm">
           <div className="text-center"><p className="text-xs text-muted-foreground">BHR</p><p className="font-mono font-semibold">£{bhr}/hr</p></div>
           <div className="text-center"><p className="text-xs text-muted-foreground">OT coefficient</p><p className="font-mono font-semibold">x{otCoefficient || '—'}</p></div>
           <div className="text-center"><p className="text-xs text-muted-foreground">OT rate</p><p className="font-mono font-semibold">{otCoefficient ? `£${otRate}/hr` : '—'}</p></div>
+        </div>
+      )}
+      {rate > 0 && isBuyout && (
+        <div className="rounded-lg bg-muted/50 p-3 text-sm text-center">
+          <p className="text-xs text-muted-foreground">Total charged per day</p>
+          <p className="font-mono font-semibold">£{rate.toFixed(0)}</p>
         </div>
       )}
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -532,13 +563,17 @@ export function SettingsPage() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium text-sm">{role.role_name}</span>
                             <Badge variant="secondary" className="text-xs">Custom</Badge>
+                            {role.is_buyout && <Badge variant="outline" className="text-xs text-muted-foreground">All-in</Badge>}
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
                             <span className="font-mono">£{role.daily_rate}/day</span>
-                            <span>·</span>
-                            <span className="font-mono">BHR £{role.custom_bhr ?? Math.round(role.daily_rate / 10)}/hr</span>
-                            <span>·</span>
-                            <span>OT x{role.ot_coefficient}{role.ot_coefficient > 0 && <span className="font-mono ml-1">(£{Math.round((role.custom_bhr ?? Math.round(role.daily_rate / 10)) * role.ot_coefficient)}/hr)</span>}</span>
+                            {!role.is_buyout && (<>
+                              <span>·</span>
+                              <span className="font-mono">BHR £{role.custom_bhr ?? Math.round(role.daily_rate / 10)}/hr</span>
+                              <span>·</span>
+                              <span>OT x{role.ot_coefficient}{role.ot_coefficient > 0 && <span className="font-mono ml-1">(£{Math.round((role.custom_bhr ?? Math.round(role.daily_rate / 10)) * role.ot_coefficient)}/hr)</span>}</span>
+                            </>)}
+                            {role.is_buyout && <><span>·</span><span>flat rate, no OT</span></>}
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">

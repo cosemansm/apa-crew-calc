@@ -520,6 +520,7 @@ export function CalculatorPage() {
             customBhr: r.custom_bhr ?? undefined,
             isCustom: true,
             customId: r.id,
+            isBuyout: r.is_buyout ?? false,
           }));
           setCustomRoles(mapped);
           // If session had a custom role selected that wasn't found at mount time, restore it now
@@ -1041,11 +1042,15 @@ export function CalculatorPage() {
                 {selectedRole && agreedRate && (
                   <p className="text-xs text-muted-foreground">
                     {selectedRole.isCustom ? (
-                      <>
-                        Custom grade · OT x{selectedRole.otCoefficient}
-                        {` | BHR £${selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)}/hr`}
-                        {selectedRole.otCoefficient > 0 && ` | OT £${Math.round((selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)) * selectedRole.otCoefficient)}/hr`}
-                      </>
+                      selectedRole.isBuyout ? (
+                        <>All-in flat rate · no OT applied</>
+                      ) : (
+                        <>
+                          Custom grade · OT x{selectedRole.otCoefficient}
+                          {` | BHR £${selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)}/hr`}
+                          {selectedRole.otCoefficient > 0 && ` | OT £${Math.round((selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)) * selectedRole.otCoefficient)}/hr`}
+                        </>
+                      )
                     ) : (
                       <>
                         {`BHR £${Math.round(parseInt(agreedRate) / 10)}/hr`}

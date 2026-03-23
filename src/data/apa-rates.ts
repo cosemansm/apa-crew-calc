@@ -14,6 +14,8 @@ export interface CrewRole {
   isCustom?: boolean;
   /** Supabase row ID for custom roles */
   customId?: string;
+  /** Flat all-in daily rate — no OT, no BHR breakdown applied */
+  isBuyout?: boolean;
 }
 
 // All rates from APA Appendix 1 (Effective 1 Sept 2025)
