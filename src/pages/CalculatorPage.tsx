@@ -1069,22 +1069,22 @@ export function CalculatorPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="rate">Agreed Daily Rate</Label>
+                <Label htmlFor="rate">Day Rate</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">£</span>
                   <Input id="rate" type="number" className="pl-7" value={agreedRate} onChange={e => setAgreedRate(e.target.value)} placeholder={selectedRole ? `${selectedRole.minRate || '—'} - ${selectedRole.maxRate || '—'}` : 'Select role first'} />
                 </div>
-                {selectedRole && (
+                {selectedRole && agreedRate && (
                   <p className="text-xs text-muted-foreground">
                     {selectedRole.isCustom ? (
                       <>
                         Custom grade · OT x{selectedRole.otCoefficient}
-                        {agreedRate && ` | BHR £${selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)}/hr`}
-                        {agreedRate && selectedRole.otCoefficient > 0 && ` | OT £${Math.round((selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)) * selectedRole.otCoefficient)}/hr`}
+                        {` | BHR £${selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)}/hr`}
+                        {selectedRole.otCoefficient > 0 && ` | OT £${Math.round((selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)) * selectedRole.otCoefficient)}/hr`}
                       </>
                     ) : (
                       <>
-                        APA range: £{selectedRole.minRate || 'N/A'} – £{selectedRole.maxRate || 'N/A'}
+                        {`BHR £${Math.round(parseInt(agreedRate) / 10)}/hr`}
                         {selectedRole.otGrade !== 'N/A' && ` | OT Grade ${selectedRole.otGrade} (x${selectedRole.otCoefficient})`}
                       </>
                     )}
