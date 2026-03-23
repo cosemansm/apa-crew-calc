@@ -1177,7 +1177,7 @@ export function CalculatorPage() {
                   <div className="flex items-center justify-between">
                     <h3 className="font-medium">Breaks & Penalties</h3>
                     <a
-                      href="https://www.a-p-a.net/resources/crew-agreements/"
+                      href="https://www.a-p-a.net/apa-crew-terms/"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors font-mono"
