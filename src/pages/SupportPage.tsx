@@ -165,6 +165,7 @@ export function SupportPage() {
   const [featureTitle, setFeatureTitle] = useState('');
   const [featureDescription, setFeatureDescription] = useState('');
   const [submittingFeature, setSubmittingFeature] = useState(false);
+  const [featureError, setFeatureError] = useState<string | null>(null);
   const [featureSort, setFeatureSort] = useState<'top' | 'new'>('top');
   const [showFeatureForm, setShowFeatureForm] = useState(false);
 
@@ -256,6 +257,7 @@ export function SupportPage() {
   const handleSubmitFeature = async () => {
     if (!user || !featureTitle.trim()) return;
     setSubmittingFeature(true);
+    setFeatureError(null);
 
     // Get user display name
     const { data: settings } = await supabase
@@ -272,7 +274,9 @@ export function SupportPage() {
     });
 
     setSubmittingFeature(false);
-    if (!error) {
+    if (error) {
+      setFeatureError(error.message);
+    } else {
       setFeatureTitle('');
       setFeatureDescription('');
       setShowFeatureForm(false);
@@ -418,6 +422,7 @@ export function SupportPage() {
                           rows={3}
                         />
                       </div>
+                      {featureError && <p className="text-sm text-destructive">{featureError}</p>}
                       <Button
                         onClick={handleSubmitFeature}
                         disabled={submittingFeature || !featureTitle.trim()}
