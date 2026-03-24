@@ -66,40 +66,18 @@ const DEFAULT_WRAP_HOURS: Partial<Record<DayType, number>> = {
   // rest: no default — flat fee, times irrelevant
 };
 
-const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
-const MINUTES = ['00', '15', '30', '45'];
 
 function TimePicker({ value, onChange, label }: { value: string; onChange: (v: string) => void; label?: string }) {
-  const [h, m] = value.split(':');
-  const snappedMin = MINUTES.reduce((prev, curr) =>
-    Math.abs(parseInt(curr) - parseInt(m)) < Math.abs(parseInt(prev) - parseInt(m)) ? curr : prev
-  );
+  const safe = /^\d{2}:\d{2}$/.test(value) ? value : '08:00';
   return (
-    <div className="space-y-2">
-      {label && <Label>{label}</Label>}
-      <div className="flex items-center gap-1">
-        <Select value={h} onValueChange={v => onChange(`${v}:${snappedMin}`)}>
-          <SelectTrigger className="w-[72px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {HOURS.map(hr => (
-              <SelectItem key={hr} value={hr}>{hr}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <span className="text-muted-foreground font-medium">:</span>
-        <Select value={snappedMin} onValueChange={v => onChange(`${h}:${v}`)}>
-          <SelectTrigger className="w-[68px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MINUTES.map(min => (
-              <SelectItem key={min} value={min}>{min}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+    <div className="space-y-1.5">
+      {label && <Label className="text-sm">{label}</Label>}
+      <input
+        type="time"
+        value={safe}
+        onChange={e => { if (e.target.value) onChange(e.target.value); }}
+        className="flex h-10 w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+      />
     </div>
   );
 }
@@ -389,6 +367,10 @@ export function CalculatorPage() {
   const [equipmentPackages, setEquipmentPackages] = useState<{ id: string; name: string; day_rate: number }[]>([]);
   const [showEquipmentPicker, setShowEquipmentPicker] = useState(false);
   const equipmentPickerRef = useRef<HTMLDivElement>(null);
+  // Collapsible optional sections
+  const [showTravel, setShowTravel] = useState(!!(ss?.travelHours && parseFloat(ss.travelHours) > 0) || !!(ss?.mileage && parseFloat(ss.mileage) > 0));
+  const [showEquipmentSection, setShowEquipmentSection] = useState(!!(ss?.equipmentValue && parseFloat(ss.equipmentValue) > 0));
+  const [showExpensesSection, setShowExpensesSection] = useState(!!ss?.expensesDayAmount);
 
   // Track which saved day we're currently editing (null = new day)
   const [currentDayId, setCurrentDayId] = useState<string | null>(ss?.currentDayId ?? null);
@@ -700,6 +682,10 @@ export function CalculatorPage() {
     setEquipmentDiscount(String(day.equipment_discount ?? 0));
     setExpensesDayAmount(day.expenses_amount ? String(day.expenses_amount) : '');
     setExpensesDayNotes(day.expenses_notes ?? '');
+    // Auto-expand optional sections if they have saved values
+    setShowTravel((day.travel_hours ?? 0) > 0 || (day.mileage ?? 0) > 0);
+    setShowEquipmentSection((day.equipment_value ?? 0) > 0);
+    setShowExpensesSection((day.expenses_amount ?? 0) > 0);
     setPreviousWrap(day.previous_wrap ?? '');
     const role = customRoles.find(r => r.role === day.role_name) ?? APA_CREW_ROLES.find(r => r.role === day.role_name);
     if (role) {
@@ -756,6 +742,9 @@ export function CalculatorPage() {
     setAgreedRate('');
     setDayType('basic_working');
     wrapManualRef.current = false;
+    setShowTravel(false);
+    setShowEquipmentSection(false);
+    setShowExpensesSection(false);
     setWorkDate(format(new Date(), 'yyyy-MM-dd'));
     setIsBankHoliday(false);
     setCallTime('08:00');
@@ -780,7 +769,10 @@ export function CalculatorPage() {
   // Start a fresh day for a given date, carrying role/rate/project across
   const handleAddNewDay = (date: string) => {
     suppressDirtyRef.current = true;
-    wrapManualRef.current = false; // new day → auto-follow call time again
+    wrapManualRef.current = false;
+    setShowTravel(false);
+    setShowEquipmentSection(false);
+    setShowExpensesSection(false);
     setIsDirty(false);
     setPendingDayId(null);
     setCurrentDayId(null);
@@ -934,15 +926,21 @@ export function CalculatorPage() {
           </div>
         )}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <PoundSterling className="h-5 w-5" />
+          <CardHeader className="hidden md:block pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <PoundSterling className="h-4 w-4" />
               Crew Rate Calculator
               {currentDayId && (
                 <Badge variant="outline" className="ml-2 text-xs font-normal">Editing saved day</Badge>
               )}
             </CardTitle>
           </CardHeader>
+          {/* Mobile: compact editing badge only */}
+          {currentDayId && (
+            <div className="md:hidden px-4 pt-3 pb-0">
+              <Badge variant="outline" className="text-xs font-normal">Editing saved day</Badge>
+            </div>
+          )}
           <CardContent className="space-y-6">
             {/* Project Name */}
             <div className="space-y-2">
@@ -1201,76 +1199,86 @@ export function CalculatorPage() {
                   </div>
 
                   {dayType === 'basic_working' && (
-                    <>
-                      <div className="space-y-3 rounded-md border p-4">
+                    <div className="space-y-2">
+                      {/* Break 1 */}
+                      <div className="rounded-2xl border px-4 py-3 space-y-2.5">
                         <div className="flex items-center gap-3">
                           <Checkbox id="break1" checked={firstBreakGiven} onCheckedChange={v => setFirstBreakGiven(!!v)} />
-                          <Label htmlFor="break1" className="font-medium">First break given (1 hour)</Label>
+                          <Label htmlFor="break1" className="font-medium text-sm flex-1">1st break <span className="text-muted-foreground font-normal">(1 hr lunch)</span></Label>
                         </div>
-                        {firstBreakGiven && (
-                          <div className="ml-7 grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <TimePicker label="Break started at" value={firstBreakTime} onChange={setFirstBreakTime} />
-                              <p className="text-xs text-muted-foreground">Must start within 5½ hrs of call</p>
+                        {firstBreakGiven ? (
+                          <div className="ml-7 flex items-center gap-3 flex-wrap">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-xs text-muted-foreground">Time</span>
+                              <input
+                                type="time"
+                                value={firstBreakTime}
+                                onChange={e => { if (e.target.value) setFirstBreakTime(e.target.value); }}
+                                className="h-9 w-[110px] rounded-xl border border-input bg-background px-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              />
                             </div>
-                            <div className="space-y-2">
-                              <Label>Duration given</Label>
+                            <div className="flex flex-col gap-1">
+                              <span className="text-xs text-muted-foreground">Duration</span>
                               <Select value={firstBreakDuration} onValueChange={setFirstBreakDuration}>
-                                <SelectTrigger>
+                                <SelectTrigger className="h-9 w-[140px] rounded-xl text-sm">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="60">60 mins (full)</SelectItem>
-                                  <SelectItem value="45">45 mins (curtailed)</SelectItem>
-                                  <SelectItem value="30">30 mins (curtailed)</SelectItem>
-                                  <SelectItem value="15">15 mins (curtailed)</SelectItem>
+                                  <SelectItem value="60">60 min (full)</SelectItem>
+                                  <SelectItem value="45">45 min (curtailed)</SelectItem>
+                                  <SelectItem value="30">30 min (curtailed)</SelectItem>
+                                  <SelectItem value="15">15 min (curtailed)</SelectItem>
                                 </SelectContent>
                               </Select>
-                              {parseInt(firstBreakDuration) < 60 && (
-                                <p className="text-xs text-orange-600">Curtailed by {60 - parseInt(firstBreakDuration)} mins — penalty applies</p>
-                              )}
                             </div>
+                            {parseInt(firstBreakDuration) < 60 && (
+                              <span className="text-xs text-orange-600">−{60 - parseInt(firstBreakDuration)} min penalty</span>
+                            )}
                           </div>
-                        )}
-                        {!firstBreakGiven && (
+                        ) : (
                           <p className="ml-7 text-xs text-orange-600">Day treated as Continuous Working Day</p>
                         )}
                       </div>
 
-                      <div className="space-y-3 rounded-md border p-4">
+                      {/* Break 2 */}
+                      <div className="rounded-2xl border px-4 py-3 space-y-2.5">
                         <div className="flex items-center gap-3">
                           <Checkbox id="break2" checked={secondBreakGiven} onCheckedChange={v => setSecondBreakGiven(!!v)} />
-                          <Label htmlFor="break2" className="font-medium">Second break given (30 mins)</Label>
+                          <Label htmlFor="break2" className="font-medium text-sm flex-1">2nd break <span className="text-muted-foreground font-normal">(30 min tea)</span></Label>
                         </div>
-                        {secondBreakGiven && (
-                          <div className="ml-7 grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <TimePicker label="Break started at" value={secondBreakTime} onChange={setSecondBreakTime} />
-                              <p className="text-xs text-muted-foreground">Within 5½ hrs after first break ended</p>
+                        {secondBreakGiven ? (
+                          <div className="ml-7 flex items-center gap-3 flex-wrap">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-xs text-muted-foreground">Time</span>
+                              <input
+                                type="time"
+                                value={secondBreakTime}
+                                onChange={e => { if (e.target.value) setSecondBreakTime(e.target.value); }}
+                                className="h-9 w-[110px] rounded-xl border border-input bg-background px-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              />
                             </div>
-                            <div className="space-y-2">
-                              <Label>Duration given</Label>
+                            <div className="flex flex-col gap-1">
+                              <span className="text-xs text-muted-foreground">Duration</span>
                               <Select value={secondBreakDuration} onValueChange={setSecondBreakDuration}>
-                                <SelectTrigger>
+                                <SelectTrigger className="h-9 w-[140px] rounded-xl text-sm">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="30">30 mins (full)</SelectItem>
-                                  <SelectItem value="20">20 mins (curtailed)</SelectItem>
-                                  <SelectItem value="15">15 mins (curtailed)</SelectItem>
+                                  <SelectItem value="30">30 min (full)</SelectItem>
+                                  <SelectItem value="20">20 min (curtailed)</SelectItem>
+                                  <SelectItem value="15">15 min (curtailed)</SelectItem>
                                 </SelectContent>
                               </Select>
-                              {parseInt(secondBreakDuration) < 30 && (
-                                <p className="text-xs text-orange-600">Curtailed by {30 - parseInt(secondBreakDuration)} mins — penalty applies</p>
-                              )}
                             </div>
+                            {parseInt(secondBreakDuration) < 30 && (
+                              <span className="text-xs text-orange-600">−{30 - parseInt(secondBreakDuration)} min penalty</span>
+                            )}
                           </div>
-                        )}
-                        {!secondBreakGiven && (
-                          <p className="ml-7 text-xs text-orange-600">30 mins at BHR penalty applies</p>
+                        ) : (
+                          <p className="ml-7 text-xs text-orange-600">30 min BHR penalty applies</p>
                         )}
                       </div>
-                    </>
+                    </div>
                   )}
 
                   {dayType === 'continuous_working' && (
@@ -1296,100 +1304,124 @@ export function CalculatorPage() {
               </>
             )}
 
-            {/* Travel & Mileage */}
-            <div className="space-y-4">
-              <h3 className="font-medium">Travel & Mileage</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Travel time on working days only — hidden on Travel Day (times already capture it) */}
-                {dayType !== 'travel' && (
-                  <div className="space-y-2">
-                    <Label>Additional Travel Time</Label>
-                    <div className="flex items-center gap-2">
-                      <Select value={String(Math.floor(parseFloat(travelHours) || 0))} onValueChange={v => {
-                        const mins = (parseFloat(travelHours) || 0) % 1;
-                        setTravelHours(String(parseInt(v) + mins));
-                      }}>
-                        <SelectTrigger className="w-24">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 13 }, (_, i) => (
-                            <SelectItem key={i} value={String(i)}>{i} hrs</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Select value={String(Math.round(((parseFloat(travelHours) || 0) % 1) * 60))} onValueChange={v => {
-                        const hrs = Math.floor(parseFloat(travelHours) || 0);
-                        setTravelHours(String(hrs + parseInt(v) / 60));
-                      }}>
-                        <SelectTrigger className="w-24">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="0">0 min</SelectItem>
-                          <SelectItem value="30">30 min</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Paid at BHR. Only payable if travel + work ≥ 11hrs</p>
-                  </div>
+            {/* Travel & Mileage — collapsible */}
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => setShowTravel(v => !v)}
+                className="flex items-center gap-2 text-sm font-medium w-full text-left group"
+              >
+                <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${showTravel ? 'rotate-90' : ''}`} />
+                Travel & Mileage
+                {!showTravel && (parseFloat(travelHours) > 0 || parseFloat(mileage) > 0) && (
+                  <span className="text-xs text-muted-foreground font-normal ml-1">
+                    {parseFloat(travelHours) > 0 && `${travelHours}h`}{parseFloat(mileage) > 0 && ` · ${mileage}mi`}
+                  </span>
                 )}
-                <div className="space-y-2">
-                  <Label htmlFor="mileage">Miles outside M25</Label>
-                  <div className="relative">
-                    <Input id="mileage" type="number" value={mileage} onChange={e => setMileage(e.target.value)} min="0" placeholder="0" />
-                  </div>
-                  <p className="text-xs text-muted-foreground">50p per mile — W1F 9SE to location and back</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Equipment */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-medium flex items-center gap-2"><Package className="h-4 w-4" /> Equipment</h3>
-                <div className="relative" ref={equipmentPickerRef}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs gap-1"
-                    onClick={() => setShowEquipmentPicker(p => !p)}
-                  >
-                    Load package <ChevronDown className="h-3 w-3" />
-                  </Button>
-                  {showEquipmentPicker && (
-                    <div className="absolute right-0 top-9 w-64 rounded-2xl border border-border bg-white shadow-xl z-50 overflow-hidden">
-                      <div className="px-4 py-2.5 border-b border-border/40">
-                        <p className="text-xs font-semibold text-muted-foreground">Saved equipment packages</p>
+              </button>
+              {showTravel && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-5">
+                  {dayType !== 'travel' && (
+                    <div className="space-y-2">
+                      <Label className="text-sm">Additional Travel Time</Label>
+                      <div className="flex items-center gap-2">
+                        <Select value={String(Math.floor(parseFloat(travelHours) || 0))} onValueChange={v => {
+                          const mins = (parseFloat(travelHours) || 0) % 1;
+                          setTravelHours(String(parseInt(v) + mins));
+                        }}>
+                          <SelectTrigger className="w-24 rounded-xl text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: 13 }, (_, i) => (
+                              <SelectItem key={i} value={String(i)}>{i} hrs</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select value={String(Math.round(((parseFloat(travelHours) || 0) % 1) * 60))} onValueChange={v => {
+                          const hrs = Math.floor(parseFloat(travelHours) || 0);
+                          setTravelHours(String(hrs + parseInt(v) / 60));
+                        }}>
+                          <SelectTrigger className="w-24 rounded-xl text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="0">0 min</SelectItem>
+                            <SelectItem value="30">30 min</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                      {equipmentPackages.length === 0 ? (
-                        <div className="px-4 py-4 text-xs text-muted-foreground text-center">
-                          No packages yet.{' '}
-                          <button className="underline text-foreground" onClick={() => { setShowEquipmentPicker(false); navigate('/settings'); }}>
-                            Add one in Settings →
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="max-h-52 overflow-y-auto py-1">
-                          {equipmentPackages.map(pkg => (
-                            <button
-                              key={pkg.id}
-                              onClick={() => { setEquipmentValue(String(pkg.day_rate)); setEquipmentDiscount('0'); setShowEquipmentPicker(false); }}
-                              className="w-full text-left px-4 py-2.5 text-sm hover:bg-primary/5 transition-colors flex items-center justify-between gap-2"
-                            >
-                              <span className="font-medium truncate">{pkg.name}</span>
-                              <span className="font-mono text-xs text-muted-foreground shrink-0">£{pkg.day_rate}/day</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                      <p className="text-xs text-muted-foreground">Paid at BHR · travel + work ≥ 11hrs</p>
                     </div>
                   )}
+                  <div className="space-y-2">
+                    <Label htmlFor="mileage" className="text-sm">Miles outside M25</Label>
+                    <Input id="mileage" type="number" value={mileage} onChange={e => setMileage(e.target.value)} min="0" placeholder="0" className="rounded-xl" />
+                    <p className="text-xs text-muted-foreground">50p/mile · W1F 9SE to location & back</p>
+                  </div>
                 </div>
+              )}
+            </div>
+
+            {/* Equipment — collapsible */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setShowEquipmentSection(v => !v)}
+                  className="flex items-center gap-2 text-sm font-medium text-left group"
+                >
+                  <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${showEquipmentSection ? 'rotate-90' : ''}`} />
+                  <Package className="h-3.5 w-3.5" /> Equipment
+                  {!showEquipmentSection && parseFloat(equipmentValue) > 0 && (
+                    <span className="text-xs text-muted-foreground font-normal ml-1">£{equipmentValue}</span>
+                  )}
+                </button>
+                {showEquipmentSection && (
+                  <div className="relative" ref={equipmentPickerRef}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1"
+                      onClick={() => setShowEquipmentPicker(p => !p)}
+                    >
+                      Load package <ChevronDown className="h-3 w-3" />
+                    </Button>
+                    {showEquipmentPicker && (
+                      <div className="absolute right-0 top-9 w-64 rounded-2xl border border-border bg-white shadow-xl z-50 overflow-hidden">
+                        <div className="px-4 py-2.5 border-b border-border/40">
+                          <p className="text-xs font-semibold text-muted-foreground">Saved equipment packages</p>
+                        </div>
+                        {equipmentPackages.length === 0 ? (
+                          <div className="px-4 py-4 text-xs text-muted-foreground text-center">
+                            No packages yet.{' '}
+                            <button className="underline text-foreground" onClick={() => { setShowEquipmentPicker(false); navigate('/settings'); }}>
+                              Add one in Settings →
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="max-h-52 overflow-y-auto py-1">
+                            {equipmentPackages.map(pkg => (
+                              <button
+                                key={pkg.id}
+                                onClick={() => { setEquipmentValue(String(pkg.day_rate)); setEquipmentDiscount('0'); setShowEquipmentPicker(false); }}
+                                className="w-full text-left px-4 py-2.5 text-sm hover:bg-primary/5 transition-colors flex items-center justify-between gap-2"
+                              >
+                                <span className="font-medium truncate">{pkg.name}</span>
+                                <span className="font-mono text-xs text-muted-foreground shrink-0">£{pkg.day_rate}/day</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {showEquipmentSection && (
+              <div className="grid grid-cols-2 gap-3 pl-5">
                 <div className="space-y-2">
-                  <Label htmlFor="equipment-value">Equipment Value (£)</Label>
+                  <Label htmlFor="equipment-value" className="text-sm">Value (£)</Label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">£</span>
                     <Input
@@ -1400,12 +1432,12 @@ export function CalculatorPage() {
                       min="0"
                       step="0.01"
                       placeholder="0.00"
-                      className="pl-7"
+                      className="pl-7 rounded-xl"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="equipment-discount">Discount (%)</Label>
+                  <Label htmlFor="equipment-discount" className="text-sm">Discount (%)</Label>
                   <div className="relative">
                     <Input
                       id="equipment-discount"
@@ -1415,27 +1447,37 @@ export function CalculatorPage() {
                       min="0"
                       max="100"
                       placeholder="0"
+                      className="rounded-xl"
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
                   </div>
                   {parseFloat(equipmentDiscount) > 0 && parseFloat(equipmentValue) > 0 && (
                     <p className="text-xs text-muted-foreground">
-                      After discount: <span className="font-mono font-medium text-foreground">
+                      = <span className="font-mono font-medium text-foreground">
                         £{(parseFloat(equipmentValue) * (1 - parseFloat(equipmentDiscount) / 100)).toFixed(2)}
                       </span>
                     </p>
                   )}
                 </div>
               </div>
+              )}
             </div>
 
-            {/* Expenses */}
+            {/* Expenses — collapsible */}
             <div className="space-y-3">
-              <h3 className="font-medium flex items-center gap-2">
-                <Receipt className="h-4 w-4" /> Expenses
-                <span className="text-xs font-normal text-muted-foreground">(optional)</span>
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => setShowExpensesSection(v => !v)}
+                className="flex items-center gap-2 text-sm font-medium text-left"
+              >
+                <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${showExpensesSection ? 'rotate-90' : ''}`} />
+                <Receipt className="h-3.5 w-3.5" /> Expenses
+                {!showExpensesSection && expensesDayAmount && (
+                  <span className="text-xs text-muted-foreground font-normal ml-1">£{expensesDayAmount}</span>
+                )}
+              </button>
+              {showExpensesSection && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-5">
                 <div className="space-y-2">
                   <Label htmlFor="expenses-amount">Amount (£)</Label>
                   <div className="relative">
@@ -1453,15 +1495,17 @@ export function CalculatorPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="expenses-notes">Description</Label>
+                  <Label htmlFor="expenses-notes" className="text-sm">Description</Label>
                   <Input
                     id="expenses-notes"
                     value={expensesDayNotes}
                     onChange={e => setExpensesDayNotes(e.target.value)}
                     placeholder="e.g. Parking, taxi, meals…"
+                    className="rounded-xl"
                   />
                 </div>
               </div>
+              )}
             </div>
 
             {/* Time Off The Clock — auto-calculated from project days */}
