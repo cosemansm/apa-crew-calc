@@ -360,6 +360,8 @@ export function CalculatorPage() {
   const [isBankHoliday, setIsBankHoliday] = useState(ss?.isBankHoliday ?? false);
   const [callTime, setCallTime] = useState(ss?.callTime ?? '08:00');
   const [wrapTime, setWrapTime] = useState(ss?.wrapTime ?? '19:00');
+  // Track whether the user has manually set wrap time; if not, auto-follow call time
+  const wrapManualRef = useRef(!!ss?.wrapTime); // treat restored session as manual
   const [firstBreakGiven, setFirstBreakGiven] = useState(ss?.firstBreakGiven ?? true);
   const [firstBreakTime, setFirstBreakTime] = useState(ss?.firstBreakTime ?? '13:00');
   const [firstBreakDuration, setFirstBreakDuration] = useState(ss?.firstBreakDuration ?? '60');
@@ -542,7 +544,7 @@ export function CalculatorPage() {
   useEffect(() => {
     if (projectId) {
       supabase.from('project_days')
-        .select('id, work_date, role_name, grand_total, day_number, result_json, wrap_time, call_time')
+        .select('id, work_date, role_name, grand_total, day_number, result_json, wrap_time, call_time, expenses_amount, expenses_notes')
         .eq('project_id', projectId)
         .order('work_date', { ascending: true })
         .then(({ data }) => {
@@ -675,6 +677,7 @@ export function CalculatorPage() {
 
   const loadDayIntoForm = (day: FullProjectDay) => {
     suppressDirtyRef.current = true;
+    wrapManualRef.current = true; // saved day has a real wrap time — don't auto-override
     setIsDirty(false);
     setPendingDayId(null);
     setCurrentDayId(day.id);
@@ -726,7 +729,7 @@ export function CalculatorPage() {
 
   const refreshProjectDays = async (projId: string) => {
     const { data } = await supabase.from('project_days')
-      .select('id, work_date, role_name, grand_total, day_number, result_json, wrap_time, call_time')
+      .select('id, work_date, role_name, grand_total, day_number, result_json, wrap_time, call_time, expenses_amount, expenses_notes')
       .eq('project_id', projId)
       .order('work_date', { ascending: true });
     if (data) setProjectDays(data as ProjectDaySummary[]);
@@ -752,6 +755,7 @@ export function CalculatorPage() {
     setSelectedRole(null);
     setAgreedRate('');
     setDayType('basic_working');
+    wrapManualRef.current = false;
     setWorkDate(format(new Date(), 'yyyy-MM-dd'));
     setIsBankHoliday(false);
     setCallTime('08:00');
@@ -776,6 +780,7 @@ export function CalculatorPage() {
   // Start a fresh day for a given date, carrying role/rate/project across
   const handleAddNewDay = (date: string) => {
     suppressDirtyRef.current = true;
+    wrapManualRef.current = false; // new day → auto-follow call time again
     setIsDirty(false);
     setPendingDayId(null);
     setCurrentDayId(null);
@@ -1110,13 +1115,20 @@ export function CalculatorPage() {
               <TimePicker
                 label={dayType === 'travel' ? 'Departure Time' : 'Call Time'}
                 value={callTime}
-                onChange={setCallTime}
+                onChange={(v) => {
+                  setCallTime(v);
+                  // Auto-advance wrap time unless user has manually set it
+                  if (!wrapManualRef.current) {
+                    const defaultHours = DEFAULT_WRAP_HOURS[dayType];
+                    if (defaultHours !== undefined) setWrapTime(addHoursToTime(v, defaultHours));
+                  }
+                }}
               />
               <div className="flex items-center pb-2 text-muted-foreground text-sm">→</div>
               <TimePicker
                 label={dayType === 'travel' ? 'Arrival Time' : 'Wrap Time'}
                 value={wrapTime}
-                onChange={setWrapTime}
+                onChange={(v) => { wrapManualRef.current = true; setWrapTime(v); }}
               />
               {/* Info popover — right of wrap/arrival time */}
               <div className="flex items-center pb-2">
