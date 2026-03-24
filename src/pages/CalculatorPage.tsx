@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown, Trash2, Receipt, Info, Check, Cloud } from 'lucide-react';
+import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown, Trash2, Receipt, Info, Check, Cloud, Car } from 'lucide-react';
 import { format, getDay, addDays, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek, type CalculationResult } from '@/data/calculation-engine';
@@ -67,11 +67,16 @@ const DEFAULT_WRAP_HOURS: Partial<Record<DayType, number>> = {
 };
 
 
-function TimePicker({ value, onChange, label }: { value: string; onChange: (v: string) => void; label?: string }) {
+function TimePicker({ value, onChange, label, labelAddon }: { value: string; onChange: (v: string) => void; label?: string; labelAddon?: React.ReactNode }) {
   const safe = /^\d{2}:\d{2}$/.test(value) ? value : '08:00';
   return (
     <div className="space-y-1.5">
-      {label && <Label className="text-sm">{label}</Label>}
+      {label && (
+        <div className="flex items-center justify-between">
+          <Label className="text-sm">{label}</Label>
+          {labelAddon}
+        </div>
+      )}
       <input
         type="time"
         value={safe}
@@ -1109,75 +1114,74 @@ export function CalculatorPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-[1fr_auto_1fr_auto] gap-4 items-end">
-              <TimePicker
-                label={dayType === 'travel' ? 'Departure Time' : 'Call Time'}
-                value={callTime}
-                onChange={(v) => {
-                  setCallTime(v);
-                  // Auto-advance wrap time unless user has manually set it
-                  if (!wrapManualRef.current) {
-                    const defaultHours = DEFAULT_WRAP_HOURS[dayType];
-                    if (defaultHours !== undefined) setWrapTime(addHoursToTime(v, defaultHours));
-                  }
-                }}
-              />
-              <div className="flex items-center pb-2 text-muted-foreground text-sm">→</div>
-              <TimePicker
-                label={dayType === 'travel' ? 'Arrival Time' : 'Wrap Time'}
-                value={wrapTime}
-                onChange={(v) => { wrapManualRef.current = true; setWrapTime(v); }}
-              />
-              {/* Info popover — right of wrap/arrival time */}
-              <div className="flex items-center pb-2">
-                {(() => {
-                  const hasTimes = !!(callTime && wrapTime);
-                  let isUnderMin = false;
-                  let hrs = 0, mins = 0, effectiveHrs = 0;
-                  if (hasTimes) {
-                    let callMins = parseInt(callTime.split(':')[0]) * 60 + parseInt(callTime.split(':')[1]);
-                    let wrapMins = parseInt(wrapTime.split(':')[0]) * 60 + parseInt(wrapTime.split(':')[1]);
-                    if (wrapMins <= callMins) wrapMins += 24 * 60;
-                    const totalHrs = (wrapMins - callMins) / 60;
-                    effectiveHrs = dayType === 'travel' ? Math.max(totalHrs, 5) : totalHrs;
-                    hrs = Math.floor(totalHrs);
-                    mins = Math.round((totalHrs - hrs) * 60);
-                    isUnderMin = dayType === 'travel' && totalHrs < 5;
-                  }
-                  if (!hasTimes && dayType !== 'travel') return null;
-                  return (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button className={`flex items-center justify-center h-8 w-8 rounded-full transition-colors ${isUnderMin ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50' : 'text-muted-foreground/30 hover:text-muted-foreground/70 hover:bg-muted/60'}`}>
-                          <Info className="h-4 w-4" />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent align="end" className="w-72 px-4 py-3 text-sm text-muted-foreground space-y-2">
-                        {dayType === 'travel' && (
-                          <div className="space-y-1">
-                            <p className="font-medium text-foreground">Travel Day Rules</p>
-                            <p>Minimum 5 hours, paid at Basic Hourly Rate (single time). Applies any day of the week. Not applicable to PM, PA, or Runners.</p>
-                          </div>
+            {(() => {
+              const hasTimes = !!(callTime && wrapTime);
+              let isUnderMin = false;
+              let hrs = 0, mins = 0, effectiveHrs = 0;
+              if (hasTimes) {
+                let callMins = parseInt(callTime.split(':')[0]) * 60 + parseInt(callTime.split(':')[1]);
+                let wrapMins = parseInt(wrapTime.split(':')[0]) * 60 + parseInt(wrapTime.split(':')[1]);
+                if (wrapMins <= callMins) wrapMins += 24 * 60;
+                const totalHrs = (wrapMins - callMins) / 60;
+                effectiveHrs = dayType === 'travel' ? Math.max(totalHrs, 5) : totalHrs;
+                hrs = Math.floor(totalHrs);
+                mins = Math.round((totalHrs - hrs) * 60);
+                isUnderMin = dayType === 'travel' && totalHrs < 5;
+              }
+              const showInfo = hasTimes || dayType === 'travel';
+              const infoAddon = showInfo ? (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <button className={`flex items-center justify-center h-5 w-5 rounded-full transition-colors ${isUnderMin ? 'text-amber-500 hover:text-amber-600' : 'text-muted-foreground/30 hover:text-muted-foreground/70'}`}>
+                      <Info className="h-3.5 w-3.5" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-72 px-4 py-3 text-sm text-muted-foreground space-y-2">
+                    {dayType === 'travel' && (
+                      <div className="space-y-1">
+                        <p className="font-medium text-foreground">Travel Day Rules</p>
+                        <p>Minimum 5 hours, paid at Basic Hourly Rate (single time). Applies any day of the week. Not applicable to PM, PA, or Runners.</p>
+                      </div>
+                    )}
+                    {hasTimes && (
+                      <div className="space-y-1">
+                        <p className="font-medium text-foreground">{dayType === 'travel' ? 'Travel Duration' : 'Day Length'}</p>
+                        {isUnderMin ? (
+                          <>
+                            <p>Actual duration: <strong className="text-foreground">{hrs}h{mins > 0 ? ` ${mins}m` : ''}</strong></p>
+                            <p>Travel days have a <strong className="text-foreground">5-hour minimum</strong>. This day will be billed at <strong className="text-foreground">{effectiveHrs}h</strong>.</p>
+                          </>
+                        ) : (
+                          <p>Total from {dayType === 'travel' ? 'departure to arrival' : 'call to wrap'}: <strong className="text-foreground">{hrs}h{mins > 0 ? ` ${mins}m` : ''}</strong></p>
                         )}
-                        {hasTimes && (
-                          <div className="space-y-1">
-                            <p className="font-medium text-foreground">{dayType === 'travel' ? 'Travel Duration' : 'Day Length'}</p>
-                            {isUnderMin ? (
-                              <>
-                                <p>Actual duration: <strong className="text-foreground">{hrs}h{mins > 0 ? ` ${mins}m` : ''}</strong></p>
-                                <p>Travel days have a <strong className="text-foreground">5-hour minimum</strong>. This day will be billed at <strong className="text-foreground">{effectiveHrs}h</strong>.</p>
-                              </>
-                            ) : (
-                              <p>Total from {dayType === 'travel' ? 'departure to arrival' : 'call to wrap'}: <strong className="text-foreground">{hrs}h{mins > 0 ? ` ${mins}m` : ''}</strong></p>
-                            )}
-                          </div>
-                        )}
-                      </PopoverContent>
-                    </Popover>
-                  );
-                })()}
-              </div>
-            </div>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+              ) : null;
+              return (
+                <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-end">
+                  <TimePicker
+                    label={dayType === 'travel' ? 'Departure Time' : 'Call Time'}
+                    value={callTime}
+                    onChange={(v) => {
+                      setCallTime(v);
+                      if (!wrapManualRef.current) {
+                        const defaultHours = DEFAULT_WRAP_HOURS[dayType];
+                        if (defaultHours !== undefined) setWrapTime(addHoursToTime(v, defaultHours));
+                      }
+                    }}
+                  />
+                  <div className="flex items-center pb-2 text-muted-foreground text-sm">→</div>
+                  <TimePicker
+                    label={dayType === 'travel' ? 'Arrival Time' : 'Wrap Time'}
+                    labelAddon={infoAddon}
+                    value={wrapTime}
+                    onChange={(v) => { wrapManualRef.current = true; setWrapTime(v); }}
+                  />
+                </div>
+              );
+            })()}
 
             <Separator />
 
@@ -1312,7 +1316,7 @@ export function CalculatorPage() {
                 className="flex items-center gap-2 text-sm font-medium w-full text-left group"
               >
                 <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${showTravel ? 'rotate-90' : ''}`} />
-                Travel & Mileage
+                <Car className="h-3.5 w-3.5" /> Travel & Mileage
                 {!showTravel && (parseFloat(travelHours) > 0 || parseFloat(mileage) > 0) && (
                   <span className="text-xs text-muted-foreground font-normal ml-1">
                     {parseFloat(travelHours) > 0 && `${travelHours}h`}{parseFloat(mileage) > 0 && ` · ${mileage}mi`}
