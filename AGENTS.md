@@ -59,8 +59,8 @@ src/
     DashboardPage.tsx      — Overview, earnings aggregates, recent jobs, quick project create
     CalculatorPage.tsx     — APA rate calculator (CORE FEATURE — most complex file)
     ProjectsPage.tsx       — Job list + per-day breakdown panel + status management
-    HistoryPage.tsx        — Flat history view of saved project_days
-    InvoicePage.tsx        — Invoice builder, PDF download, email send (Simple + Detailed modes)
+    HistoryPage.tsx        — Flat history view (file exists; /history route redirects to /projects)
+    InvoicePage.tsx        — Invoice builder, PDF download, email send (Simple + Detailed modes) — route: /invoices
     AIInputPage.tsx        — Natural language → day entry via Gemini (PREMIUM FEATURE)
     SettingsPage.tsx       — Profile, company, bank, custom roles, equipment packages
     SupportPage.tsx        — Support contact form (calls /api/send-support)
@@ -108,7 +108,9 @@ docs/                      — Planning docs (subscription.md, build plans, busi
 ## Routing & Auth
 
 - Public: `/login`
-- Protected (wrapped in `AppLayout`): `/`, `/calculator`, `/projects`, `/history`, `/invoice`, `/ai-input`, `/settings`, `/support`
+- Protected (wrapped in `AppLayout`): `/dashboard`, `/calculator`, `/projects`, `/ai-input`, `/invoices`, `/support`, `/settings`
+- `/history` → redirects to `/projects` (HistoryPage.tsx exists but is not a live route)
+- Catch-all `*` → redirects to `/dashboard`
 - Auth gating in `src/App.tsx` via `AuthContext`
 
 ---
@@ -123,15 +125,20 @@ docs/                      — Planning docs (subscription.md, build plans, busi
 
 **BHR:** `agreedDailyRate / 10` (not /8 — basic working day is 10hrs)
 
-**Day Types:**
+**Day Types (`DayType`):**
 | dayType | Normal day | OT starts | Notes |
 |---------|-----------|-----------|-------|
-| `basic_working` | 10+1hr lunch | After 11hrs | Shooting days |
+| `basic_working` | 10+1hr lunch | After 11hrs (adj. if break curtailed) | Shooting days |
 | `continuous_working` | 8hrs no break | After 8hrs | Continuous/fast-turnaround |
-| `prep` / `recce` / `build_strike` / `pre_light` | 8hrs (break optional) | After 8hrs (no break) or 9hrs (break given) | Non-shooting days |
+| `prep` / `recce` / `build_strike` | 8hrs at BHR | After 8hrs (no break) or 9hrs (break given) | Non-shooting days |
+| `pre_light` | 8hrs + 1hr lunch | After 9hrs (fixed) | Pre-light day; £7.50 meal allowance if break not given |
 | `travel` | Min 5hrs at BHR | — | Not for PM/PA/Runner |
-| `rest_day` | — | — | ×1.5 day rate |
-| `bank_holiday` | — | — | ×2.5 day rate |
+| `rest` | Flat fee = BDR | — | No OT. Paid at agreed daily rate regardless of day |
+
+**Day of Week (`DayOfWeek`)** — separate dimension, affects rate multipliers:
+- Weekday: base rates apply
+- `saturday`: ×1.5 BHR/BDR on NSD/continuous/basic hours; OT at ×1.5
+- `sunday` / `bank_holiday`: ×2 BHR/BDR on NSD/continuous/basic hours; OT at ×2
 
 **OT Grades:**
 - Grade I: BHR × 1.5 — most technicians
@@ -146,12 +153,20 @@ docs/                      — Planning docs (subscription.md, build plans, busi
 
 **Pre-light day (S.2.3):** If meal break not provided (`!firstBreakGiven`), £7.50 meal allowance penalty applies.
 
+**Call Types (`CallType`)** — derived from call time on basic/continuous days only:
+- `standard`: 07:00–10:59
+- `early`: 05:00–06:59 (early call OT applies before 07:00)
+- `late`: 11:00–16:59
+- `night`: 17:00–04:59 (≥17:00 or <05:00) — 2×BDR for full day
+
 **Penalties / Bonuses auto-calculated:**
-- Delayed break (>5.5h without break): £10
-- Continuous working upgrade (>6.5h without break on basic day): engine switches to continuous rules
+- First break delayed (given 5.5–6.5hrs after call): £10 penalty
+- First break missed or given >6.5hrs after call: day converts to `continuous_working`
+- First break curtailed (<60 mins): BHR per curtailed minute; OT start adjusted
+- Second break missed/late (after long days): 0.5hr at BHR
+- Continuous day: 30-min break missed after 9hrs → 0.5hr at BHR; additional missed after 12.5hrs → 0.5hr at BHR
 - TOC (rest gap <11h between wrap and next call): 1hr OT penalty
-- Post-midnight triple time (00:00–06:00): ×3 BHR (except on designated night shoots)
-- Night differential (calls before 05:00 or after 22:00): higher BHR multiplier
+- Post-midnight OT: ×3 BHR for all OT hours after midnight (applies on all day types with OT)
 - Pre-light no meal: £7.50
 
 **Breaks UI:** `firstBreakGiven` checkbox shown for ALL day types including prep/recce/build_strike/pre_light (added Mar 2026 — was previously only shown for basic/continuous working days).
