@@ -166,7 +166,7 @@ docs/                      — Planning docs (subscription.md, build plans, busi
 - Second break missed/late (after long days): 0.5hr at BHR
 - Continuous day: 30-min break missed after 9hrs → 0.5hr at BHR; additional missed after 12.5hrs → 0.5hr at BHR
 - TOC (rest gap <11h between wrap and next call): 1hr OT penalty
-- Post-midnight OT: ×3 BHR for all OT hours after midnight (applies on all day types with OT)
+- Post-midnight OT: ×3 BHR for all OT hours after midnight until wrap (S.4.4) — **does NOT apply on night shoots** (S.2.1.5 explicitly: "the rate stays the same throughout") — engine correctly excludes `callType === 'night'`
 - Pre-light no meal: £7.50
 
 **Breaks UI:** `firstBreakGiven` checkbox shown for ALL day types including prep/recce/build_strike/pre_light (added Mar 2026 — was previously only shown for basic/continuous working days).
@@ -237,6 +237,8 @@ Full spec: `docs/subscription.md`
 | Bookkeeping integrations (Xero, QuickBooks, FreeAgent) | Planned — see `docs/BUILD_PLAN_*.md` |
 | Help & Guides screenshots | Discussed — not implemented |
 | Supabase keep-alive cron (`/api/ping`) | Planned — see `docs/subscription.md` |
+| £7.50 meal allowance on basic/continuous shooting days | S.6.2 shows this applies on all shoot days when meal not provided — engine currently only applies it for pre-light. UI would need a "meal provided?" toggle for shoot days. |
+| OT grade not dynamic | T&Cs S.4 defines grades by BDR range (I: ≤£444, II: £445–£676, III: ≥£677). Engine uses hardcoded grades from Appendix 1 per role. Roles with rates crossing a threshold (e.g. Art Director min £655 < £677 Grade III boundary) won't auto-adjust grade. |
 
 ---
 
