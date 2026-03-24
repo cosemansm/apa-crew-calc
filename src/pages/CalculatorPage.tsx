@@ -1612,6 +1612,9 @@ export function CalculatorPage() {
                     travelPay: result.travelPay,
                     mileage: result.mileage,
                     mileageMiles: result.mileageMiles,
+                    equipmentValue: result.equipmentValue,
+                    equipmentDiscount: result.equipmentDiscount,
+                    equipmentTotal: result.equipmentTotal,
                   },
                 },
               ].sort((a, b) => a.work_date.localeCompare(b.work_date));
