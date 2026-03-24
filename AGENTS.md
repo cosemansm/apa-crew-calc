@@ -1,116 +1,244 @@
-# AGENTS.md
+# AGENTS.md — Crew Dock
 
-This file provides guidance to WARP (warp.dev) when working with code in this repository.
-
-## Development commands
-- Install dependencies: `npm install`
-- Start local dev server: `npm run dev`
-- Build production bundle: `npm run build`
-- Lint codebase: `npm run lint`
-- Preview production build locally: `npm run preview`
-
-## Tests
-- There is currently no test script configured in `package.json`.
-- Running `npm test` or `npm run test` will fail unless test tooling is added.
-- There is also no command for running a single test yet.
-
-## Environment and runtime
-- This is a Vite + React + TypeScript app.
-- Required env vars are documented in `.env.example`:
-  - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_ANON_KEY`
-  - `VITE_GEMINI_API_KEY`
-- Path alias `@` resolves to `src` (configured in `vite.config.ts`).
-
-## Big-picture architecture
-- App entry is `src/main.tsx`, which renders `src/App.tsx`.
-- `src/App.tsx` sets up route-level auth gating:
-  - Public route: `/login`
-  - Protected app shell: `AppLayout` wrapping dashboard/calculator/projects/AI/history/invoices/settings pages.
-- Auth/session state is centralized in `src/contexts/AuthContext.tsx` and backed by Supabase Auth (`src/lib/supabase.ts`).
-
-## Domain model and calculation flow
-- Crew role definitions and overtime metadata live in `src/data/apa-rates.ts`.
-- Core pay logic is centralized in `src/data/calculation-engine.ts` via `calculateCrewCost(input)`.
-- UI pages should pass structured inputs to `calculateCrewCost` and render the returned `CalculationResult`; avoid duplicating pay rules in page components.
-- `calculateCrewCost` handles:
-  - day-type branching (basic/continuous/prep/recce/travel/rest/etc.)
-  - weekday/weekend/bank-holiday behavior
-  - overtime and post-midnight split logic
-  - break penalties, TOC penalties, travel pay, mileage, equipment discounts
-
-## Data persistence boundaries
-- Supabase client is a thin singleton in `src/lib/supabase.ts`; query logic is mostly page-level.
-- Operational data model used by the current UI is project-centric:
-  - `projects`
-  - `project_days`
-  - `favourite_roles`
-  - plus settings/customization tables referenced by pages (`user_settings`, `custom_roles`, `equipment_packages`).
-- `supabase-dashboard-schema.sql` reflects this newer project/day model.
-- `supabase-schema.sql` defines an older `calculations` table + retention function; treat it as legacy unless intentionally reviving that path.
-
-## Stripe Integration Plan
-
-### Pricing
-- Monthly: £3.45/month
-- Yearly: £29.95/year
-- Both plans include a 14-day free trial
-- Users who leave a great review receive a 14-day trial extension
-
-### Stripe Setup (Dashboard)
-- Two Products: `CrewDock Monthly` and `CrewDock Yearly`, currency GBP
-- 14-day free trial enabled on both prices
-
-### Database (Supabase)
-Add a `subscriptions` table:
-- `user_id`, `stripe_customer_id`, `stripe_subscription_id`
-- `status`, `plan`, `trial_end`, `current_period_end`
-
-### Supabase Edge Functions
-| Function | Purpose |
-|---|---|
-| `create-checkout-session` | Creates Stripe Checkout with trial, redirects user |
-| `stripe-webhook` | Handles subscription lifecycle events from Stripe |
-| `extend-trial` | Adds 14 days to trial when review is verified |
-
-### Webhook Events to Handle
-- `customer.subscription.created` → write to Supabase
-- `customer.subscription.updated` → update status/period
-- `customer.subscription.deleted` → mark as cancelled
-- `invoice.payment_failed` → flag for dunning/UI warning
-
-### Review Extension Flow
-- Admin manually triggers or a review platform webhook calls `extend-trial`
-- Function calls `stripe.subscriptions.update()` with new `trial_end` (+14 days)
-
-### Frontend
-- Pricing page with two plan cards linking to Stripe Checkout
-- Access gating in `AuthContext` / `App.tsx` via `subscriptions` table
-- Trial banner showing days remaining
-- Customer Portal link in Settings page
-
-### Environment Variables
-- `VITE_STRIPE_PUBLISHABLE_KEY` (client-safe)
-- `STRIPE_SECRET_KEY` (server-side only)
-- `STRIPE_WEBHOOK_SECRET` (server-side only)
-
-### Build Order
-1. Stripe products/prices in Dashboard
-2. Supabase `subscriptions` table + RLS policies
-3. `create-checkout-session` edge function
-4. Webhook handler + subscription sync
-5. Frontend gating in `AuthContext`
-6. Trial banner UI
-7. `extend-trial` function + review flow
-8. Customer Portal link in Settings
+> For Claude Code (terminal) and AI agents working in this repo.
+> Last updated: 25 March 2026
 
 ---
 
-## Page responsibilities (high level)
-- `DashboardPage`: project overview, monthly/yearly aggregates, favourites, quick project creation.
-- `CalculatorPage`: primary editing surface; computes results and persists/upserts `project_days`; supports project calendar/day switching and sessionStorage restore.
-- `AIInputPage`: parses natural-language timesheets through `src/lib/gemini.ts`, then runs the same `calculateCrewCost` pipeline.
-- `ProjectsPage`: browse projects and inspect day-level breakdowns.
-- `HistoryPage`: flat history view over saved `project_days` with expandable totals.
-- `InvoicePage`: project-scoped day selection and printable invoice composition.
-- `SettingsPage`: user profile/company/bank settings + CRUD for custom roles and equipment packages.
+## Dev Commands
+
+```bash
+npm install          # install deps
+npm run dev          # local dev server (Vite, port 5173)
+npm run build        # production build
+npm run lint         # ESLint
+npm run preview      # preview production build locally
+```
+
+No test suite configured — `npm test` will fail.
+
+---
+
+## Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | React 19 + TypeScript + Vite |
+| Styling | Tailwind CSS + shadcn/ui (Radix UI) |
+| Routing | React Router v6 |
+| Backend/DB | Supabase (PostgreSQL + Auth + RLS) |
+| Serverless | Vercel Functions (`/api/` directory, Node.js) |
+| Email | Resend API |
+| PDF | jsPDF + html2canvas |
+| Icons | lucide-react |
+| AI | Google Gemini 2.5 Flash (`src/lib/gemini.ts`) |
+| Deploy | Vercel — auto-deploys from `main` |
+
+**Live:** https://crewdock.app
+**Repo:** https://github.com/cosemansm/apa-crew-calc
+
+---
+
+## Environment Variables
+
+```
+VITE_SUPABASE_URL
+VITE_SUPABASE_ANON_KEY
+VITE_GEMINI_API_KEY
+```
+
+Path alias `@` → `src` (configured in `vite.config.ts`).
+
+---
+
+## App Structure
+
+```
+src/
+  pages/
+    DashboardPage.tsx      — Overview, earnings aggregates, recent jobs, quick project create
+    CalculatorPage.tsx     — APA rate calculator (CORE FEATURE — most complex file)
+    ProjectsPage.tsx       — Job list + per-day breakdown panel + status management
+    HistoryPage.tsx        — Flat history view of saved project_days
+    InvoicePage.tsx        — Invoice builder, PDF download, email send (Simple + Detailed modes)
+    AIInputPage.tsx        — Natural language → day entry via Gemini (PREMIUM FEATURE)
+    SettingsPage.tsx       — Profile, company, bank, custom roles, equipment packages
+    SupportPage.tsx        — Support contact form (calls /api/send-support)
+    LoginPage.tsx          — Supabase auth
+  components/
+    AppLayout.tsx          — Sidebar nav (desktop) + mobile header
+    ui/                    — shadcn/ui components
+  contexts/
+    AuthContext.tsx        — Supabase auth session (global)
+  data/
+    calculation-engine.ts  — APA pay logic: calculateCrewCost(input) → CalculationResult
+    apa-rates.ts           — CrewRole definitions, rates, OT grades, specialRules
+  lib/
+    supabase.ts            — Thin Supabase client singleton
+    gemini.ts              — Gemini API client for AI Input
+
+api/                       — Vercel serverless functions
+  send-invoice.ts          — Send invoice PDF via Resend email
+  send-support.ts          — Support email (⚠ currently returning Load failed — route issue)
+  parse-timesheet.ts       — AI Input endpoint (Gemini call server-side)
+  delete-account.ts        — Hard-delete all user data + Supabase auth user
+
+supabase/migrations/       — SQL migration files
+docs/                      — Planning docs (subscription.md, build plans, business summary)
+```
+
+---
+
+## Database Tables
+
+| Table | Purpose |
+|-------|---------|
+| `projects` | Jobs (name, client, status, created_at) |
+| `project_days` | Shoot/prep/travel days per job — includes `result_json`, `expenses_amount`, `expenses_notes` |
+| `user_settings` | Per-user preferences (rates, VAT, address, bank details) |
+| `favourite_roles` | Saved favourite crew roles |
+| `custom_roles` | User-defined custom roles (synced with `apa-rates.ts` at runtime) |
+| `equipment_packages` | Saved kit packages with line items |
+| `calculation_history` | Legacy table — not actively used by current UI |
+
+> `supabase-dashboard-schema.sql` = current schema. `supabase-schema.sql` = legacy.
+
+---
+
+## Routing & Auth
+
+- Public: `/login`
+- Protected (wrapped in `AppLayout`): `/`, `/calculator`, `/projects`, `/history`, `/invoice`, `/ai-input`, `/settings`, `/support`
+- Auth gating in `src/App.tsx` via `AuthContext`
+
+---
+
+## Core Domain: APA Calculation Engine
+
+### Files
+- **`src/data/apa-rates.ts`** — `CrewRole[]` with `role`, `department`, `minRate`, `maxRate`, `otGrade` (`I|II|III|N/A`), `otCoefficient`, `specialRules?`, `isBuyout?`, `isCustom?`
+- **`src/data/calculation-engine.ts`** — `calculateCrewCost(input: CalculationInput): CalculationResult`
+
+### APA T&Cs 2025 — Key Rules (Effective 1 Sept 2025)
+
+**BHR:** `agreedDailyRate / 10` (not /8 — basic working day is 10hrs)
+
+**Day Types:**
+| dayType | Normal day | OT starts | Notes |
+|---------|-----------|-----------|-------|
+| `basic_working` | 10+1hr lunch | After 11hrs | Shooting days |
+| `continuous_working` | 8hrs no break | After 8hrs | Continuous/fast-turnaround |
+| `prep` / `recce` / `build_strike` / `pre_light` | 8hrs (break optional) | After 8hrs (no break) or 9hrs (break given) | Non-shooting days |
+| `travel` | Min 5hrs at BHR | — | Not for PM/PA/Runner |
+| `rest_day` | — | — | ×1.5 day rate |
+| `bank_holiday` | — | — | ×2.5 day rate |
+
+**OT Grades:**
+- Grade I: BHR × 1.5 — most technicians
+- Grade II: BHR × 1.25 — senior technicians
+- Grade III: BHR × 1.0 — DoP, Art Director, SFX Supervisor, etc. (senior roles — OT = BHR rate)
+- N/A: Director, Producer, PM, PA, Runner (no OT calculation)
+
+**Special Rules (`specialRules` field on CrewRole):**
+- `pm_pa_runner` — Flat daily rate only; no OT, no travel pay
+- `session_fees` — Casting Director; separate session fee structure
+- `basic_working_nsd` — **DoP, Art Director, Location Manager** — APA S.2.3: always treated as Basic Working Day rules even on non-shooting days. Engine overrides `dayType` to `basic_working` at start of `calculateCrewCost` for these roles.
+
+**Pre-light day (S.2.3):** If meal break not provided (`!firstBreakGiven`), £7.50 meal allowance penalty applies.
+
+**Penalties / Bonuses auto-calculated:**
+- Delayed break (>5.5h without break): £10
+- Continuous working upgrade (>6.5h without break on basic day): engine switches to continuous rules
+- TOC (rest gap <11h between wrap and next call): 1hr OT penalty
+- Post-midnight triple time (00:00–06:00): ×3 BHR (except on designated night shoots)
+- Night differential (calls before 05:00 or after 22:00): higher BHR multiplier
+- Pre-light no meal: £7.50
+
+**Breaks UI:** `firstBreakGiven` checkbox shown for ALL day types including prep/recce/build_strike/pre_light (added Mar 2026 — was previously only shown for basic/continuous working days).
+
+**Buyout roles** (`isBuyout: true`): flat daily rate, no OT/BHR breakdown.
+
+---
+
+## CalculatorPage — Key Behaviours
+
+- Auto-saves via debounced useEffect (1.5s after result changes) → upserts `project_days`
+- SessionStorage restore: calculator state survives page refresh
+- `wrapManualRef` tracks whether user manually set wrap time (prevents auto-override)
+- `handleAddNewDay(date)` carries role/rate/project to a fresh form for the next day
+- **"+ Add New Day" button** appears at BOTH top and bottom of the form when `projectId && currentDayId`
+- BHR/OT Grade shown as `(i)` info popover next to "Day Rate" label (not below input)
+- `TimePicker` component has `labelAddon?: React.ReactNode` slot — used to place info popovers in label row without affecting the input grid
+- Grid for time pickers: `grid-cols-[1fr_auto_1fr]` (3 columns — fixed mobile overflow)
+- Collapsible sections: Travel & Mileage, Equipment, Expenses
+- Travel & Mileage section header has Car icon; Equipment has Package icon; Expenses has Receipt icon
+
+---
+
+## InvoicePage — Key Behaviours
+
+- Supabase SELECT includes: `result_json, expenses_amount, expenses_notes`
+- `DayResultJson` interface mirrors `CalculationResult` shape for stored JSON
+- **Simple / Detailed toggle** — Detailed mode shows per-day line items, penalties, travel, equipment, expenses as sub-rows
+- Penalty sub-rows use standard grey `#6B6B6B` (not amber)
+- Invoice sent via `/api/send-invoice.ts` → Resend API; sets project status to `invoiced`
+
+---
+
+## Subscription Model (PLANNED — not yet implemented)
+
+Full spec: `docs/subscription.md`
+
+| State | Access |
+|-------|--------|
+| `trialing` (14 days, no card) | Full access |
+| `active` | Full access |
+| `lifetime` | Full access (manually granted) |
+| `free` | Core only (no AI Input, no bookkeeping) |
+| `past_due` / `canceled` | Core only |
+
+**Pricing:** £3.45/mo · £29.95/yr · Founding member £19.99/yr (first 50–100 users)
+
+**Gated behind Pro:** AI Input, bookkeeping integrations (Xero/QuickBooks/FreeAgent), Invoice Direct (email send — TBD), 3yr data retention
+
+**Frontend hook:** `useSubscription()` → `{ isPremium, isTrialing, trialDaysLeft, status }`
+
+**Required Vercel API routes (to build):**
+- `POST /api/stripe/create-checkout`
+- `POST /api/stripe/create-portal`
+- `POST /api/stripe/webhook`
+
+**DB table to add:** `subscriptions` — see `docs/subscription.md` for full schema
+
+---
+
+## Known Issues / Pending Work
+
+| Issue | Status |
+|-------|--------|
+| `/api/send-support` returning "Load failed" | Unresolved — route may be misconfigured in Vercel |
+| FreeAgent SVG logo in integrations assets | Not properly implemented |
+| Stripe subscription flow | Planned — not started |
+| Bookkeeping integrations (Xero, QuickBooks, FreeAgent) | Planned — see `docs/BUILD_PLAN_*.md` |
+| Help & Guides screenshots | Discussed — not implemented |
+| Supabase keep-alive cron (`/api/ping`) | Planned — see `docs/subscription.md` |
+
+---
+
+## Brand
+
+- **App name:** Crew Dock
+- **Primary colour:** `#FFD528` (yellow)
+- **Dark UI colour:** `#1F1F21`
+- **Logo:** Anchor icon in yellow rounded square
+- **Font:** System sans-serif; monospace for numbers/labels
+
+---
+
+## Conventions
+
+- All pay rules live in `calculation-engine.ts` — never duplicate in page components
+- shadcn/ui components in `src/components/ui/` — prefer these over raw HTML
+- Tailwind for all styling — no CSS modules or inline styles except in jsPDF output
+- Vercel auto-deploys on push to `main` — always commit + push after edits
+- No test suite — manually verify in browser after changes

@@ -88,15 +88,18 @@ Statuses auto-update where possible:
 
 ---
 
-## APA Calculation Rules (key points)
+## APA Calculation Rules (key points, Effective 1 Sept 2025)
 
-- **Basic Hourly Rate (BHR)** = agreed day rate ÷ 8
-- **Overtime grades:** Grade I (×1.5 BHR), Grade II (×1.25 BHR after 10h)
-- **Break thresholds:** >5.5h after call = £10 delayed break penalty; >6.5h = Continuous Working Day
-- **Travel days:** Minimum 5 hours at BHR, any day, not applicable to PM/PA/Runners
-- **Rest gap (TOC):** <11h between wrap and next call = 1h OT penalty added automatically
-- **Bank holidays:** ×2.5 day rate
-- **Rest days:** ×1.5 day rate
+- **Basic Hourly Rate (BHR)** = agreed day rate ÷ 10 (Basic Working Day = 10hrs)
+- **Overtime grades:** Grade I (×1.5 BHR), Grade II (×1.25 BHR), Grade III (×1.0 BHR — paid at BHR rate)
+- **Non-shooting days** (prep/recce/build_strike/pre_light): 8hr day, break at producer's discretion; OT starts after 8hrs (no break) or 9hrs (break given)
+- **Special rule S.2.3:** DoP, Art Director, Location Manager always use Basic Working Day rules even on non-shooting days (`specialRules: 'basic_working_nsd'`)
+- **Break thresholds:** >5.5h without break = £10 penalty; >6.5h = Continuous Working Day upgrade
+- **Pre-light no meal:** £7.50 meal allowance penalty if break not provided
+- **Travel days:** Minimum 5 hours at BHR — not applicable to PM/PA/Runners
+- **Rest gap (TOC):** <11h between wrap and next call = 1h OT penalty
+- **Post-midnight:** ×3 BHR (00:00–06:00), except on designated night shoots
+- **Bank holidays:** ×2.5 day rate · **Rest days:** ×1.5 day rate
 
 Full APA T&Cs: https://www.a-p-a.net/apa-crew-terms/
 
