@@ -647,11 +647,11 @@ export function InvoicePage() {
                               {/* Penalties */}
                               {rj.penalties?.map((p, i) => (
                                 <tr key={`pen-${i}`} style={{ backgroundColor: '#FAFAF8' }}>
-                                  <td style={{ padding: '3px 14px 3px 28px', color: '#D97706', fontSize: '11px' }} colSpan={2}>
+                                  <td style={{ padding: '3px 14px 3px 28px', color: '#6B6B6B', fontSize: '11px' }} colSpan={2}>
                                     {p.description}
                                   </td>
-                                  <td style={{ padding: '3px 14px', color: '#D97706', fontSize: '11px' }}></td>
-                                  <td style={{ padding: '3px 14px', textAlign: 'right', color: '#D97706', fontSize: '11px', fontFamily: 'monospace' }}>
+                                  <td style={{ padding: '3px 14px', color: '#6B6B6B', fontSize: '11px' }}></td>
+                                  <td style={{ padding: '3px 14px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace' }}>
                                     £{p.total.toFixed(2)}
                                   </td>
                                 </tr>
