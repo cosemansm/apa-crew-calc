@@ -467,17 +467,6 @@ export function CalculatorPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // ── Auto-save: fires 1.5s after result changes, when minimum fields are ready ──
-  useEffect(() => {
-    if (!result || !user || !selectedRole || !agreedRate) return;
-    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(async () => {
-      const savedId = await handleSave();
-      if (savedId) setLastSavedAt(new Date());
-    }, 1500);
-    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
-  }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const handleSwitchProject = (proj: UserProject) => {
     setShowProjectPicker(false);
     setProjectName(proj.name);
@@ -648,6 +637,17 @@ export function CalculatorPage() {
     }
     if (result !== null) setIsDirty(true);
   }, [result]);
+
+  // ── Auto-save: fires 1.5s after result changes, when minimum fields are ready ──
+  useEffect(() => {
+    if (!result || !user || !selectedRole || !agreedRate) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(async () => {
+      const savedId = await handleSave();
+      if (savedId) setLastSavedAt(new Date());
+    }, 1500);
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRoleChange = (roleName: string) => {
     // Search custom roles first, then APA roles
