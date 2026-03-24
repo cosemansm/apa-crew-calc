@@ -1039,18 +1039,14 @@ export function CalculatorPage() {
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">£</span>
                   <Input id="rate" type="number" className="pl-7" value={agreedRate} onChange={e => setAgreedRate(e.target.value)} placeholder={selectedRole ? `${selectedRole.minRate || '—'} - ${selectedRole.maxRate || '—'}` : 'Select role first'} />
                 </div>
-                {selectedRole && agreedRate && (
+                {selectedRole && agreedRate && !selectedRole.isBuyout && (
                   <p className="text-xs text-muted-foreground">
                     {selectedRole.isCustom ? (
-                      selectedRole.isBuyout ? (
-                        <>All-in flat rate · no OT applied</>
-                      ) : (
-                        <>
-                          Custom grade · OT x{selectedRole.otCoefficient}
-                          {` | BHR £${selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)}/hr`}
-                          {selectedRole.otCoefficient > 0 && ` | OT £${Math.round((selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)) * selectedRole.otCoefficient)}/hr`}
-                        </>
-                      )
+                      <>
+                        Custom grade · OT x{selectedRole.otCoefficient}
+                        {` | BHR £${selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)}/hr`}
+                        {selectedRole.otCoefficient > 0 && ` | OT £${Math.round((selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)) * selectedRole.otCoefficient)}/hr`}
+                      </>
                     ) : (
                       <>
                         {`BHR £${Math.round(parseInt(agreedRate) / 10)}/hr`}
