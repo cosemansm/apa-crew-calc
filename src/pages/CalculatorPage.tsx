@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown, Trash2, Receipt, Info } from 'lucide-react';
+import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown, Trash2, Receipt, Info, Check, Cloud } from 'lucide-react';
 import { format, getDay, addDays, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek, type CalculationResult } from '@/data/calculation-engine';
@@ -378,6 +378,8 @@ export function CalculatorPage() {
   const [projectName, setProjectName] = useState(ss?.projectName ?? '');
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [favouriteRoles, setFavouriteRoles] = useState<string[]>([]);
   const [customRoles, setCustomRoles] = useState<CrewRole[]>([]);
 
@@ -464,6 +466,17 @@ export function CalculatorPage() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // ── Auto-save: fires 1.5s after result changes, when minimum fields are ready ──
+  useEffect(() => {
+    if (!result || !user || !selectedRole || !agreedRate) return;
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(async () => {
+      const savedId = await handleSave();
+      if (savedId) setLastSavedAt(new Date());
+    }, 1500);
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSwitchProject = (proj: UserProject) => {
     setShowProjectPicker(false);
@@ -870,6 +883,7 @@ export function CalculatorPage() {
     if (savedId && resolvedProjectId) {
       setSaveSuccess(true);
       setIsDirty(false);
+      setLastSavedAt(new Date());
       await refreshProjectDays(resolvedProjectId);
     }
     return savedId;
@@ -1467,24 +1481,59 @@ export function CalculatorPage() {
               );
             })()}
 
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap">
               <Button variant="outline" onClick={handleReset}>
                 <RotateCcw className="h-4 w-4 mr-1" /> Reset
               </Button>
+              {result && projectId && (
+                <Button variant="secondary" onClick={handleAddDay} disabled={saving}>
+                  <Plus className="h-4 w-4 mr-1" /> Add Next Day
+                </Button>
+              )}
+              {/* Save status indicator */}
               {result && (
-                <>
-                  <Button onClick={handleSave} disabled={saving}>
-                    <Save className="h-4 w-4 mr-1" />
-                    {saving ? 'Saving...' : saveSuccess ? 'Saved!' : currentDayId ? 'Update Day' : 'Save Day'}
-                  </Button>
-                  {projectId && (
-                    <Button variant="secondary" onClick={handleAddDay} disabled={saving}>
-                      <Plus className="h-4 w-4 mr-1" /> Add Next Day
+                <div className="flex items-center gap-1.5 text-sm ml-auto">
+                  {saving ? (
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <Cloud className="h-3.5 w-3.5 animate-pulse" /> Saving…
+                    </span>
+                  ) : lastSavedAt ? (
+                    <span className="flex items-center gap-1.5 text-green-600">
+                      <Check className="h-3.5 w-3.5" /> Saved
+                    </span>
+                  ) : (
+                    <Button size="sm" onClick={handleSave} disabled={saving}>
+                      <Save className="h-3.5 w-3.5 mr-1" />
+                      {currentDayId ? 'Update Day' : 'Save Day'}
                     </Button>
                   )}
-                </>
+                </div>
               )}
             </div>
+
+            {/* Mobile sticky save bar */}
+            {result && (
+              <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-safe">
+                <div className={`mx-auto max-w-lg mb-3 flex items-center justify-between gap-3 rounded-2xl px-4 py-3 shadow-lg text-sm font-medium transition-colors ${
+                  saving ? 'bg-muted text-muted-foreground' :
+                  lastSavedAt ? 'bg-green-50 text-green-700 border border-green-200' :
+                  'bg-[#1F1F21] text-white'
+                }`}>
+                  {saving ? (
+                    <><Cloud className="h-4 w-4 animate-pulse" /><span>Saving…</span></>
+                  ) : lastSavedAt ? (
+                    <><Check className="h-4 w-4" /><span>Saved</span></>
+                  ) : (
+                    <><Save className="h-4 w-4" /><span>{currentDayId ? 'Not saved yet — tap to save' : 'Not saved yet — tap to save'}</span></>
+                  )}
+                  {!saving && !lastSavedAt && (
+                    <button onClick={handleSave} className="bg-[#FFD528] text-[#1F1F21] rounded-xl px-3 py-1 text-xs font-semibold">
+                      Save
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
