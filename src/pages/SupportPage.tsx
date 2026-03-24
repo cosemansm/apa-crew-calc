@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   LifeBuoy, MessageSquare, Lightbulb, BookOpen, Send, ChevronUp, ChevronRight,
   Calculator, FolderOpen, FileText, Sparkles, Settings, Package, Receipt,
-  LayoutDashboard, History, Briefcase, CalendarDays, Clock, Coffee, Car,
+  LayoutDashboard, History, Briefcase, CalendarDays, Clock, Coffee, Car, Shield,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,12 +48,14 @@ const FEATURE_TAGS = [
 
 // ─── Nav ──────────────────────────────────────────────────────────────────────
 
-type SectionId = 'contact' | 'feature-requests' | 'help';
+type SectionId = 'contact' | 'feature-requests' | 'help' | 'terms' | 'privacy';
 
 const NAV_ITEMS: { id: SectionId; label: string; icon: React.ElementType }[] = [
   { id: 'contact',          label: 'Contact Us',        icon: MessageSquare },
   { id: 'feature-requests', label: 'Feature Requests',  icon: Lightbulb },
   { id: 'help',             label: 'Help & Guides',     icon: BookOpen },
+  { id: 'terms',            label: 'Terms & Conditions',icon: FileText },
+  { id: 'privacy',          label: 'Privacy Policy',    icon: Shield },
 ];
 
 // ─── Status colours ───────────────────────────────────────────────────────────
@@ -609,6 +611,146 @@ export function SupportPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* ── Terms & Conditions ── */}
+          {activeSection === 'terms' && (
+            <div className="space-y-4 text-sm leading-relaxed">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5" /> Terms &amp; Conditions</CardTitle>
+                  <CardDescription>Last updated: March 2026 · Crew Dock is operated by Orbit Innovations Ltd</CardDescription>
+                </CardHeader>
+              </Card>
+
+              {[
+                {
+                  title: '1. Acceptance of Terms',
+                  body: 'By accessing or using Crew Dock ("the Service"), you agree to be bound by these Terms and Conditions. If you do not agree, please do not use the Service. These terms apply to all users, including free and paid subscribers.',
+                },
+                {
+                  title: '2. Description of Service',
+                  body: 'Crew Dock is a web-based rate calculation, job tracking, and invoicing tool for UK film and television crew. It provides APA-based rate calculations as a guide only. Crew Dock does not guarantee the accuracy of any rate or calculation for any specific contract. You are responsible for verifying all figures before submitting invoices.',
+                },
+                {
+                  title: '3. User Accounts',
+                  body: 'You must register with a valid email address. You are responsible for maintaining the confidentiality of your password and for all activity under your account. Notify us immediately at support@crewdock.app if you suspect unauthorised access.',
+                },
+                {
+                  title: '4. Acceptable Use',
+                  body: 'You agree not to use the Service for any unlawful purpose, to impersonate any person, to upload malicious code, or to attempt to gain unauthorised access to any part of the platform. We reserve the right to suspend or terminate accounts that breach these terms.',
+                },
+                {
+                  title: '5. Subscription & Billing',
+                  body: 'Crew Dock Pro is a recurring subscription billed monthly or annually. Payments are processed via Stripe. You may cancel at any time; your access continues until the end of the current billing period. No refunds are issued for partial periods. Pricing may change with 30 days\' notice.',
+                },
+                {
+                  title: '6. Free Trial',
+                  body: 'New users receive a 14-day free trial of Crew Dock Pro with no credit card required. At the end of the trial, you will be downgraded to the free tier unless you subscribe. Trial abuse (e.g. creating multiple accounts to extend trial access) will result in account termination.',
+                },
+                {
+                  title: '7. Intellectual Property',
+                  body: 'All content, code, and design within Crew Dock is the property of Orbit Innovations Ltd. You may not reproduce, distribute, or create derivative works without express written permission. Your data remains your own.',
+                },
+                {
+                  title: '8. Disclaimers & Limitation of Liability',
+                  body: 'The Service is provided "as is" without warranty of any kind. Orbit Innovations Ltd is not liable for any loss of income, incorrect rate calculations, or data loss arising from use of the Service. Our total liability to you shall not exceed the amount you paid in the 12 months prior to the claim.',
+                },
+                {
+                  title: '9. Termination',
+                  body: 'You may delete your account at any time via Settings → Danger Zone. All your data will be permanently removed from our servers. We may terminate accounts for breach of these terms with or without notice.',
+                },
+                {
+                  title: '10. Governing Law',
+                  body: 'These Terms are governed by the laws of England and Wales. Any disputes shall be subject to the exclusive jurisdiction of the courts of England and Wales.',
+                },
+                {
+                  title: '11. Changes to These Terms',
+                  body: 'We may update these Terms from time to time. Continued use of the Service after changes constitutes acceptance. We will notify users of material changes by email or in-app notification.',
+                },
+                {
+                  title: '12. Contact',
+                  body: 'For questions about these Terms, contact us at support@crewdock.app.',
+                },
+              ].map(section => (
+                <div key={section.title} className="rounded-xl border border-border px-5 py-4 space-y-1.5">
+                  <p className="font-semibold text-foreground">{section.title}</p>
+                  <p className="text-muted-foreground">{section.body}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* ── Privacy Policy ── */}
+          {activeSection === 'privacy' && (
+            <div className="space-y-4 text-sm leading-relaxed">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" /> Privacy Policy</CardTitle>
+                  <CardDescription>Last updated: March 2026 · GDPR compliant · Data controller: Orbit Innovations Ltd</CardDescription>
+                </CardHeader>
+              </Card>
+
+              {[
+                {
+                  title: '1. Who We Are',
+                  body: 'Crew Dock is operated by Orbit Innovations Ltd ("we", "us", "our"). We are the data controller for personal data collected through this Service. Contact: support@crewdock.app.',
+                },
+                {
+                  title: '2. What Data We Collect',
+                  body: 'We collect: (a) Account data — your email address and display name provided at registration. (b) Profile data — name, phone number, company details, address, and VAT number you enter in Settings. (c) Usage data — jobs, days, rates, invoices, and expenses you create. (d) Technical data — IP address, browser type, and access logs for security and diagnostics.',
+                },
+                {
+                  title: '3. How We Use Your Data',
+                  body: 'Your data is used to: provide and improve the Service; generate invoices on your behalf; send transactional emails (invoice delivery, account security); process payments via Stripe; respond to support requests. We do not sell your data to third parties.',
+                },
+                {
+                  title: '4. Legal Basis for Processing (GDPR)',
+                  body: 'We process your data under the following legal bases: (a) Contract — processing necessary to provide the Service you have signed up for. (b) Legitimate interests — security monitoring, fraud prevention, and service improvement. (c) Consent — marketing emails (where applicable; you may withdraw consent at any time). (d) Legal obligation — where required by law.',
+                },
+                {
+                  title: '5. Data Retention',
+                  body: 'Free tier accounts: data is retained for 6 months of inactivity, then deleted. Pro accounts: data is retained for 3 years of inactivity. You may delete your account and all data at any time via Settings → Danger Zone. Deleted data is removed from live systems immediately; backups are purged within 30 days.',
+                },
+                {
+                  title: '6. Data Sharing',
+                  body: 'We share data only with trusted sub-processors necessary to operate the Service: Supabase (database hosting, EU/US); Vercel (hosting, US); Resend (transactional email, US); Stripe (payment processing, US). All processors are bound by GDPR-compliant data processing agreements.',
+                },
+                {
+                  title: '7. International Transfers',
+                  body: 'Some sub-processors operate outside the UK/EEA. Transfers are safeguarded by Standard Contractual Clauses (SCCs) or equivalent mechanisms approved under UK GDPR.',
+                },
+                {
+                  title: '8. Your Rights',
+                  body: 'Under UK GDPR you have the right to: access your personal data; correct inaccurate data; request erasure ("right to be forgotten"); restrict or object to processing; data portability; withdraw consent at any time. To exercise any right, contact support@crewdock.app. You also have the right to lodge a complaint with the ICO (ico.org.uk).',
+                },
+                {
+                  title: '9. Cookies',
+                  body: 'We use essential cookies only — for authentication sessions and security. We do not use advertising or tracking cookies. No cookie consent banner is required for essential cookies under UK GDPR.',
+                },
+                {
+                  title: '10. Security',
+                  body: 'We implement industry-standard security measures including encrypted connections (TLS), row-level security on our database, and hashed passwords managed by Supabase Auth. No method of transmission or storage is 100% secure; we cannot guarantee absolute security.',
+                },
+                {
+                  title: '11. Children',
+                  body: 'Crew Dock is not directed at children under 16. We do not knowingly collect data from anyone under 16. If you believe a child has provided us data, contact support@crewdock.app and we will delete it promptly.',
+                },
+                {
+                  title: '12. Changes to This Policy',
+                  body: 'We may update this Privacy Policy. We will notify you of significant changes by email or in-app notice. Continued use after changes constitutes acceptance.',
+                },
+                {
+                  title: '13. Contact & DPO',
+                  body: 'For privacy enquiries or to exercise your rights: support@crewdock.app. For UK GDPR complaints: Information Commissioner\'s Office, ico.org.uk, 0303 123 1113.',
+                },
+              ].map(section => (
+                <div key={section.title} className="rounded-xl border border-border px-5 py-4 space-y-1.5">
+                  <p className="font-semibold text-foreground">{section.title}</p>
+                  <p className="text-muted-foreground">{section.body}</p>
+                </div>
+              ))}
             </div>
           )}
 
