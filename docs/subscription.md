@@ -1,7 +1,7 @@
 # Crew Dock — Subscription & Monetisation Plan
 
 > Status: **Planned — not yet implemented**
-> Last updated: 23 March 2026
+> Last updated: 24 March 2026
 
 ---
 
@@ -18,7 +18,7 @@ Crew Dock uses a **Stripe-powered subscription** model with a **14-day free tria
 | Plan | Monthly | Annual | Annual equiv/mo |
 |------|---------|--------|-----------------|
 | Free | £0 | £0 | — |
-| **Crew Dock Pro** | **£3.49/month** | **£29.99/year** | **£2.50/mo** |
+| **Crew Dock Pro** | **£3.45/month** | **£29.95/year** | **£2.50/mo** |
 
 **Founding member pricing (launch strategy):** First 50–100 subscribers offered £19.99/year locked in — builds loyalty, gets real users fast, funds the first year of paid infrastructure.
 
@@ -50,6 +50,7 @@ Crew Dock uses a **Stripe-powered subscription** model with a **14-day free tria
 |-------|--------|-----------------|
 | `trialing` | Everything | Auto on signup (14 days, no card required) |
 | `active` | Everything | Stripe subscription active |
+| `lifetime` | Everything | Manually granted by admin |
 | `free` | Core only | Trial expired, not subscribed |
 | `past_due` | Degraded | Payment failed |
 | `canceled` | Core only | Subscription cancelled |
@@ -58,7 +59,7 @@ Crew Dock uses a **Stripe-powered subscription** model with a **14-day free tria
 
 ## Revenue & Break-Even Projections
 
-Assumptions: 25% premium conversion, blended £2.80/month per premium user (70% annual @ £2.50, 30% monthly @ £3.49).
+Assumptions: 25% premium conversion, blended £2.79/month per premium user (70% annual @ £2.50, 30% monthly @ £3.45).
 
 | Total Users | Premium Users | Monthly Revenue | Infra Cost | Monthly Profit |
 |-------------|---------------|-----------------|------------|----------------|
@@ -126,7 +127,7 @@ CREATE TABLE subscriptions (
   stripe_customer_id     text,
   stripe_subscription_id text,
   status                 text NOT NULL DEFAULT 'trialing',
-  -- allowed: 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid'
+  -- allowed: 'trialing' | 'active' | 'lifetime' | 'past_due' | 'canceled' | 'unpaid'
   trial_ends_at          timestamptz NOT NULL DEFAULT now() + interval '14 days',
   current_period_end     timestamptz,
   created_at             timestamptz DEFAULT now()
@@ -142,8 +143,8 @@ On every new Supabase auth signup, auto-insert a row with `status = 'trialing'` 
 
 ### Products / Prices (to create in Stripe Dashboard)
 - **Product:** Crew Dock Pro
-- **Price A:** £3.49 / month (recurring)
-- **Price B:** £29.99 / year (recurring)
+- **Price A:** £3.45 / month (recurring)
+- **Price B:** £29.95 / year (recurring)
 - **Founding member price:** £19.99 / year (coupon or separate price, limited availability)
 
 ### Required Vercel API Routes
@@ -163,6 +164,26 @@ On every new Supabase auth signup, auto-insert a row with `status = 'trialing'` 
 | `customer.subscription.deleted` | Set `status = 'canceled'` |
 | `invoice.payment_failed` | Set `status = 'past_due'` |
 | `customer.subscription.trial_will_end` | Trigger warning email (fires 3 days before expiry) |
+
+### Trial Extension for Reviews
+Users who leave a great review receive an additional 14 days added to their trial.
+
+- A Vercel API route `POST /api/stripe/extend-trial` handles the extension
+- Calls `stripe.subscriptions.update()` with `trial_end` set to current `trial_end + 14 days`
+- Syncs updated `trial_ends_at` back to Supabase via webhook
+- Trigger options:
+  - **Manual** — admin triggers extension from an internal tool after verifying the review
+  - **Automated** — webhook from a review platform (e.g. Trustpilot, Google) calls the route directly
+- To prevent abuse, track extensions in the `subscriptions` table with a `trial_extended` boolean — one extension per user
+
+### Lifetime Access
+Select users can be granted permanent Pro access with no Stripe subscription required.
+
+- Add a `lifetime` status to the `subscriptions` table (no `stripe_subscription_id` needed)
+- `isPremium` logic treats `status === 'lifetime'` the same as `active`
+- Granted manually via an admin tool or direct DB update — no self-serve path
+- Use cases: early contributors, beta testers, personal contacts, press/media
+- No expiry, no webhook management — purely a DB flag
 
 ### Required Environment Variables (Vercel)
 ```
@@ -190,6 +211,7 @@ const {
 
 // isPremium logic:
 // status === 'active'
+// OR status === 'lifetime'
 // OR (status === 'trialing' AND trial_ends_at > now())
 ```
 
@@ -255,7 +277,7 @@ Sign up
 
 | | Rate App | Crew Dock Free | Crew Dock Pro |
 |---|---|---|---|
-| Price | £4.99/mo · £49.99/yr | £0 | £3.49/mo · £29.99/yr |
+| Price | £4.99/mo · £49.99/yr | £0 | £3.45/mo · £29.95/yr |
 | Jobs | 2 free, unlimited paid | Unlimited | Unlimited |
 | Bookkeeping | QuickBooks only | — | QuickBooks, Xero, FreeAgent + |
 | AI input | No | No | Yes |

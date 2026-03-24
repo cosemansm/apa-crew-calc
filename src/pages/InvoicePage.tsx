@@ -21,6 +21,16 @@ interface Project {
   client_name: string | null;
 }
 
+interface DayResultJson {
+  lineItems?: { description: string; total: number }[];
+  penalties?: { description: string; total: number }[];
+  travelPay?: number;
+  mileage?: number;
+  mileageMiles?: number;
+  equipmentTotal?: number;
+  equipmentDiscount?: number;
+}
+
 interface ProjectDay {
   id: string;
   project_id: string;
@@ -30,6 +40,9 @@ interface ProjectDay {
   call_time: string;
   wrap_time: string;
   grand_total: number;
+  result_json?: DayResultJson;
+  expenses_amount?: number;
+  expenses_notes?: string;
   projects: { name: string; client_name: string | null } | null;
 }
 
@@ -56,6 +69,8 @@ export function InvoicePage() {
   const [bankAccountNumber, setBankAccountNumber] = useState('');
 
   const [clientEmail, setClientEmail] = useState('');
+
+  const [detailedInvoice, setDetailedInvoice] = useState(false);
 
   const [downloading, setDownloading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -84,7 +99,7 @@ export function InvoicePage() {
 
     supabase
       .from('project_days')
-      .select('id, project_id, work_date, role_name, day_type, call_time, wrap_time, grand_total, projects(name, client_name)')
+      .select('id, project_id, work_date, role_name, day_type, call_time, wrap_time, grand_total, result_json, expenses_amount, expenses_notes, projects(name, client_name)')
       .order('work_date', { ascending: true })
       .then(({ data }) => {
         if (data) {
@@ -367,6 +382,30 @@ export function InvoicePage() {
 
             <Separator />
 
+            {/* Invoice type toggle */}
+            <div className="space-y-2">
+              <Label>Invoice Style</Label>
+              <div className="flex rounded-xl border border-border overflow-hidden">
+                <button
+                  onClick={() => setDetailedInvoice(false)}
+                  className={`flex-1 py-2 px-3 text-sm font-medium transition-colors ${!detailedInvoice ? 'bg-[#1F1F21] text-white' : 'bg-white text-muted-foreground hover:bg-muted/40'}`}
+                >
+                  Simple
+                </button>
+                <button
+                  onClick={() => setDetailedInvoice(true)}
+                  className={`flex-1 py-2 px-3 text-sm font-medium transition-colors ${detailedInvoice ? 'bg-[#1F1F21] text-white' : 'bg-white text-muted-foreground hover:bg-muted/40'}`}
+                >
+                  Detailed
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {detailedInvoice ? 'Shows full breakdown per day — base rate, OT, penalties, equipment, expenses' : 'One line per day with total only'}
+              </p>
+            </div>
+
+            <Separator />
+
             {/* Invoice number / date / ref */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -559,25 +598,111 @@ export function InvoicePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedDays.map((day, idx) => (
-                      <tr key={day.id} style={{ borderBottom: '1px solid #F0EDE8' }}>
-                        <td style={{ padding: '12px 14px', verticalAlign: 'top' }}>
-                          <p style={{ fontWeight: '600', color: '#1F1F21', margin: '0 0 2px', fontSize: '13px' }}>{day.role_name}</p>
-                          <p style={{ color: '#9A9A9A', margin: '0', fontSize: '11px', textTransform: 'capitalize' }}>
-                            {day.day_type.replace(/_/g, ' ')}
-                          </p>
-                        </td>
-                        <td style={{ padding: '12px 14px', color: '#6B6B6B', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
-                          {day.work_date ? format(parseISO(day.work_date), 'EEE dd MMM yyyy') : '—'}
-                        </td>
-                        <td style={{ padding: '12px 14px', color: '#6B6B6B', verticalAlign: 'top', whiteSpace: 'nowrap', fontSize: '12px' }}>
-                          {day.call_time} – {day.wrap_time}
-                        </td>
-                        <td style={{ padding: '12px 14px', textAlign: 'right', fontWeight: '700', color: '#1F1F21', verticalAlign: 'top', fontFamily: 'monospace', fontSize: '14px' }}>
-                          £{(day.grand_total || 0).toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
+                    {selectedDays.map((day) => {
+                      const rj = day.result_json;
+                      const hasBreakdown = detailedInvoice && rj && (
+                        (rj.lineItems?.length ?? 0) > 0 ||
+                        (rj.penalties?.length ?? 0) > 0 ||
+                        (rj.travelPay ?? 0) > 0 ||
+                        (rj.mileage ?? 0) > 0 ||
+                        (rj.equipmentTotal ?? 0) > 0 ||
+                        (day.expenses_amount ?? 0) > 0
+                      );
+                      return (
+                        <>
+                          {/* Main day row */}
+                          <tr key={day.id} style={{ borderBottom: hasBreakdown ? 'none' : '1px solid #F0EDE8' }}>
+                            <td style={{ padding: hasBreakdown ? '12px 14px 4px' : '12px 14px', verticalAlign: 'top' }}>
+                              <p style={{ fontWeight: '600', color: '#1F1F21', margin: '0 0 2px', fontSize: '13px' }}>{day.role_name}</p>
+                              <p style={{ color: '#9A9A9A', margin: '0', fontSize: '11px', textTransform: 'capitalize' }}>
+                                {day.day_type.replace(/_/g, ' ')}
+                              </p>
+                            </td>
+                            <td style={{ padding: hasBreakdown ? '12px 14px 4px' : '12px 14px', color: '#6B6B6B', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
+                              {day.work_date ? format(parseISO(day.work_date), 'EEE dd MMM yyyy') : '—'}
+                            </td>
+                            <td style={{ padding: hasBreakdown ? '12px 14px 4px' : '12px 14px', color: '#6B6B6B', verticalAlign: 'top', whiteSpace: 'nowrap', fontSize: '12px' }}>
+                              {day.call_time} – {day.wrap_time}
+                            </td>
+                            <td style={{ padding: hasBreakdown ? '12px 14px 4px' : '12px 14px', textAlign: 'right', fontWeight: '700', color: '#1F1F21', verticalAlign: 'top', fontFamily: 'monospace', fontSize: '14px' }}>
+                              £{(day.grand_total || 0).toFixed(2)}
+                            </td>
+                          </tr>
+
+                          {/* Detailed sub-rows */}
+                          {hasBreakdown && rj && (
+                            <>
+                              {/* Line items (base rate, OT, etc.) */}
+                              {rj.lineItems?.map((item, i) => (
+                                <tr key={`li-${i}`} style={{ backgroundColor: '#FAFAF8' }}>
+                                  <td style={{ padding: '3px 14px 3px 28px', color: '#6B6B6B', fontSize: '11px' }} colSpan={2}>
+                                    {item.description}
+                                  </td>
+                                  <td style={{ padding: '3px 14px', color: '#6B6B6B', fontSize: '11px' }}></td>
+                                  <td style={{ padding: '3px 14px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace' }}>
+                                    £{item.total.toFixed(2)}
+                                  </td>
+                                </tr>
+                              ))}
+                              {/* Penalties */}
+                              {rj.penalties?.map((p, i) => (
+                                <tr key={`pen-${i}`} style={{ backgroundColor: '#FAFAF8' }}>
+                                  <td style={{ padding: '3px 14px 3px 28px', color: '#D97706', fontSize: '11px' }} colSpan={2}>
+                                    {p.description}
+                                  </td>
+                                  <td style={{ padding: '3px 14px', color: '#D97706', fontSize: '11px' }}></td>
+                                  <td style={{ padding: '3px 14px', textAlign: 'right', color: '#D97706', fontSize: '11px', fontFamily: 'monospace' }}>
+                                    £{p.total.toFixed(2)}
+                                  </td>
+                                </tr>
+                              ))}
+                              {/* Travel pay */}
+                              {(rj.travelPay ?? 0) > 0 && (
+                                <tr style={{ backgroundColor: '#FAFAF8' }}>
+                                  <td style={{ padding: '3px 14px 3px 28px', color: '#6B6B6B', fontSize: '11px' }} colSpan={2}>
+                                    Travel pay{rj.mileageMiles ? ` · ${rj.mileageMiles} miles outside M25` : ''}
+                                  </td>
+                                  <td style={{ padding: '3px 14px', color: '#6B6B6B', fontSize: '11px' }}></td>
+                                  <td style={{ padding: '3px 14px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace' }}>
+                                    £{((rj.travelPay ?? 0) + (rj.mileage ?? 0)).toFixed(2)}
+                                  </td>
+                                </tr>
+                              )}
+                              {/* Equipment */}
+                              {(rj.equipmentTotal ?? 0) > 0 && (
+                                <tr style={{ backgroundColor: '#FAFAF8' }}>
+                                  <td style={{ padding: '3px 14px 3px 28px', color: '#6B6B6B', fontSize: '11px' }} colSpan={2}>
+                                    Equipment{(rj.equipmentDiscount ?? 0) > 0 ? ` (−${rj.equipmentDiscount}% discount)` : ''}
+                                  </td>
+                                  <td style={{ padding: '3px 14px', color: '#6B6B6B', fontSize: '11px' }}></td>
+                                  <td style={{ padding: '3px 14px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace' }}>
+                                    £{(rj.equipmentTotal ?? 0).toFixed(2)}
+                                  </td>
+                                </tr>
+                              )}
+                              {/* Expenses */}
+                              {(day.expenses_amount ?? 0) > 0 && (
+                                <tr style={{ backgroundColor: '#FAFAF8' }}>
+                                  <td style={{ padding: '3px 14px 8px 28px', color: '#6B6B6B', fontSize: '11px', borderBottom: '1px solid #F0EDE8' }} colSpan={2}>
+                                    Expenses{day.expenses_notes ? ` — ${day.expenses_notes}` : ''}
+                                  </td>
+                                  <td style={{ padding: '3px 14px 8px', color: '#6B6B6B', fontSize: '11px', borderBottom: '1px solid #F0EDE8' }}></td>
+                                  <td style={{ padding: '3px 14px 8px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace', borderBottom: '1px solid #F0EDE8' }}>
+                                    £{(day.expenses_amount ?? 0).toFixed(2)}
+                                  </td>
+                                </tr>
+                              )}
+                              {/* Closing border row if no expenses */}
+                              {(day.expenses_amount ?? 0) === 0 && (
+                                <tr style={{ borderBottom: '1px solid #F0EDE8' }}>
+                                  <td colSpan={4} style={{ padding: '4px 0' }}></td>
+                                </tr>
+                              )}
+                            </>
+                          )}
+                        </>
+                      );
+                    })}
                   </tbody>
                 </table>
               ) : (

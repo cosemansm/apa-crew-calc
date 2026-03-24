@@ -569,12 +569,12 @@ export function SettingsPage() {
                           </div>
                           <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
                             <span className="font-mono">£{role.daily_rate}/day</span>
-                            {!role.is_buyout && (<>
+                            {!role.is_buyout ? (<>
                               <span>·</span>
                               <span className="font-mono">BHR £{role.custom_bhr ?? Math.round(role.daily_rate / 10)}/hr</span>
                               <span>·</span>
                               <span>OT x{role.ot_coefficient}{role.ot_coefficient > 0 && <span className="font-mono ml-1">(£{Math.round((role.custom_bhr ?? Math.round(role.daily_rate / 10)) * role.ot_coefficient)}/hr)</span>}</span>
-                            </>)}
+                            </>) : null}
                           </div>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">

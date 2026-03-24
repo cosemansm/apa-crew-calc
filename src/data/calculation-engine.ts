@@ -138,11 +138,11 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
   const otRate = Math.round(bhr * otCoefficient);
   const tripleBhr = bhr * 3;
 
-  // Flat all-in rate: return agreed daily rate as a single line item, no OT or BHR breakdown.
+  // Buyout: return agreed daily rate as a single line item, no OT or BHR breakdown.
   if (role.isBuyout) {
     const eqTotal = Math.round((input.equipmentValue ?? 0) * (1 - (input.equipmentDiscount ?? 0) / 100));
     return {
-      lineItems: [{ description: 'Day Rate (all-in)', hours: 1, rate: bdr, total: bdr }],
+      lineItems: [{ description: 'Day Rate (buyout)', hours: 1, rate: bdr, total: bdr }],
       subtotal: bdr,
       travelPay: 0,
       mileage: input.mileageOutsideM25 > 0 ? input.mileageOutsideM25 * 0.45 : 0,
@@ -153,7 +153,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
       equipmentTotal: eqTotal,
       grandTotal: bdr + eqTotal + (input.mileageOutsideM25 > 0 ? input.mileageOutsideM25 * 0.45 : 0),
       callType: 'standard',
-      dayDescription: 'All-in rate',
+      dayDescription: 'Buyout',
     };
   }
 
