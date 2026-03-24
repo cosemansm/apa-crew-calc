@@ -1605,7 +1605,7 @@ export function CalculatorPage() {
               </Button>
               {result && projectId && (
                 <Button variant="secondary" onClick={handleAddDay} disabled={saving}>
-                  <Plus className="h-4 w-4 mr-1" /> Add Next Day
+                  <Plus className="h-4 w-4 mr-1" /> Add New Day
                 </Button>
               )}
               {/* Save status indicator */}

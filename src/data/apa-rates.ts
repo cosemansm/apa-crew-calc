@@ -32,12 +32,12 @@ export const APA_CREW_ROLES: CrewRole[] = [
   { role: 'Producer', department: 'Production', minRate: null, maxRate: 933, otGrade: 'N/A', otCoefficient: 0 },
   { role: 'Production Manager', department: 'Production', minRate: 489, maxRate: 609, otGrade: 'N/A', otCoefficient: 0, specialRules: 'pm_pa_runner' },
   { role: 'Production Runner', department: 'Production', minRate: null, maxRate: 238, otGrade: 'N/A', otCoefficient: 0, specialRules: 'pm_pa_runner' },
-  { role: 'Location Manager', department: 'Production', minRate: 489, maxRate: 580, otGrade: 'II', otCoefficient: 1.25 },
+  { role: 'Location Manager', department: 'Production', minRate: 489, maxRate: 580, otGrade: 'II', otCoefficient: 1.25, specialRules: 'basic_working_nsd' },
   { role: 'Production Assistant', department: 'Production', minRate: 340, maxRate: 428, otGrade: 'N/A', otCoefficient: 0, specialRules: 'pm_pa_runner' },
   { role: 'Script Supervisor', department: 'Production', minRate: 449, maxRate: 558, otGrade: 'II', otCoefficient: 1.25 },
 
   // Camera
-  { role: 'Director Of Photography', department: 'Camera', minRate: 908, maxRate: 1516, otGrade: 'III', otCoefficient: 1.0 },
+  { role: 'Director Of Photography', department: 'Camera', minRate: 908, maxRate: 1516, otGrade: 'III', otCoefficient: 1.0, specialRules: 'basic_working_nsd' },
   { role: 'Camera Operator', department: 'Camera', minRate: 514, maxRate: 637, otGrade: 'II', otCoefficient: 1.25 },
   { role: 'Focus Puller (1st AC)', department: 'Camera', minRate: 448, maxRate: 558, otGrade: 'II', otCoefficient: 1.25 },
   { role: 'Clapper Loader', department: 'Camera', minRate: 345, maxRate: 435, otGrade: 'I', otCoefficient: 1.5 },
@@ -69,7 +69,7 @@ export const APA_CREW_ROLES: CrewRole[] = [
   { role: 'Model Animator Asst.', department: 'Animation', minRate: 449, maxRate: 558, otGrade: 'II', otCoefficient: 1.25 },
 
   // Art
-  { role: 'Art Director', department: 'Art', minRate: 655, maxRate: 852, otGrade: 'III', otCoefficient: 1.0 },
+  { role: 'Art Director', department: 'Art', minRate: 655, maxRate: 852, otGrade: 'III', otCoefficient: 1.0, specialRules: 'basic_working_nsd' },
   { role: 'Asst. Art Director', department: 'Art', minRate: 479, maxRate: 568, otGrade: 'II', otCoefficient: 1.25 },
   { role: 'Stylist', department: 'Art', minRate: 504, maxRate: 628, otGrade: 'II', otCoefficient: 1.25 },
   { role: 'Props Buyer', department: 'Art', minRate: 479, maxRate: 568, otGrade: 'II', otCoefficient: 1.25 },

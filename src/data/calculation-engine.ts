@@ -124,6 +124,15 @@ function splitAfterMidnightOT(
 export function calculateCrewCost(input: CalculationInput): CalculationResult {
   const { role, agreedDailyRate, dayOfWeek, callTime, wrapTime } = input;
   let { dayType } = input;
+
+  // APA S.2.3: DOP, Art Directors and Location Managers are always on Basic Working Day
+  // terms even on non-shooting days (prep/recce/build_strike/pre_light).
+  // Their day is treated as 10+1hrs with OT after 11hrs.
+  const isBasicWorkingNSD = role.specialRules === 'basic_working_nsd';
+  if (isBasicWorkingNSD && (dayType === 'prep' || dayType === 'recce' || dayType === 'build_strike' || dayType === 'pre_light')) {
+    dayType = 'basic_working';
+  }
+
   const bdr = agreedDailyRate;
   const bhr = role.customBhr ?? Math.round(bdr / 10);
   const dayLength = calculateDayLengthHours(callTime, wrapTime);
@@ -696,7 +705,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
     equipmentTotal,
     grandTotal,
     callType,
-    dayDescription: `${convertedToContinuous ? 'Converted to Continuous (break missed)' : dayDescriptions[dayType]} - ${callType.charAt(0).toUpperCase() + callType.slice(1)} Call`,
+    dayDescription: `${convertedToContinuous ? 'Converted to Continuous (break missed)' : isBasicWorkingNSD && input.dayType !== 'basic_working' && input.dayType !== 'continuous_working' && input.dayType !== 'rest' && input.dayType !== 'travel' ? `${dayDescriptions[input.dayType]} (Basic Working Day rules — S.2.3)` : dayDescriptions[dayType]} - ${callType.charAt(0).toUpperCase() + callType.slice(1)} Call`,
   };
 }
 
