@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 460" font-family="system-ui, -apple-system, sans-serif">
+  <!-- Background -->
+  <rect width="800" height="460" fill="#FAF8F4"/>
+  <!-- Sidebar -->
+  <rect width="148" height="460" fill="#1F1F21" rx="0"/>
+  <!-- Logo area -->
+  <rect x="16" y="14" width="28" height="28" rx="6" fill="#FFD528"/>
+  <text x="30" y="33" text-anchor="middle" fill="#1F1F21" font-size="14" font-weight="700">⚓</text>
+  <text x="54" y="33" fill="white" font-size="13" font-weight="600">Crew Dock</text>
+  <!-- Nav items -->
+  <rect x="10" y="58" width="128" height="30" rx="8" fill="#FFD528"/>
+  <text x="24" y="78" fill="#1F1F21" font-size="11" font-weight="600">Dashboard</text>
+  <text x="24" y="112" fill="#9A9A9A" font-size="11">Calculator</text>
+  <text x="24" y="140" fill="#9A9A9A" font-size="11">Jobs</text>
+  <text x="24" y="168" fill="#9A9A9A" font-size="11">AI Input</text>
+  <text x="24" y="196" fill="#9A9A9A" font-size="11">Invoices</text>
+  <text x="24" y="224" fill="#9A9A9A" font-size="11">Support</text>
+  <text x="24" y="420" fill="#9A9A9A" font-size="11">Settings</text>
+  <!-- Main area -->
+  <!-- Header -->
+  <text x="168" y="42" fill="#1F1F21" font-size="22" font-weight="700">Hi, there!</text>
+  <text x="168" y="60" fill="#9A9A9A" font-size="11">Let's manage your crew bookings</text>
+  <rect x="580" y="22" width="80" height="28" rx="14" fill="#1F1F21"/>
+  <text x="620" y="41" text-anchor="middle" fill="white" font-size="10">✦ AI Input</text>
+  <rect x="670" y="22" width="80" height="28" rx="14" fill="#FFD528"/>
+  <text x="710" y="41" text-anchor="middle" fill="#1F1F21" font-size="10" font-weight="600">+ New Job</text>
+  <!-- Calendar card -->
+  <rect x="168" y="76" width="350" height="280" rx="12" fill="white" stroke="#E5E5E5" stroke-width="1"/>
+  <text x="210" y="108" fill="#1F1F21" font-size="15" font-weight="700">March 2026</text>
+  <text x="188" y="136" fill="#9A9A9A" font-size="9">Mon</text>
+  <text x="220" y="136" fill="#9A9A9A" font-size="9">Tue</text>
+  <text x="252" y="136" fill="#9A9A9A" font-size="9">Wed</text>
+  <text x="284" y="136" fill="#9A9A9A" font-size="9">Thu</text>
+  <text x="316" y="136" fill="#9A9A9A" font-size="9">Fri</text>
+  <text x="348" y="136" fill="#9A9A9A" font-size="9">Sat</text>
+  <text x="380" y="136" fill="#9A9A9A" font-size="9">Sun</text>
+  <!-- Grid days -->
+  <rect x="372" y="148" width="22" height="22" rx="4" fill="#FFD528"/>
+  <text x="383" y="163" text-anchor="middle" fill="#1F1F21" font-size="9" font-weight="700">24</text>
+  <text x="191" y="163" text-anchor="middle" fill="#555" font-size="9">2</text>
+  <text x="223" y="163" text-anchor="middle" fill="#555" font-size="9">3</text>
+  <text x="255" y="163" text-anchor="middle" fill="#555" font-size="9">4</text>
+  <!-- Stats cards -->
+  <rect x="534" y="76" width="246" height="90" rx="12" fill="white" stroke="#E5E5E5" stroke-width="1"/>
+  <text x="554" y="102" fill="#9A9A9A" font-size="9" font-weight="600" letter-spacing="0.5">MARCH 2026</text>
+  <text x="554" y="128" fill="#1F1F21" font-size="22" font-weight="700">£0</text>
+  <text x="554" y="146" fill="#9A9A9A" font-size="9">Monthly earnings</text>
+  <rect x="534" y="178" width="246" height="80" rx="12" fill="#1F1F21"/>
+  <text x="554" y="202" fill="#9A9A9A" font-size="9" font-weight="600" letter-spacing="0.5">2026 TOTAL</text>
+  <text x="554" y="230" fill="white" font-size="22" font-weight="700">£0</text>
+  <!-- Recent jobs -->
+  <text x="168" y="382" fill="#1F1F21" font-size="14" font-weight="600">Recent Jobs</text>
+  <rect x="168" y="395" width="610" height="50" rx="12" fill="white" stroke="#E5E5E5" stroke-width="1"/>
+  <text x="380" y="425" text-anchor="middle" fill="#9A9A9A" font-size="11">No jobs yet. Create your first job to get started.</text>
+</svg>

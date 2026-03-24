@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 460" font-family="system-ui, -apple-system, sans-serif">
+  <rect width="800" height="460" fill="#FAF8F4"/>
+  <rect width="148" height="460" fill="#1F1F21"/>
+  <rect x="16" y="14" width="28" height="28" rx="6" fill="#FFD528"/>
+  <text x="30" y="33" text-anchor="middle" fill="#1F1F21" font-size="14">⚓</text>
+  <text x="54" y="33" fill="white" font-size="13" font-weight="600">Crew Dock</text>
+  <text x="24" y="78" fill="#9A9A9A" font-size="11">Dashboard</text>
+  <text x="24" y="106" fill="#9A9A9A" font-size="11">Calculator</text>
+  <text x="24" y="134" fill="#9A9A9A" font-size="11">Jobs</text>
+  <rect x="10" y="142" width="128" height="30" rx="8" fill="#FFD528"/>
+  <text x="24" y="162" fill="#1F1F21" font-size="11" font-weight="600">AI Input</text>
+  <text x="24" y="190" fill="#9A9A9A" font-size="11">Invoices</text>
+  <text x="24" y="218" fill="#9A9A9A" font-size="11">Support</text>
+  <text x="24" y="420" fill="#9A9A9A" font-size="11">Settings</text>
+  <!-- Main -->
+  <text x="168" y="36" fill="#1F1F21" font-size="16" font-weight="700">✦ AI Timesheet Input</text>
+  <text x="168" y="52" fill="#9A9A9A" font-size="9">Describe your shoot days in plain English — even partial info works.</text>
+  <!-- Big text area -->
+  <rect x="168" y="64" width="614" height="160" rx="12" fill="white" stroke="#E5E5E5" stroke-width="1"/>
+  <text x="184" y="90" fill="#C0C0C0" font-size="10">Just type what you know:</text>
+  <text x="184" y="112" fill="#9A9A9A" font-size="9">"Call 0800 wrap 1700 + 2h OT"</text>
+  <text x="184" y="130" fill="#9A9A9A" font-size="9">"Gaffer, Monday, 6am–9pm, £568"</text>
+  <text x="184" y="148" fill="#9A9A9A" font-size="9">"3 day shoot as DoP at £1200. Mon–Wed, call 0730, wrap around 2000"</text>
+  <text x="184" y="166" fill="#9A9A9A" font-size="9">"Saturday night shoot as Sound Mixer. Called 6pm, wrapped 5am."</text>
+  <!-- Buttons -->
+  <rect x="168" y="238" width="130" height="32" rx="16" fill="#FFD528"/>
+  <text x="233" y="259" text-anchor="middle" fill="#1F1F21" font-size="10" font-weight="600">✦ Parse &amp; Review</text>
+  <rect x="308" y="238" width="140" height="32" rx="16" fill="white" stroke="#E5E5E5" stroke-width="1"/>
+  <text x="378" y="259" text-anchor="middle" fill="#555" font-size="10">Manual Calculator</text>
+  <!-- Examples section -->
+  <text x="168" y="300" fill="#1F1F21" font-size="12" font-weight="600">Try an example</text>
+  <text x="168" y="316" fill="#9A9A9A" font-size="9">Click any example to load it</text>
+  <rect x="168" y="326" width="614" height="30" rx="8" fill="white" stroke="#E5E5E5" stroke-width="1"/>
+  <text x="184" y="345" fill="#555" font-size="9">"Call 0800 wrap 1700 + 2h OT"</text>
+  <rect x="168" y="364" width="614" height="30" rx="8" fill="white" stroke="#E5E5E5" stroke-width="1"/>
+  <text x="184" y="383" fill="#555" font-size="9">"I was a Focus Puller on Monday at £558. Called at 7am, wrapped at 10pm."</text>
+  <rect x="168" y="402" width="614" height="30" rx="8" fill="white" stroke="#E5E5E5" stroke-width="1"/>
+  <text x="184" y="421" fill="#555" font-size="9">"2 day shoot as Gaffer at £568. Monday 0800–2100, Tuesday 0700–1900 continuous day."</text>
+</svg>

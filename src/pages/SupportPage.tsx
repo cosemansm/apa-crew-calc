@@ -4,6 +4,12 @@ import {
   Calculator, FolderOpen, FileText, Sparkles, Settings, Package, Receipt,
   LayoutDashboard, History, Briefcase, CalendarDays, Clock, Coffee, Car, Shield,
 } from 'lucide-react';
+import helpDashboard from '@/assets/help/dashboard.svg';
+import helpCalculator from '@/assets/help/calculator.svg';
+import helpJobs from '@/assets/help/jobs.svg';
+import helpInvoices from '@/assets/help/invoices.svg';
+import helpAiInput from '@/assets/help/ai-input.svg';
+import helpSettings from '@/assets/help/settings.svg';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -80,12 +86,14 @@ const HELP_SECTIONS: {
   id: string;
   title: string;
   icon: React.ElementType;
+  screenshot?: string;
   items: { heading: string; body: string }[];
 }[] = [
   {
     id: 'getting-started',
     title: 'Getting Started',
     icon: LayoutDashboard,
+    screenshot: helpDashboard,
     items: [
       { heading: 'Sign up & log in', body: 'Create an account with your email. You\'ll land on the Dashboard where you can see recent jobs and quick stats.' },
       { heading: 'Creating your first job', body: 'Click "New Job" on the Dashboard. Give it a name (e.g. the commercial title) and you\'re ready to add days.' },
@@ -96,6 +104,7 @@ const HELP_SECTIONS: {
     id: 'calculator',
     title: 'Calculator',
     icon: Calculator,
+    screenshot: helpCalculator,
     items: [
       { heading: 'Day Types', body: 'Choose between Studio/Location, Travel Day, Pre-light/De-rig, or Rest Day. Each has different APA rate rules that are applied automatically.' },
       { heading: 'Call & Wrap Times', body: 'Set your call time and wrap time. The calculator works out your total hours, overtime, and any penalties based on APA terms.' },
@@ -118,6 +127,7 @@ const HELP_SECTIONS: {
     id: 'jobs',
     title: 'Jobs',
     icon: FolderOpen,
+    screenshot: helpJobs,
     items: [
       { heading: 'Managing jobs', body: 'The Jobs page shows all your booking jobs. Each job can have multiple days. Click into a job to see all its days and the running total.' },
       { heading: 'Adding days', body: 'From the Calculator, select a job and fill in the day details. Hit "Save Day" to add it to the job. You can edit or delete days later.' },
@@ -128,6 +138,7 @@ const HELP_SECTIONS: {
     id: 'invoices',
     title: 'Invoices',
     icon: FileText,
+    screenshot: helpInvoices,
     items: [
       { heading: 'Generating an invoice', body: 'Go to the Invoices page, select a job, fill in your company details and the client\'s billing info, then download the PDF.' },
       { heading: 'Sending by email', body: 'After generating the PDF, enter the recipient\'s email address and optional message. The invoice is sent as a PDF attachment.' },
@@ -147,6 +158,7 @@ const HELP_SECTIONS: {
     id: 'ai-input',
     title: 'AI Input',
     icon: Sparkles,
+    screenshot: helpAiInput,
     items: [
       { heading: 'How it works', body: 'Describe your working day in plain English — e.g. "Called at 7am, wrapped at 8pm, 45 min lunch at 1pm, drove 30 miles." The AI extracts all the details and fills in the calculator for you.' },
       { heading: 'Review before saving', body: 'AI Input pre-fills the form but doesn\'t save automatically. Always review the values before hitting Save Day.' },
@@ -156,6 +168,7 @@ const HELP_SECTIONS: {
     id: 'settings-help',
     title: 'Settings',
     icon: Settings,
+    screenshot: helpSettings,
     items: [
       { heading: 'User Details', body: 'Your name, phone, and address. Used when generating invoices.' },
       { heading: 'Company Details', body: 'Company name, address, VAT number, and bank details. These pre-fill your invoice templates.' },
@@ -599,13 +612,24 @@ export function SupportPage() {
                       )} />
                     </button>
                     {isOpen && (
-                      <div className="border-t border-border px-4 py-3 space-y-4 bg-muted/10">
-                        {section.items.map((item, i) => (
-                          <div key={i}>
-                            <p className="text-sm font-medium mb-1">{item.heading}</p>
-                            <p className="text-sm text-muted-foreground leading-relaxed">{item.body}</p>
+                      <div className="border-t border-border bg-muted/10">
+                        {section.screenshot && (
+                          <div className="p-4 pb-0">
+                            <img
+                              src={section.screenshot}
+                              alt={`${section.title} screenshot`}
+                              className="w-full rounded-lg border border-border shadow-sm"
+                            />
                           </div>
-                        ))}
+                        )}
+                        <div className="px-4 py-4 space-y-4">
+                          {section.items.map((item, i) => (
+                            <div key={i}>
+                              <p className="text-sm font-medium mb-1">{item.heading}</p>
+                              <p className="text-sm text-muted-foreground leading-relaxed">{item.body}</p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
