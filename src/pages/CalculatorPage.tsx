@@ -930,6 +930,17 @@ export function CalculatorPage() {
             </Button>
           </div>
         )}
+        {/* + Add Day button — always visible at top for quick access */}
+        {projectId && currentDayId && (
+          <Button
+            variant="outline"
+            className="w-full gap-2"
+            onClick={() => handleAddNewDay(format(addDays(parseISO(workDate), 1), 'yyyy-MM-dd'))}
+          >
+            <Plus className="h-4 w-4" /> Add New Day
+          </Button>
+        )}
+
         <Card>
           <CardHeader className="hidden md:block pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -1056,27 +1067,44 @@ export function CalculatorPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="rate">Day Rate</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="rate">Day Rate</Label>
+                  {selectedRole && agreedRate && !selectedRole.isBuyout && (
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button className="flex items-center justify-center h-5 w-5 rounded-full text-muted-foreground/40 hover:text-muted-foreground/80 transition-colors">
+                          <Info className="h-3.5 w-3.5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-64 px-4 py-3 text-sm space-y-2">
+                        <p className="font-medium text-foreground">Rate Breakdown</p>
+                        {selectedRole.isCustom ? (
+                          <div className="space-y-1 text-muted-foreground">
+                            <p>Custom grade · OT x{selectedRole.otCoefficient}</p>
+                            <p>BHR: <strong className="text-foreground">£{selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)}/hr</strong></p>
+                            {selectedRole.otCoefficient > 0 && (
+                              <p>OT rate: <strong className="text-foreground">£{Math.round((selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)) * selectedRole.otCoefficient)}/hr</strong></p>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-1 text-muted-foreground">
+                            <p>BHR: <strong className="text-foreground">£{Math.round(parseInt(agreedRate) / 10)}/hr</strong> <span className="text-xs">(1/10 of day rate)</span></p>
+                            {selectedRole.otGrade !== 'N/A' && (
+                              <>
+                                <p>OT Grade: <strong className="text-foreground">{selectedRole.otGrade}</strong> (x{selectedRole.otCoefficient})</p>
+                                <p>OT rate: <strong className="text-foreground">£{Math.round(Math.round(parseInt(agreedRate) / 10) * selectedRole.otCoefficient)}/hr</strong></p>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                </div>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">£</span>
                   <Input id="rate" type="number" className="pl-7" value={agreedRate} onChange={e => setAgreedRate(e.target.value)} placeholder={selectedRole ? `${selectedRole.minRate || '—'} - ${selectedRole.maxRate || '—'}` : 'Select role first'} />
                 </div>
-                {selectedRole && agreedRate && !selectedRole.isBuyout && (
-                  <p className="text-xs text-muted-foreground">
-                    {selectedRole.isCustom ? (
-                      <>
-                        Custom grade · OT x{selectedRole.otCoefficient}
-                        {` | BHR £${selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)}/hr`}
-                        {selectedRole.otCoefficient > 0 && ` | OT £${Math.round((selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)) * selectedRole.otCoefficient)}/hr`}
-                      </>
-                    ) : (
-                      <>
-                        {`BHR £${Math.round(parseInt(agreedRate) / 10)}/hr`}
-                        {selectedRole.otGrade !== 'N/A' && ` | OT Grade ${selectedRole.otGrade} (x${selectedRole.otCoefficient})`}
-                      </>
-                    )}
-                  </p>
-                )}
               </div>
             </div>
 
@@ -1186,7 +1214,7 @@ export function CalculatorPage() {
             <Separator />
 
             {/* Breaks */}
-            {(dayType === 'basic_working' || dayType === 'continuous_working') && (
+            {(dayType === 'basic_working' || dayType === 'continuous_working' || dayType === 'prep' || dayType === 'recce' || dayType === 'build_strike' || dayType === 'pre_light') && (
               <>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -1201,6 +1229,36 @@ export function CalculatorPage() {
                       APA T&Cs ↗
                     </a>
                   </div>
+
+                  {/* Non-shooting day breaks (prep/recce/build_strike/pre_light) */}
+                  {(dayType === 'prep' || dayType === 'recce' || dayType === 'build_strike' || dayType === 'pre_light') && (
+                    <div className="rounded-2xl border px-4 py-3 space-y-2.5">
+                      <div className="flex items-center gap-3">
+                        <Checkbox
+                          id="nsdBreak"
+                          checked={firstBreakGiven}
+                          onCheckedChange={v => setFirstBreakGiven(!!v)}
+                        />
+                        <Label htmlFor="nsdBreak" className="font-medium text-sm flex-1">
+                          Break given
+                          <span className="text-muted-foreground font-normal">
+                            {dayType === 'pre_light' ? ' (1 hr lunch included)' : ' (at producer\'s discretion)'}
+                          </span>
+                        </Label>
+                      </div>
+                      <p className="ml-7 text-xs text-muted-foreground">
+                        {firstBreakGiven
+                          ? dayType === 'pre_light'
+                            ? 'OT starts after 9 hours (8hrs + 1hr lunch)'
+                            : 'OT starts after 9 hours (8hrs + 1hr break)'
+                          : 'OT starts after 8 hours (no break given)'
+                        }
+                      </p>
+                      {dayType === 'pre_light' && !firstBreakGiven && (
+                        <p className="ml-7 text-xs text-orange-600">£7.50 meal allowance applies if meal not provided</p>
+                      )}
+                    </div>
+                  )}
 
                   {dayType === 'basic_working' && (
                     <div className="space-y-2">

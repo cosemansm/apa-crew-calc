@@ -250,6 +250,10 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
       rate: hourlyRate,
       total: baseHours * hourlyRate,
     });
+    // Section 2.3 table: £7.50 meal allowance if meal not provided on pre-light
+    if (!input.firstBreakGiven) {
+      penalties.push({ description: 'Pre-light meal allowance (not provided)', hours: 0, rate: 7.50, total: 7.50 });
+    }
     // PM/PA/Runner: no OT on non-shooting days (Appendix 1(a): "SHOOT DAYS ONLY")
     if (!isPMPARunner) {
       const otHours = Math.max(0, dayLength - 9);
