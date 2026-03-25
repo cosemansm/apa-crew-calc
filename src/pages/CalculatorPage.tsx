@@ -1129,13 +1129,6 @@ export function CalculatorPage() {
                   <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input id="workDate" type="date" className="pl-10" value={workDate} onChange={e => setWorkDate(e.target.value)} />
                 </div>
-                <div className="flex items-center justify-between">
-                  <Badge variant="outline">{isBankHoliday ? 'Bank Holiday' : DAY_LABELS[dateToDayOfWeek(workDate)]}</Badge>
-                  <div className="flex items-center gap-2">
-                    <Checkbox id="bankHol" checked={isBankHoliday} onCheckedChange={v => setIsBankHoliday(!!v)} />
-                    <Label htmlFor="bankHol" className="text-xs">Bank Holiday</Label>
-                  </div>
-                </div>
               </div>
 
               <div className="space-y-2">
