@@ -365,6 +365,7 @@ export function CalculatorPage() {
   const [projectName, setProjectName] = useState(ss?.projectName ?? '');
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [favouriteRoles, setFavouriteRoles] = useState<string[]>([]);
@@ -631,11 +632,10 @@ export function CalculatorPage() {
 
   // ── Auto-save: fires 1.5s after result changes, when minimum fields are ready ──
   useEffect(() => {
-    if (!result || !user || !selectedRole || !agreedRate) return;
+    if (!result || !user || !selectedRole || !agreedRate || !isDirty) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(async () => {
-      const savedId = await handleSave();
-      if (savedId) setLastSavedAt(new Date());
+      await handleSave();
     }, 1500);
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
   }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -812,6 +812,7 @@ export function CalculatorPage() {
     if (!result || !user || !selectedRole) return null;
     setSaving(true);
     setSaveSuccess(false);
+    setSaveError(false);
 
     // Resolve or create a project
     let resolvedProjectId = projectId;
@@ -821,7 +822,7 @@ export function CalculatorPage() {
         name: projectName || 'Untitled',
         client_name: null,
       }).select().single();
-      if (projError || !proj) { setSaving(false); return null; }
+      if (projError || !proj) { setSaving(false); setSaveError(true); return null; }
       resolvedProjectId = proj.id;
     }
 
@@ -869,13 +870,17 @@ export function CalculatorPage() {
       const { error } = await supabase.from('project_days').update(payload).eq('id', currentDayId);
       if (!error) savedId = currentDayId;
     } else {
-      // INSERT new day
-      const { count } = await supabase.from('project_days')
-        .select('*', { count: 'exact', head: true })
-        .eq('project_id', resolvedProjectId);
+      // INSERT new day — use MAX(day_number) to handle gaps from deletions correctly
+      const { data: maxRow } = await supabase.from('project_days')
+        .select('day_number')
+        .eq('project_id', resolvedProjectId)
+        .order('day_number', { ascending: false })
+        .limit(1)
+        .single();
+      const nextDayNumber = (maxRow?.day_number ?? 0) + 1;
       const { data, error } = await supabase.from('project_days').insert({
         ...payload,
-        day_number: (count ?? 0) + 1,
+        day_number: nextDayNumber,
       }).select('id').single();
       if (!error && data) {
         savedId = data.id;
@@ -886,17 +891,21 @@ export function CalculatorPage() {
     setSaving(false);
     if (savedId && resolvedProjectId) {
       setSaveSuccess(true);
+      setSaveError(false);
       setIsDirty(false);
       setLastSavedAt(new Date());
       await refreshProjectDays(resolvedProjectId);
+    } else {
+      setSaveError(true);
     }
     return savedId;
   };
 
   const handleAddDay = async () => {
     if (!result || !user || !selectedRole) return;
-    await handleSave();
-    // Fresh form for next date, carrying role/rate/project
+    const savedId = await handleSave();
+    // Only proceed to a fresh form if the save succeeded
+    if (!savedId) return;
     handleAddNewDay(format(addDays(parseISO(workDate), 1), 'yyyy-MM-dd'));
   };
 
@@ -925,10 +934,10 @@ export function CalculatorPage() {
       {/* Input Form */}
       <div className="lg:col-span-2 space-y-6" ref={formTopRef}>
         {isDirty && (
-          <div className="flex items-center justify-between rounded-xl bg-amber-50 border border-amber-200 px-4 py-2.5 text-sm text-amber-800">
-            <span>⚠ Unsaved changes</span>
+          <div className={`flex items-center justify-between rounded-xl px-4 py-2.5 text-sm ${saveError ? 'bg-red-50 border border-red-200 text-red-800' : 'bg-amber-50 border border-amber-200 text-amber-800'}`}>
+            <span>{saveError ? '✕ Save failed — tap to retry' : '⚠ Unsaved changes'}</span>
             <Button size="sm" onClick={handleSave} disabled={saving || !result} className="h-7 text-xs">
-              {saving ? 'Saving…' : 'Save now'}
+              {saving ? 'Saving…' : saveError ? 'Retry' : 'Save now'}
             </Button>
           </div>
         )}
@@ -1617,6 +1626,10 @@ export function CalculatorPage() {
                     <span className="flex items-center gap-1.5 text-muted-foreground">
                       <Cloud className="h-3.5 w-3.5 animate-pulse" /> Saving…
                     </span>
+                  ) : saveError ? (
+                    <Button size="sm" onClick={handleSave} disabled={saving} variant="destructive">
+                      <Save className="h-3.5 w-3.5 mr-1" /> Save failed — retry
+                    </Button>
                   ) : lastSavedAt ? (
                     <span className="flex items-center gap-1.5 text-green-600">
                       <Check className="h-3.5 w-3.5" /> Saved
@@ -1636,19 +1649,22 @@ export function CalculatorPage() {
               <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-safe">
                 <div className={`mx-auto max-w-lg mb-3 flex items-center justify-between gap-3 rounded-2xl px-4 py-3 shadow-lg text-sm font-medium transition-colors ${
                   saving ? 'bg-muted text-muted-foreground' :
+                  saveError ? 'bg-red-50 text-red-700 border border-red-200' :
                   lastSavedAt ? 'bg-green-50 text-green-700 border border-green-200' :
                   'bg-[#1F1F21] text-white'
                 }`}>
                   {saving ? (
                     <><Cloud className="h-4 w-4 animate-pulse" /><span>Saving…</span></>
+                  ) : saveError ? (
+                    <><Save className="h-4 w-4" /><span>Save failed — tap to retry</span></>
                   ) : lastSavedAt ? (
                     <><Check className="h-4 w-4" /><span>Saved</span></>
                   ) : (
-                    <><Save className="h-4 w-4" /><span>{currentDayId ? 'Not saved yet — tap to save' : 'Not saved yet — tap to save'}</span></>
+                    <><Save className="h-4 w-4" /><span>Not saved yet — tap to save</span></>
                   )}
-                  {!saving && !lastSavedAt && (
-                    <button onClick={handleSave} className="bg-[#FFD528] text-[#1F1F21] rounded-xl px-3 py-1 text-xs font-semibold">
-                      Save
+                  {!saving && (saveError || !lastSavedAt) && (
+                    <button onClick={handleSave} className={`rounded-xl px-3 py-1 text-xs font-semibold ${saveError ? 'bg-red-600 text-white' : 'bg-[#FFD528] text-[#1F1F21]'}`}>
+                      {saveError ? 'Retry' : 'Save'}
                     </button>
                   )}
                 </div>
