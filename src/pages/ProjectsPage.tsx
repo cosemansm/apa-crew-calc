@@ -24,8 +24,8 @@ interface HistoryDay {
   agreed_rate: number;
   grand_total: number;
   result_json: {
-    lineItems?: { description: string; total: number }[];
-    penalties?: { description: string; total: number }[];
+    lineItems?: { description: string; hours?: number; rate?: number; total: number; timeFrom?: string; timeTo?: string }[];
+    penalties?: { description: string; hours?: number; rate?: number; total: number }[];
     travelPay?: number;
     mileage?: number;
     mileageMiles?: number;
@@ -69,8 +69,8 @@ interface ProjectDay {
   grand_total: number;
   agreed_rate: number;
   result_json?: {
-    lineItems?: { description: string; hours: number; rate: number; total: number }[];
-    penalties?: { description: string; hours: number; rate: number; total: number }[];
+    lineItems?: { description: string; hours?: number; rate?: number; total: number; timeFrom?: string; timeTo?: string }[];
+    penalties?: { description: string; hours?: number; rate?: number; total: number }[];
     travelPay?: number;
     mileage?: number;
     mileageMiles?: number;
@@ -344,9 +344,17 @@ export function ProjectsPage() {
                     {expandedHistoryId === day.id && day.result_json && (
                       <div className="mt-4 p-4 bg-muted/40 rounded-xl space-y-1 text-sm">
                         {day.result_json.lineItems?.map((item, i) => (
-                          <div key={i} className="flex justify-between">
-                            <span className="text-muted-foreground">{item.description}</span>
-                            <span className="font-mono">£{item.total.toFixed(2)}</span>
+                          <div key={i} className="flex justify-between gap-2">
+                            <div className="min-w-0">
+                              <span className="text-muted-foreground">{item.description}</span>
+                              {(item.timeFrom && item.timeTo) || (item.rate && item.hours) ? (
+                                <p className="text-xs text-muted-foreground/60 font-mono">
+                                  {item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : ''}
+                                  {item.rate && item.hours ? ` · £${item.rate} × ${item.hours % 1 === 0 ? item.hours : item.hours.toFixed(2)}h` : ''}
+                                </p>
+                              ) : null}
+                            </div>
+                            <span className="font-mono shrink-0">£{item.total.toFixed(2)}</span>
                           </div>
                         ))}
                         {day.result_json.penalties?.map((p, i) => (
@@ -580,9 +588,17 @@ export function ProjectsPage() {
                             {(lineItems.length > 0 || penalties.length > 0 || travelPay > 0 || mileagePay > 0) && (
                               <div className="px-4 py-2 space-y-1">
                                 {lineItems.map((item, i) => (
-                                  <div key={i} className="flex justify-between text-xs text-muted-foreground">
-                                    <span>{item.description}</span>
-                                    <span className="font-medium text-foreground">£{item.total.toFixed(2)}</span>
+                                  <div key={i} className="flex justify-between gap-2 text-xs text-muted-foreground">
+                                    <div className="min-w-0">
+                                      <span>{item.description}</span>
+                                      {(item.timeFrom && item.timeTo) || (item.rate && item.hours) ? (
+                                        <p className="text-[10px] text-muted-foreground/60 font-mono">
+                                          {item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : ''}
+                                          {item.rate && item.hours ? ` · £${item.rate} × ${item.hours % 1 === 0 ? item.hours : item.hours.toFixed(2)}h` : ''}
+                                        </p>
+                                      ) : null}
+                                    </div>
+                                    <span className="font-medium text-foreground shrink-0">£{item.total.toFixed(2)}</span>
                                   </div>
                                 ))}
                                 {penalties.map((item, i) => (

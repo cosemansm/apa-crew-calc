@@ -88,8 +88,8 @@ function TimePicker({ value, onChange, label, labelAddon }: { value: string; onC
 }
 
 interface DayResultJson {
-  lineItems?: { description: string; total: number }[];
-  penalties?: { description: string; total: number }[];
+  lineItems?: { description: string; hours?: number; rate?: number; total: number; timeFrom?: string; timeTo?: string }[];
+  penalties?: { description: string; hours?: number; rate?: number; total: number }[];
   subtotal?: number;
   travelPay?: number;
   mileage?: number;
@@ -1824,9 +1824,17 @@ export function CalculatorPage() {
                           <div className="mt-2 ml-5 space-y-1.5 text-sm">
                             {/* Basic line items */}
                             {rj.lineItems?.map((item, i) => (
-                              <div key={i} className="flex justify-between">
-                                <span className="text-muted-foreground">{item.description}</span>
-                                <span className="font-mono text-xs">£{item.total.toFixed(2)}</span>
+                              <div key={i} className="flex justify-between gap-2">
+                                <div className="min-w-0">
+                                  <span className="text-muted-foreground">{item.description}</span>
+                                  {(item.timeFrom && item.timeTo) || (item.rate && item.hours) ? (
+                                    <p className="text-xs text-muted-foreground/60 font-mono">
+                                      {item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : ''}
+                                      {item.rate && item.hours ? ` · £${item.rate} × ${item.hours % 1 === 0 ? item.hours : item.hours.toFixed(2)}h` : ''}
+                                    </p>
+                                  ) : null}
+                                </div>
+                                <span className="font-mono text-xs shrink-0">£{item.total.toFixed(2)}</span>
                               </div>
                             ))}
 
