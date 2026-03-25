@@ -1830,7 +1830,7 @@ export function CalculatorPage() {
                                   {(item.timeFrom && item.timeTo) || (item.rate && item.hours) ? (
                                     <p className="text-xs text-muted-foreground/60 font-mono">
                                       {item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : ''}
-                                      {item.rate && item.hours ? ` · £${item.rate} × ${item.hours % 1 === 0 ? item.hours : item.hours.toFixed(2)}h` : ''}
+                                      {item.rate && item.hours ? ` · £${item.rate} × ${Math.abs(item.rate - item.total) < 1 ? '1' : item.hours % 1 === 0 ? `${item.hours}h` : `${item.hours.toFixed(2)}h`}` : ''}
                                     </p>
                                   ) : null}
                                 </div>

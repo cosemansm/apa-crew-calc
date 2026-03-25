@@ -642,7 +642,7 @@ export function InvoicePage() {
                                     {item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : ''}
                                   </td>
                                   <td style={{ padding: '3px 14px', color: '#9A9A9A', fontSize: '11px', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
-                                    {item.rate && item.hours ? `£${item.rate.toFixed(0)} × ${item.hours % 1 === 0 ? item.hours : item.hours.toFixed(2)}h` : ''}
+                                    {item.rate && item.hours ? `£${item.rate.toFixed(0)} × ${Math.abs(item.rate - item.total) < 1 ? '1' : item.hours % 1 === 0 ? `${item.hours}h` : `${item.hours.toFixed(2)}h`}` : ''}
                                   </td>
                                   <td style={{ padding: '3px 14px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace' }}>
                                     £{item.total.toFixed(2)}
