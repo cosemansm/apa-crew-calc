@@ -16,6 +16,7 @@ import { calculateCrewCost, type DayType, type DayOfWeek, type CalculationResult
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { getUKBankHolidays } from '@/lib/bankHolidays';
 
 const DAY_TYPES: { value: DayType; label: string }[] = [
   { value: 'basic_working', label: 'Basic Working Day (Shoot Day)' },
@@ -343,6 +344,7 @@ export function CalculatorPage() {
   const [dayType, setDayType] = useState<DayType>((ss?.dayType as DayType) ?? 'basic_working');
   const [workDate, setWorkDate] = useState(ss?.workDate ?? format(new Date(), 'yyyy-MM-dd'));
   const [isBankHoliday, setIsBankHoliday] = useState(ss?.isBankHoliday ?? false);
+  const [bankHolidays, setBankHolidays] = useState<Set<string>>(new Set());
   const [callTime, setCallTime] = useState(ss?.callTime ?? '08:00');
   const [wrapTime, setWrapTime] = useState(ss?.wrapTime ?? '19:00');
   // Track whether the user has manually set wrap time; if not, auto-follow call time
@@ -437,6 +439,11 @@ export function CalculatorPage() {
       isDirty,
     });
   }, [projectId, projectName, selectedRole, agreedRate, dayType, workDate, isBankHoliday, callTime, wrapTime, firstBreakGiven, firstBreakTime, firstBreakDuration, secondBreakGiven, secondBreakTime, secondBreakDuration, continuousFirstBreakGiven, continuousAdditionalBreakGiven, travelHours, mileage, equipmentValue, equipmentDiscount, expensesDayAmount, expensesDayNotes, previousWrap, currentDayId, isDirty]);
+
+  // Fetch UK bank holidays once on mount, cache for 7 days
+  useEffect(() => {
+    getUKBankHolidays().then(setBankHolidays);
+  }, []);
 
   // Load projects list for the picker
   useEffect(() => {
@@ -568,9 +575,9 @@ export function CalculatorPage() {
   }, [projectId, projectNameFromUrl]);
 
   const dayOfWeek: DayOfWeek = useMemo(() => {
-    if (isBankHoliday) return 'bank_holiday';
+    if (bankHolidays.has(workDate)) return 'bank_holiday';
     return dateToDayOfWeek(workDate);
-  }, [workDate, isBankHoliday]);
+  }, [workDate, bankHolidays]);
 
   // Auto-detect previous day's wrap for TOC — only within the same project,
   // only when work dates are consecutive (≤1 calendar day apart).
@@ -853,7 +860,7 @@ export function CalculatorPage() {
       expenses_amount: parseFloat(expensesDayAmount) || 0,
       expenses_notes: expensesDayNotes.trim(),
       previous_wrap: autoPreviousWrap || null,
-      is_bank_holiday: isBankHoliday,
+      is_bank_holiday: bankHolidays.has(workDate),
     };
 
     // Update project name if it has changed
