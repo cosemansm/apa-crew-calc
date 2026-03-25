@@ -327,10 +327,12 @@ export function CalculatorPage() {
   const projectNameFromUrl = searchParams.get('name');
   const navigate = useNavigate();
 
-  // Try to restore from session on first mount (only when no URL params override)
+  // Try to restore from session on first mount.
+  // Restore if: no URL project (session has the project), OR URL project matches session project (page refresh).
   const sessionRef = useRef(loadSession());
   const hasUrlProject = !!searchParams.get('project');
-  const ss = (!hasUrlProject && sessionRef.current) ? sessionRef.current : null;
+  const sessionMatchesUrl = sessionRef.current?.projectId === searchParams.get('project');
+  const ss = ((!hasUrlProject || sessionMatchesUrl) && sessionRef.current) ? sessionRef.current : null;
   const restoredFromSession = useRef(!!ss);
 
   const [selectedRole, setSelectedRole] = useState<CrewRole | null>(() => {
