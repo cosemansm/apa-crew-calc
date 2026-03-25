@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   FolderOpen, Plus, Clock, PoundSterling, ChevronRight,
-  Calendar, User, Edit3, X, Sparkles, Trash2,
+  Calendar, User, Edit3, X, Sparkles, Trash2, Copy,
   History, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -236,6 +236,35 @@ export function ProjectsPage() {
     setProjects(prev => prev.filter(p => p.id !== projectId));
   };
 
+  const duplicateProject = async (project: Project, e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Create the new project
+    const { data: newProject, error } = await supabase.from('projects').insert({
+      user_id: user!.id,
+      name: `${project.name} (copy)`,
+      client_name: project.client_name,
+      status: 'ongoing',
+    }).select().single();
+    if (error || !newProject) return;
+
+    // Copy all days from the original project
+    const { data: days } = await supabase
+      .from('project_days')
+      .select('*')
+      .eq('project_id', project.id)
+      .order('work_date', { ascending: true });
+
+    if (days && days.length > 0) {
+      const copies = days.map(({ id: _id, project_id: _pid, created_at: _ca, ...rest }) => ({
+        ...rest,
+        project_id: newProject.id,
+      }));
+      await supabase.from('project_days').insert(copies);
+    }
+
+    setProjects(prev => [newProject as Project, ...prev]);
+  };
+
   const removeDay = async (dayId: string) => {
     if (!confirm('Remove this day from the project?')) return;
     setDeletingDayId(dayId);
@@ -435,6 +464,13 @@ export function ProjectsPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={(e) => duplicateProject(project, e)}
+                          className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                          title="Duplicate job"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
                         <button
                           onClick={(e) => deleteProject(project.id, e)}
                           className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-red-500 hover:bg-red-50 transition-colors"
