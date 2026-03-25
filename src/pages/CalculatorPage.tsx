@@ -1785,12 +1785,7 @@ export function CalculatorPage() {
                         >
                           <div className="flex items-center gap-2 min-w-0">
                             {hasDetail && (
-                              <button
-                                onClick={e => { e.stopPropagation(); toggleDayExpanded(day.key); }}
-                                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                              >
-                                <ChevronRight className={cn('h-3.5 w-3.5 transition-transform', isExpanded && 'rotate-90')} />
-                              </button>
+                              <ChevronRight className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform', day.isCurrent && 'rotate-90')} />
                             )}
                             <div className="min-w-0">
                               <p className="text-sm font-medium leading-tight">
@@ -1819,8 +1814,8 @@ export function CalculatorPage() {
                           </div>
                         </div>
 
-                        {/* Expandable detail */}
-                        {isExpanded && hasDetail && rj && (
+                        {/* Expandable detail — always shown for the day currently loaded in the calculator */}
+                        {day.isCurrent && hasDetail && rj && (
                           <div className="mt-2 ml-5 space-y-1.5 text-sm">
                             {/* Basic line items */}
                             {rj.lineItems?.map((item, i) => (
