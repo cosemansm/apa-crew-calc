@@ -388,7 +388,7 @@ export function CalculatorPage() {
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set(['__current__']));
   const formTopRef = useRef<HTMLDivElement>(null);
-  const suppressDirtyRef = useRef(!!ss); // Suppress initial dirty flag when restoring from session
+  const suppressDirtyRef = useRef(true); // Suppress initial dirty flag on mount
 
   // Unsaved changes tracking
   const [isDirty, setIsDirty] = useState(ss?.isDirty ?? false);
