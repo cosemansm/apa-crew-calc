@@ -22,8 +22,8 @@ interface Project {
 }
 
 interface DayResultJson {
-  lineItems?: { description: string; total: number }[];
-  penalties?: { description: string; total: number }[];
+  lineItems?: { description: string; hours?: number; rate?: number; total: number; timeFrom?: string; timeTo?: string }[];
+  penalties?: { description: string; hours?: number; rate?: number; total: number }[];
   travelPay?: number;
   mileage?: number;
   mileageMiles?: number;
@@ -635,10 +635,15 @@ export function InvoicePage() {
                               {/* Line items (base rate, OT, etc.) */}
                               {rj.lineItems?.map((item, i) => (
                                 <tr key={`li-${i}`} style={{ backgroundColor: '#FAFAF8' }}>
-                                  <td style={{ padding: '3px 14px 3px 28px', color: '#6B6B6B', fontSize: '11px' }} colSpan={2}>
+                                  <td style={{ padding: '3px 14px 3px 28px', color: '#6B6B6B', fontSize: '11px' }}>
                                     {item.description}
                                   </td>
-                                  <td style={{ padding: '3px 14px', color: '#6B6B6B', fontSize: '11px' }}></td>
+                                  <td style={{ padding: '3px 14px', color: '#9A9A9A', fontSize: '11px', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
+                                    {item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : ''}
+                                  </td>
+                                  <td style={{ padding: '3px 14px', color: '#9A9A9A', fontSize: '11px', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
+                                    {item.rate && item.hours ? `£${item.rate.toFixed(0)} × ${item.hours % 1 === 0 ? item.hours : item.hours.toFixed(2)}h` : ''}
+                                  </td>
                                   <td style={{ padding: '3px 14px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace' }}>
                                     £{item.total.toFixed(2)}
                                   </td>
@@ -650,7 +655,9 @@ export function InvoicePage() {
                                   <td style={{ padding: '3px 14px 3px 28px', color: '#6B6B6B', fontSize: '11px' }} colSpan={2}>
                                     {p.description}
                                   </td>
-                                  <td style={{ padding: '3px 14px', color: '#6B6B6B', fontSize: '11px' }}></td>
+                                  <td style={{ padding: '3px 14px', color: '#9A9A9A', fontSize: '11px', fontFamily: 'monospace' }}>
+                                    {p.rate && p.hours && p.hours > 0 ? `£${p.rate.toFixed(0)} × ${p.hours.toFixed(2)}h` : ''}
+                                  </td>
                                   <td style={{ padding: '3px 14px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace' }}>
                                     £{p.total.toFixed(2)}
                                   </td>
@@ -659,10 +666,9 @@ export function InvoicePage() {
                               {/* Travel pay */}
                               {(rj.travelPay ?? 0) > 0 && (
                                 <tr style={{ backgroundColor: '#FAFAF8' }}>
-                                  <td style={{ padding: '3px 14px 3px 28px', color: '#6B6B6B', fontSize: '11px' }} colSpan={2}>
+                                  <td style={{ padding: '3px 14px 3px 28px', color: '#6B6B6B', fontSize: '11px' }} colSpan={3}>
                                     Travel pay{rj.mileageMiles ? ` · ${rj.mileageMiles} miles outside M25` : ''}
                                   </td>
-                                  <td style={{ padding: '3px 14px', color: '#6B6B6B', fontSize: '11px' }}></td>
                                   <td style={{ padding: '3px 14px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace' }}>
                                     £{((rj.travelPay ?? 0) + (rj.mileage ?? 0)).toFixed(2)}
                                   </td>
@@ -671,10 +677,9 @@ export function InvoicePage() {
                               {/* Equipment */}
                               {(rj.equipmentTotal ?? 0) > 0 && (
                                 <tr style={{ backgroundColor: '#FAFAF8' }}>
-                                  <td style={{ padding: '3px 14px 3px 28px', color: '#6B6B6B', fontSize: '11px' }} colSpan={2}>
+                                  <td style={{ padding: '3px 14px 3px 28px', color: '#6B6B6B', fontSize: '11px' }} colSpan={3}>
                                     Equipment{(rj.equipmentDiscount ?? 0) > 0 ? ` (−${rj.equipmentDiscount}% discount)` : ''}
                                   </td>
-                                  <td style={{ padding: '3px 14px', color: '#6B6B6B', fontSize: '11px' }}></td>
                                   <td style={{ padding: '3px 14px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace' }}>
                                     £{(rj.equipmentTotal ?? 0).toFixed(2)}
                                   </td>
@@ -683,10 +688,9 @@ export function InvoicePage() {
                               {/* Expenses */}
                               {(day.expenses_amount ?? 0) > 0 && (
                                 <tr style={{ backgroundColor: '#FAFAF8' }}>
-                                  <td style={{ padding: '3px 14px 8px 28px', color: '#6B6B6B', fontSize: '11px', borderBottom: '1px solid #F0EDE8' }} colSpan={2}>
+                                  <td style={{ padding: '3px 14px 8px 28px', color: '#6B6B6B', fontSize: '11px', borderBottom: '1px solid #F0EDE8' }} colSpan={3}>
                                     Expenses{day.expenses_notes ? ` — ${day.expenses_notes}` : ''}
                                   </td>
-                                  <td style={{ padding: '3px 14px 8px', color: '#6B6B6B', fontSize: '11px', borderBottom: '1px solid #F0EDE8' }}></td>
                                   <td style={{ padding: '3px 14px 8px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace', borderBottom: '1px solid #F0EDE8' }}>
                                     £{(day.expenses_amount ?? 0).toFixed(2)}
                                   </td>
