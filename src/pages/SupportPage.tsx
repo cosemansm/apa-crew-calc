@@ -294,16 +294,9 @@ export function SupportPage() {
     setSubmittingFeature(true);
     setFeatureError(null);
 
-    // Get user display name
-    const { data: settings } = await supabase
-      .from('user_settings')
-      .select('display_name')
-      .eq('user_id', user.id)
-      .single();
-
     const { error } = await supabase.from('feature_requests').insert({
       user_id: user.id,
-      user_name: settings?.display_name || user.email?.split('@')[0] || 'Anonymous',
+      user_name: 'Anonymous',
       title: featureTitle.trim(),
       description: featureDescription.trim(),
       tags: selectedTags,
@@ -575,7 +568,7 @@ export function SupportPage() {
                             </span>
                           ))}
                           <span className="text-[11px] text-muted-foreground/50">
-                            {request.user_name} · {new Date(request.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                            {new Date(request.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                           </span>
                         </div>
                       </div>
