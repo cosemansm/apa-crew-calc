@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   FolderOpen, Plus, Clock, PoundSterling, ChevronRight,
   Calendar, User, Edit3, X, Sparkles, Trash2, Copy,
-  History, ChevronDown, ChevronUp,
+  History, ChevronDown, ChevronUp, Search,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { supabase } from '@/lib/supabase';
@@ -127,6 +127,7 @@ export function ProjectsPage() {
   const [daysLoading, setDaysLoading] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [deletingDayId, setDeletingDayId] = useState<string | null>(null);
+  const [jobSearch, setJobSearch] = useState('');
 
   // History state
   const [historyDays, setHistoryDays] = useState<HistoryDay[]>([]);
@@ -285,6 +286,13 @@ export function ProjectsPage() {
 
   const historyTotal = historyDays.reduce((sum, d) => sum + (d.grand_total || 0), 0);
 
+  const filteredProjects = jobSearch.trim()
+    ? projects.filter(p =>
+        p.name.toLowerCase().includes(jobSearch.toLowerCase()) ||
+        (p.client_name ?? '').toLowerCase().includes(jobSearch.toLowerCase())
+      )
+    : projects;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -440,8 +448,20 @@ export function ProjectsPage() {
 
           {/* Project list — left */}
           <div className={`${selectedProject ? 'lg:col-span-2' : 'lg:col-span-5'}`}>
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search jobs…"
+                value={jobSearch}
+                onChange={e => setJobSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 rounded-xl border border-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD528]/50"
+              />
+            </div>
             <div className={`grid gap-3 ${selectedProject ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'}`}>
-              {projects.map(project => {
+              {filteredProjects.length === 0 ? (
+                <p className="text-sm text-muted-foreground col-span-full py-4 text-center">No jobs match your search.</p>
+              ) : filteredProjects.map(project => {
                 const isSelected = selectedProject?.id === project.id;
                 return (
                   <div
