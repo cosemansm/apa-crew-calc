@@ -877,6 +877,14 @@ export function CalculatorPage() {
       const { error } = await supabase.from('project_days').update(payload).eq('id', currentDayId);
       if (!error) savedId = currentDayId;
     } else {
+      // Guard: prevent duplicate date within same job
+      const dateAlreadyBooked = projectDays.some(d => d.work_date === workDate);
+      if (dateAlreadyBooked) {
+        setSaving(false);
+        setSaveError(true);
+        return null;
+      }
+
       // INSERT new day — use MAX(day_number) to handle gaps from deletions correctly
       const { data: maxRow } = await supabase.from('project_days')
         .select('day_number')
@@ -908,12 +916,22 @@ export function CalculatorPage() {
     return savedId;
   };
 
+  // Returns the next date after `fromDate` that is not already booked in this job
+  const nextAvailableDate = (fromDate: string): string => {
+    const booked = new Set(projectDays.map(d => d.work_date));
+    let candidate = parseISO(fromDate);
+    do {
+      candidate = addDays(candidate, 1);
+    } while (booked.has(format(candidate, 'yyyy-MM-dd')));
+    return format(candidate, 'yyyy-MM-dd');
+  };
+
   const handleAddDay = async () => {
     if (!result || !user || !selectedRole) return;
     const savedId = await handleSave();
     // Only proceed to a fresh form if the save succeeded
     if (!savedId) return;
-    handleAddNewDay(format(addDays(parseISO(workDate), 1), 'yyyy-MM-dd'));
+    handleAddNewDay(nextAvailableDate(workDate));
   };
 
   return (
@@ -953,7 +971,7 @@ export function CalculatorPage() {
           <Button
             variant="outline"
             className="w-full gap-2"
-            onClick={() => handleAddNewDay(format(addDays(parseISO(workDate), 1), 'yyyy-MM-dd'))}
+            onClick={() => handleAddNewDay(nextAvailableDate(workDate))}
           >
             <Plus className="h-4 w-4" /> Add New Day
           </Button>
