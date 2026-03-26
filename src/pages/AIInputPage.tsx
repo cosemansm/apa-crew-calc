@@ -43,6 +43,24 @@ const DAY_TYPE_OPTIONS: { value: DayType; label: string }[] = [
 
 const WEEK_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+// Standard flat-day hours per day type (used to auto-calculate wrap from call)
+const DEFAULT_WRAP_HOURS: Partial<Record<DayType, number>> = {
+  basic_working: 11,
+  continuous_working: 9,
+  prep: 8,
+  recce: 8,
+  build_strike: 8,
+  pre_light: 9,
+  travel: 5,
+  // rest: no times needed
+};
+
+function addHoursToTime(time: string, hours: number): string {
+  const [h, m] = time.split(':').map(Number);
+  const totalMins = h * 60 + m + Math.round(hours * 60);
+  return `${String(Math.floor(totalMins / 60) % 24).padStart(2, '0')}:${String(totalMins % 60).padStart(2, '0')}`;
+}
+
 type Stage = 'input' | 'review';
 
 interface EditableEntry extends ParsedEntry {
@@ -295,8 +313,30 @@ export function AIInputPage() {
     setError(null);
     try {
       const parsed = await parseTimesheetWithGemini(input);
-      setEntries(parsed.map((e, i) => ({ ...e, _id: `entry-${i}-${Date.now()}` })));
-      setProjectName(`AI Import — ${format(new Date(), 'd MMM yyyy')}`);
+      setEntries(parsed.map((e, i) => {
+        const entry: EditableEntry = { ...e, _id: `entry-${i}-${Date.now()}` };
+
+        // Auto-default call time to 08:00 if not provided
+        if (!entry.callTime) {
+          entry.callTime = '08:00';
+          entry.missingFields = entry.missingFields.filter(f => f !== 'callTime');
+        }
+
+        // Rest days don't need times — remove both from missing
+        if (entry.dayType === 'rest') {
+          entry.missingFields = entry.missingFields.filter(f => f !== 'callTime' && f !== 'wrapTime');
+        } else if (!entry.wrapTime) {
+          // Auto-calculate wrap time for a flat day
+          const hours = DEFAULT_WRAP_HOURS[entry.dayType];
+          if (hours !== undefined) {
+            entry.wrapTime = addHoursToTime(entry.callTime, hours);
+            entry.missingFields = entry.missingFields.filter(f => f !== 'wrapTime');
+          }
+        }
+
+        return entry;
+      }));
+      setProjectName('');
       setStage('review');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong');
@@ -331,6 +371,34 @@ export function AIInputPage() {
 
       updated.missingFields = updated.missingFields.filter(f => !resolvedMissing.includes(f));
       return updated;
+    }));
+  };
+
+  // ── Global role/rate — apply once to all days missing that field ───────────
+
+  const anyMissingRole = entries.some(e => e.missingFields.includes('role'));
+  const anyMissingRate = entries.some(e => e.missingFields.includes('rate'));
+
+  const applyGlobalRole = (role: string) => {
+    const roleData = APA_CREW_ROLES.find(r => r.role === role);
+    setEntries(prev => prev.map(e => {
+      if (!e.missingFields.includes('role')) return e;
+      const updated = { ...e, role };
+      // Also fill rate from role default if still missing
+      if (roleData && (!updated.agreedRate || updated.agreedRate === 0)) {
+        updated.agreedRate = roleData.maxRate ?? 0;
+      }
+      updated.missingFields = updated.missingFields.filter(
+        f => f !== 'role' && (updated.agreedRate > 0 ? f !== 'rate' : true)
+      );
+      return updated;
+    }));
+  };
+
+  const applyGlobalRate = (rate: number) => {
+    setEntries(prev => prev.map(e => {
+      if (!e.missingFields.includes('rate')) return e;
+      return { ...e, agreedRate: rate, missingFields: e.missingFields.filter(f => f !== 'rate') };
     }));
   };
 
@@ -507,6 +575,55 @@ export function AIInputPage() {
         </div>
       </div>
 
+      {/* Global fields — job name, role & rate asked once for all days */}
+      <Card>
+        <CardContent className="pt-5 space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium">Job Name</Label>
+            <Input
+              value={projectName}
+              onChange={e => setProjectName(e.target.value)}
+              placeholder="e.g. Nike Summer Campaign"
+            />
+          </div>
+
+          {(anyMissingRole || anyMissingRate) && (
+            <div className="grid grid-cols-2 gap-3">
+              {anyMissingRole && (
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">
+                    Crew Role <span className="text-[10px] font-semibold text-amber-600 uppercase tracking-wide ml-1">Apply to all</span>
+                  </Label>
+                  <RoleSelect
+                    value=""
+                    onChange={applyGlobalRole}
+                    missing
+                    favouriteRoles={favouriteRoles}
+                    userDepartment={userDepartment}
+                  />
+                </div>
+              )}
+              {anyMissingRate && (
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">
+                    Day Rate (£) <span className="text-[10px] font-semibold text-amber-600 uppercase tracking-wide ml-1">Apply to all</span>
+                  </Label>
+                  <div className="relative ring-2 ring-[#FFD528] rounded-xl">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">£</span>
+                    <Input
+                      type="number"
+                      className="pl-7 text-sm"
+                      placeholder="0"
+                      onChange={e => { const v = parseFloat(e.target.value); if (v > 0) applyGlobalRate(v); }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Status banner */}
       {totalMissing > 0 ? (
         <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
@@ -654,16 +771,6 @@ export function AIInputPage() {
           </div>
 
           <Separator className="bg-white/10" />
-
-          <div className="space-y-2">
-            <Label className="text-white/70 text-xs">Job Name</Label>
-            <Input
-              value={projectName}
-              onChange={e => setProjectName(e.target.value)}
-              placeholder="e.g. Nike Summer Campaign"
-              className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-[#FFD528]"
-            />
-          </div>
 
           {saveError && (
             <div className="p-3 bg-red-500/20 border border-red-400/30 rounded-xl text-sm text-red-300 flex items-start gap-2">
