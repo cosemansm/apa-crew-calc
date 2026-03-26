@@ -391,7 +391,7 @@ export function CalculatorPage() {
   const suppressDirtyRef = useRef(true); // Suppress initial dirty flag on mount
 
   // Unsaved changes tracking
-  const [isDirty, setIsDirty] = useState(ss?.isDirty ?? false);
+  const [isDirty, setIsDirty] = useState(false); // Never restore from session — always clean on load/refresh
   // Pending within-page navigation when user has unsaved changes
   const [pendingDayId, setPendingDayId] = useState<string | null>(null);
 
