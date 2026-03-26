@@ -966,19 +966,8 @@ export function CalculatorPage() {
             </Button>
           </div>
         )}
-        {/* + Add Day button — always visible at top for quick access */}
-        {projectId && currentDayId && (
-          <Button
-            variant="outline"
-            className="w-full gap-2"
-            onClick={() => handleAddNewDay(nextAvailableDate(workDate))}
-          >
-            <Plus className="h-4 w-4" /> Add New Day
-          </Button>
-        )}
-
         <Card>
-          <CardHeader className="hidden md:block pb-2">
+          <CardHeader className="hidden md:flex md:flex-row md:items-center md:justify-between pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
               <PoundSterling className="h-4 w-4" />
               Crew Rate Calculator
@@ -986,11 +975,31 @@ export function CalculatorPage() {
                 <Badge variant="outline" className="ml-2 text-xs font-normal">Editing saved day</Badge>
               )}
             </CardTitle>
+            {projectId && currentDayId && (
+              <Button
+                size="sm"
+                className="bg-[#FFD528] text-[#1F1F21] hover:bg-[#FFD528]/90 font-semibold gap-1.5 shrink-0"
+                onClick={handleAddDay}
+                disabled={saving}
+              >
+                <Plus className="h-4 w-4" /> Add New Day
+              </Button>
+            )}
           </CardHeader>
-          {/* Mobile: compact editing badge only */}
+          {/* Mobile: compact editing badge + add day button */}
           {currentDayId && (
-            <div className="md:hidden px-4 pt-3 pb-0">
+            <div className="md:hidden px-4 pt-3 pb-0 flex items-center justify-between">
               <Badge variant="outline" className="text-xs font-normal">Editing saved day</Badge>
+              {projectId && (
+                <Button
+                  size="sm"
+                  className="bg-[#FFD528] text-[#1F1F21] hover:bg-[#FFD528]/90 font-semibold gap-1.5"
+                  onClick={handleAddDay}
+                  disabled={saving}
+                >
+                  <Plus className="h-4 w-4" /> Add New Day
+                </Button>
+              )}
             </div>
           )}
           <CardContent className="space-y-6">
@@ -1632,11 +1641,6 @@ export function CalculatorPage() {
               <Button variant="outline" onClick={handleReset}>
                 <RotateCcw className="h-4 w-4 mr-1" /> Reset
               </Button>
-              {result && projectId && (
-                <Button variant="secondary" onClick={handleAddDay} disabled={saving}>
-                  <Plus className="h-4 w-4 mr-1" /> Add New Day
-                </Button>
-              )}
               {/* Save status indicator */}
               {result && (
                 <div className="flex items-center gap-1.5 text-sm ml-auto">
