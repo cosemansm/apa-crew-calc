@@ -329,11 +329,12 @@ export function CalculatorPage() {
   const navigate = useNavigate();
 
   // Try to restore from session on first mount.
-  // Restore if: no URL project (session has the project), OR URL project matches session project (page refresh).
+  // Only restore if the URL project matches the session (page refresh of a specific job).
+  // A clean navigation to /calculator (no ?project=) always starts fresh.
   const sessionRef = useRef(loadSession());
   const hasUrlProject = !!searchParams.get('project');
   const sessionMatchesUrl = sessionRef.current?.projectId === searchParams.get('project');
-  const ss = ((!hasUrlProject || sessionMatchesUrl) && sessionRef.current) ? sessionRef.current : null;
+  const ss = (sessionMatchesUrl && sessionRef.current) ? sessionRef.current : null;
   const restoredFromSession = useRef(!!ss);
 
   const [selectedRole, setSelectedRole] = useState<CrewRole | null>(() => {
