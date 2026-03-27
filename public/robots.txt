@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Allow: /login
+
+# Authenticated app pages — not useful to crawlers
+Disallow: /dashboard
+Disallow: /calculator
+Disallow: /projects
+Disallow: /ai-input
+Disallow: /invoices
+Disallow: /settings
+Disallow: /support
+Disallow: /history
+
+Sitemap: https://crewdock.app/sitemap.xml

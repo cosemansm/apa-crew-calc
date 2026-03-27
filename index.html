@@ -1,16 +1,95 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-GB">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Crew Dock - APA Crew Rate Calculator</title>
-    <meta name="description" content="Calculate crew rates for UK commercials production based on APA Recommended Terms 2025" />
+
+    <!-- Primary meta -->
+    <title>Crew Dock — APA Crew Rate Calculator for UK Commercials</title>
+    <meta name="description" content="Calculate APA crew rates for UK commercials production. Accurate day rates, overtime, travel pay and invoicing for film and TV crew — based on APA Recommended Terms 2025." />
+    <meta name="theme-color" content="#FFD528" />
+    <meta name="robots" content="index, follow" />
+    <meta name="author" content="Crew Dock" />
+
+    <!-- Canonical -->
+    <link rel="canonical" href="https://crewdock.app/" />
+
+    <!-- Favicon & PWA -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://crewdock.app/" />
+    <meta property="og:site_name" content="Crew Dock" />
+    <meta property="og:locale" content="en_GB" />
+    <meta property="og:title" content="Crew Dock — APA Crew Rate Calculator for UK Commercials" />
+    <meta property="og:description" content="Calculate APA crew rates for UK commercials production. Accurate day rates, overtime, travel pay and invoicing for film and TV crew — based on APA Recommended Terms 2025." />
+    <meta property="og:image" content="https://crewdock.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Crew Dock — APA Crew Rate Calculator" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@crewdock" />
+    <meta name="twitter:title" content="Crew Dock — APA Crew Rate Calculator for UK Commercials" />
+    <meta name="twitter:description" content="Calculate APA crew rates for UK commercials production. Accurate day rates, overtime, travel pay and invoicing for film and TV crew." />
+    <meta name="twitter:image" content="https://crewdock.app/og-image.png" />
+    <meta name="twitter:image:alt" content="Crew Dock — APA Crew Rate Calculator" />
+
+    <!-- Structured Data: SoftwareApplication -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://crewdock.app/#organization",
+          "name": "Crew Dock",
+          "url": "https://crewdock.app",
+          "logo": {
+            "@type": "ImageObject",
+            "url": "https://crewdock.app/favicon.svg"
+          }
+        },
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://crewdock.app/#app",
+          "name": "Crew Dock",
+          "description": "APA crew rate calculator for UK commercials production. Calculate accurate day rates, overtime, travel pay and generate invoices based on APA Recommended Terms 2025.",
+          "url": "https://crewdock.app",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "inLanguage": "en-GB",
+          "publisher": { "@id": "https://crewdock.app/#organization" },
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "GBP"
+          },
+          "featureList": [
+            "APA 2025 crew rate calculations",
+            "Overtime and penalty calculations",
+            "Travel day and mileage pay",
+            "Invoice generation and PDF export",
+            "Multi-day job management",
+            "AI-powered timesheet input"
+          ]
+        }
+      ]
+    }
+    </script>
+
+    <!-- Fonts — preconnect then load -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:rounded-xl focus:bg-[#FFD528] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-[#1F1F21]">
+      Skip to main content
+    </a>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
