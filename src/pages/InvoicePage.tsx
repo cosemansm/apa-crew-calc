@@ -154,6 +154,8 @@ export function InvoicePage() {
   const selectedProject = projects.find(p => p.id === selectedProjectId);
   const selectedDays = allDays.filter(d => selected.includes(d.id));
   const totalAmount = selectedDays.reduce((sum, d) => sum + (d.grand_total || 0), 0);
+  const vatAmount = vatNumber ? totalAmount * 0.2 : 0;
+  const totalWithVat = totalAmount + vatAmount;
 
   // Shared helper — captures the invoice element and builds a jsPDF.
   // scale:2 + PNG for crisp downloads; scale:1 + JPEG for smaller email attachments.
@@ -222,7 +224,7 @@ export function InvoicePage() {
     setEmailTo(clientEmail);
     setEmailSubject(`Invoice ${invoiceNumber} – ${selectedProject?.name || 'Services Rendered'}`);
     setEmailMessage(
-      `Hi ${clientName || 'there'},\n\nPlease find attached invoice ${invoiceNumber} for ${selectedProject?.name || 'recent work'}.\n\nTotal amount due: £${totalAmount.toFixed(2)}\nPayment terms: 30 days from receipt.\n\nKind regards,\n${companyName || 'Your Name'}`
+      `Hi ${clientName || 'there'},\n\nPlease find attached invoice ${invoiceNumber} for ${selectedProject?.name || 'recent work'}.\n\nTotal amount due: £${(vatNumber ? totalWithVat : totalAmount).toFixed(2)}${vatNumber ? ' (inc. VAT)' : ''}\nPayment terms: 30 days from receipt.\n\nKind regards,\n${companyName || 'Your Name'}`
     );
     setEmailError('');
     setShowEmailModal(true);
@@ -718,14 +720,40 @@ export function InvoicePage() {
               {/* Total */}
               {selectedDays.length > 0 && (
                 <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
-                  <div style={{ backgroundColor: '#1F1F21', borderRadius: '12px', padding: '16px 28px', minWidth: '220px', textAlign: 'center' }}>
-                    <p style={{ color: '#9A9A9A', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 6px' }}>
-                      Total Due
-                    </p>
-                    <p style={{ color: '#FFD528', fontWeight: '800', fontSize: '26px', fontFamily: 'monospace', margin: '0 0 6px' }}>
-                      £{totalAmount.toFixed(2)}
-                    </p>
-                    <p style={{ color: '#6B6B6B', fontSize: '11px', margin: '0' }}>
+                  <div style={{ backgroundColor: '#1F1F21', borderRadius: '12px', padding: '16px 28px', minWidth: '240px', textAlign: 'center' }}>
+                    {vatNumber ? (
+                      <>
+                        <p style={{ color: '#9A9A9A', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 8px' }}>
+                          Summary
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ color: '#9A9A9A', fontSize: '12px' }}>Subtotal (ex. VAT)</span>
+                          <span style={{ color: '#FFFFFF', fontSize: '12px', fontFamily: 'monospace' }}>£{totalAmount.toFixed(2)}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                          <span style={{ color: '#9A9A9A', fontSize: '12px' }}>VAT (20%)</span>
+                          <span style={{ color: '#FFFFFF', fontSize: '12px', fontFamily: 'monospace' }}>£{vatAmount.toFixed(2)}</span>
+                        </div>
+                        <div style={{ borderTop: '1px solid #3A3A3C', paddingTop: '10px', marginBottom: '6px' }}>
+                          <p style={{ color: '#9A9A9A', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px' }}>
+                            Total Due (inc. VAT)
+                          </p>
+                          <p style={{ color: '#FFD528', fontWeight: '800', fontSize: '26px', fontFamily: 'monospace', margin: '0' }}>
+                            £{totalWithVat.toFixed(2)}
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <p style={{ color: '#9A9A9A', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 6px' }}>
+                          Total Due
+                        </p>
+                        <p style={{ color: '#FFD528', fontWeight: '800', fontSize: '26px', fontFamily: 'monospace', margin: '0 0 6px' }}>
+                          £{totalAmount.toFixed(2)}
+                        </p>
+                      </>
+                    )}
+                    <p style={{ color: '#6B6B6B', fontSize: '11px', margin: vatNumber ? '6px 0 0' : '0' }}>
                       Payment within 30 days of invoice
                     </p>
                   </div>
