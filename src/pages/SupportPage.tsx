@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import {
   LifeBuoy, MessageSquare, Lightbulb, BookOpen, Send, ChevronUp, ChevronRight,
   Calculator, FolderOpen, FileText, Sparkles, Settings, Package, Receipt,
@@ -181,6 +182,7 @@ const HELP_SECTIONS: {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function SupportPage() {
+  usePageTitle('Support');
   const { user } = useAuth();
   const [activeSection, setActiveSection] = useState<SectionId>('contact');
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import xeroLogo from '@/assets/integrations/xero.svg';
 import quickbooksLogo from '@/assets/integrations/quickbooks.svg';
 import freeagentLogo from '@/assets/integrations/freeagent.svg';
@@ -181,6 +182,7 @@ const NAV_ITEMS: { id: SectionId; label: string; icon: React.ElementType; badge?
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function SettingsPage() {
+  usePageTitle('Settings');
   const { user } = useAuth();
   const [activeSection, setActiveSection] = useState<SectionId>('user-details');
 

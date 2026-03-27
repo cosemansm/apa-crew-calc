@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { format, parseISO } from 'date-fns';
 import { FileText, FolderOpen, Download, Mail, Loader2, X, Send, AlertCircle } from 'lucide-react';
 import jsPDF from 'jspdf';
@@ -47,6 +48,7 @@ interface ProjectDay {
 }
 
 export function InvoicePage() {
+  usePageTitle('Invoices');
   const { user } = useAuth();
   const location = useLocation();
 

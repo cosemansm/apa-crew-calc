@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -117,6 +118,7 @@ export function StatusBadge({ status }: { status: ProjectStatus }) {
 
 // ── Main component ───────────────────────────────────────────────────────────
 export function ProjectsPage() {
+  usePageTitle('Jobs');
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'jobs' | 'history'>('jobs');

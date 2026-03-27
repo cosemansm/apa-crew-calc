@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import {
   Sparkles, Send, Loader2, AlertCircle, ChevronLeft, ChevronRight,
   CheckCircle2, Save, TriangleAlert, CalendarIcon, Star,
@@ -281,6 +282,7 @@ function FieldWrap({ label, missing, children, className }: {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function AIInputPage() {
+  usePageTitle('AI Input');
   const navigate = useNavigate();
   const { user } = useAuth();
 

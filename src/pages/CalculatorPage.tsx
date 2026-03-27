@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -322,6 +323,7 @@ interface UserProject {
 }
 
 export function CalculatorPage() {
+  usePageTitle('Rate Calculator');
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const projectId = searchParams.get('project');

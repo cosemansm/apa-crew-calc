@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +52,7 @@ function dayTotal(d: ProjectDay): number {
 }
 
 export function DashboardPage() {
+  usePageTitle('Dashboard');
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();

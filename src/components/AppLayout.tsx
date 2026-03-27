@@ -44,7 +44,7 @@ export function AppLayout() {
         </div>
 
         {/* Nav items */}
-        <nav className="flex-1 px-3 py-2 space-y-1">
+        <nav aria-label="Main navigation" className="flex-1 px-3 py-2 space-y-1">
           {navItems.map(({ path, label, icon: Icon }) => {
             const isActive = location.pathname === path;
             return (
@@ -109,8 +109,9 @@ export function AppLayout() {
                   onClick={signOut}
                   className="h-8 w-8 rounded-xl flex items-center justify-center text-white/40 hover:text-[#D45B5B] hover:bg-white/10 transition-all shrink-0"
                   title="Sign out"
+                  aria-label="Sign out"
                 >
-                  <LogOut className="h-4 w-4" />
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
                 </button>
               </>
             )}
@@ -213,7 +214,7 @@ export function AppLayout() {
         </div>
 
         {/* Page content — offset for floating mobile header */}
-        <main className="max-w-6xl mx-auto px-4 py-6 sm:px-6 lg:px-8 md:pt-6 pt-[88px]">
+        <main id="main-content" className="max-w-6xl mx-auto px-4 py-6 sm:px-6 lg:px-8 md:pt-6 pt-[88px]">
           <Outlet />
         </main>
       </div>

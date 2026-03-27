@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { usePageTitle } from '@/hooks/usePageTitle';
 import { Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +21,7 @@ function GoogleIcon() {
 }
 
 export function LoginPage() {
+  usePageTitle('Sign In');
   const { signIn, signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -72,7 +74,7 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <main id="main-content" className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-2 mb-8">
           <div className="h-12 w-12 rounded-2xl bg-[#FFD528] flex items-center justify-center">
@@ -98,7 +100,7 @@ export function LoginPage() {
                   <CardDescription>Enter your credentials to access your account</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {error && <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md">{error}</div>}
+                  {error && <div role="alert" className="p-3 text-sm text-red-600 bg-red-50 rounded-md">{error}</div>}
                   <div className="space-y-2">
                     <Label htmlFor="login-email">Email</Label>
                     <Input id="login-email" type="email" placeholder="you@company.com" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} required />
@@ -120,9 +122,10 @@ export function LoginPage() {
                     type="button"
                     onClick={signInWithGoogle}
                     disabled={loading}
+                    aria-label="Continue with Google"
                     className="w-full flex items-center justify-center gap-3 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-medium text-[#1F1F21] hover:bg-gray-50 transition-colors disabled:opacity-50"
                   >
-                    <GoogleIcon />
+                    <GoogleIcon aria-hidden="true" />
                     Continue with Google
                   </button>
                 </CardFooter>
@@ -138,8 +141,8 @@ export function LoginPage() {
                   <CardDescription>Register to start calculating crew rates</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {error && <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md">{error}</div>}
-                  {success && <div className="p-3 text-sm text-green-600 bg-green-50 rounded-md">{success}</div>}
+                  {error && <div role="alert" className="p-3 text-sm text-red-600 bg-red-50 rounded-md">{error}</div>}
+                  {success && <div role="status" className="p-3 text-sm text-green-600 bg-green-50 rounded-md">{success}</div>}
                   <div className="space-y-2">
                     <Label htmlFor="reg-name">Full Name</Label>
                     <Input id="reg-name" placeholder="Jane Smith" value={regName} onChange={e => setRegName(e.target.value)} required />
@@ -169,9 +172,10 @@ export function LoginPage() {
                     type="button"
                     onClick={signInWithGoogle}
                     disabled={loading}
+                    aria-label="Continue with Google"
                     className="w-full flex items-center justify-center gap-3 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-medium text-[#1F1F21] hover:bg-gray-50 transition-colors disabled:opacity-50"
                   >
-                    <GoogleIcon />
+                    <GoogleIcon aria-hidden="true" />
                     Continue with Google
                   </button>
                 </CardFooter>
@@ -180,6 +184,6 @@ export function LoginPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
+    </main>
   );
 }
