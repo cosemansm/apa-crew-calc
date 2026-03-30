@@ -631,9 +631,9 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
           }
         } else if (!input.secondBreakGiven) {
           if (callType === 'night') {
-            penalties.push({ description: 'Second break missed (night shoot) - at BHR', hours: 0.5, rate: bhr, total: Math.round(bhr * 0.5) });
+            penalties.push({ description: 'Missed 2nd break (night shoot)', hours: 0.5, rate: bhr, total: Math.round(bhr * 0.5) });
           } else {
-            penalties.push({ description: 'Second break missed (30 min at BHR)', hours: 0.5, rate: bhr, total: Math.round(bhr * 0.5) });
+            penalties.push({ description: 'Missed 2nd break', hours: 0.5, rate: bhr, total: Math.round(bhr * 0.5) });
           }
         }
       }
@@ -645,13 +645,13 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
     // FIX #24: Only check 9hr break if day exceeds 9hrs
     if (dayLength > 9) {
       if (convertedToContinuous ? !input.secondBreakGiven : !input.continuousFirstBreakGiven) {
-        penalties.push({ description: '30-min break missed after 9hrs (at BHR)', hours: 0.5, rate: bhr, total: Math.round(bhr * 0.5) });
+        penalties.push({ description: 'No 2nd break (after 9h)', hours: 0.5, rate: bhr, total: Math.round(bhr * 0.5) });
       }
     }
     // Additional 30-min break after 12.5 hours
     if (dayLength > 12.5) {
       if (convertedToContinuous ? true : !input.continuousAdditionalBreakGiven) {
-        penalties.push({ description: 'Additional 30-min break missed after 12.5hrs (at BHR)', hours: 0.5, rate: bhr, total: Math.round(bhr * 0.5) });
+        penalties.push({ description: 'No add\'l break (after 12.5h)', hours: 0.5, rate: bhr, total: Math.round(bhr * 0.5) });
       }
     }
   }
@@ -668,7 +668,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
     const gapHours = gap / 60;
     if (gapHours < 11) {
       // Capped at 1 hour penalty per T&Cs
-      penalties.push({ description: 'Time Off Clock penalty (1hr)', hours: 1, rate: otRate, total: otRate });
+      penalties.push({ description: 'TOC (1hr)', hours: 1, rate: otRate, total: otRate });
     }
   }
 

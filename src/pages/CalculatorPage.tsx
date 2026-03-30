@@ -1926,9 +1926,9 @@ export function CalculatorPage() {
                         <div className={cn('px-3 pt-3 pb-2.5', day.isCurrent ? 'bg-[#FFD528]/6' : '')}>
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <div className="flex items-baseline gap-1.5">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Day {idx + 1}</span>
-                                <span className="text-xs font-semibold text-foreground">
+                              <div className="flex items-baseline gap-1.5 flex-wrap">
+                                <span className="text-xs font-black uppercase tracking-widest text-foreground">Day {idx + 1}</span>
+                                <span className="text-xs text-muted-foreground">
                                   {day.work_date ? format(parseISO(day.work_date), 'EEE d MMM yyyy') : '—'}
                                 </span>
                               </div>
@@ -1938,7 +1938,7 @@ export function CalculatorPage() {
                               <p className="text-[10px] text-muted-foreground/60 truncate mt-0.5">{day.role_name}</p>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
-                              <span className="font-mono text-sm font-bold">£{(day.grand_total || 0).toFixed(2)}</span>
+                              <span className="font-mono text-sm font-bold tabular-nums">£{(day.grand_total || 0).toFixed(2)}</span>
                               {!day.isCurrent && (
                                 <button
                                   onClick={e => { e.stopPropagation(); removeDay(day.key); }}
@@ -1954,82 +1954,66 @@ export function CalculatorPage() {
 
                         {/* Line items — always visible for current day */}
                         {day.isCurrent && hasDetail && rj && (
-                          <div className="border-t border-[#FFD528]/25 bg-background px-3 pt-2 pb-3">
-                            <table className="w-full text-xs border-collapse">
-                              <tbody>
-                                {rj.lineItems?.map((item, i) => (
-                                  <tr key={i} className="group">
-                                    <td className="py-[3px] pr-2 text-muted-foreground align-top">{item.description}</td>
-                                    <td className="py-[3px] pr-2 font-mono text-muted-foreground/60 whitespace-nowrap align-top text-right">
+                          <div className="border-t border-[#FFD528]/25 bg-background px-3 pt-2 pb-3 space-y-0.5">
+                            {rj.lineItems?.map((item, i) => (
+                              <div key={i} className="flex items-start justify-between gap-3 py-[3px]">
+                                <div className="min-w-0">
+                                  <p className="text-xs text-muted-foreground leading-tight">{item.description}</p>
+                                  {(item.timeFrom && item.timeTo) || item.rate ? (
+                                    <p className="text-[10px] text-muted-foreground/50 font-mono mt-0.5">
                                       {item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : ''}
-                                    </td>
-                                    <td className="py-[3px] pr-1 font-mono text-muted-foreground/70 whitespace-nowrap align-top text-right">
-                                      {item.rate ? `£${item.rate}` : ''}
-                                    </td>
-                                    <td className="py-[3px] pr-2 font-mono text-muted-foreground/70 whitespace-nowrap align-top text-right">
-                                      {item.hours != null && item.hours !== 0
-                                        ? item.hours % 1 === 0 ? `${item.hours}` : item.hours.toFixed(2)
-                                        : ''}
-                                    </td>
-                                    <td className="py-[3px] font-mono font-semibold text-foreground whitespace-nowrap align-top text-right">
-                                      £{item.total.toFixed(2)}
-                                    </td>
-                                  </tr>
+                                      {item.rate && item.hours ? `${item.timeFrom ? ' · ' : ''}£${item.rate} × ${item.hours % 1 === 0 ? item.hours : item.hours.toFixed(2)}h` : ''}
+                                    </p>
+                                  ) : null}
+                                </div>
+                                <span className="font-mono text-xs font-semibold tabular-nums shrink-0 pt-0.5">£{item.total.toFixed(2)}</span>
+                              </div>
+                            ))}
+
+                            {(rj.penalties?.length ?? 0) > 0 && (
+                              <>
+                                <div className="border-t border-border/40 my-1" />
+                                {rj.penalties!.map((p, i) => (
+                                  <div key={`p-${i}`} className="flex items-start justify-between gap-3 py-[3px]">
+                                    <p className="text-xs text-orange-600 leading-tight">{p.description}</p>
+                                    <span className="font-mono text-xs font-semibold tabular-nums text-orange-600 shrink-0 pt-0.5">£{p.total.toFixed(2)}</span>
+                                  </div>
                                 ))}
+                              </>
+                            )}
 
-                                {(rj.penalties?.length ?? 0) > 0 && (
-                                  <>
-                                    <tr><td colSpan={5} className="pt-1.5 pb-0.5"><div className="border-t border-border/50" /></td></tr>
-                                    {rj.penalties!.map((p, i) => (
-                                      <tr key={`p-${i}`}>
-                                        <td colSpan={4} className="py-[3px] pr-2 text-orange-600">{p.description}</td>
-                                        <td className="py-[3px] font-mono font-semibold text-orange-600 text-right">£{p.total.toFixed(2)}</td>
-                                      </tr>
-                                    ))}
-                                  </>
-                                )}
+                            {(rj.travelPay ?? 0) > 0 && (
+                              <div className="flex items-start justify-between gap-3 py-[3px]">
+                                <p className="text-xs text-muted-foreground">Travel</p>
+                                <span className="font-mono text-xs font-semibold tabular-nums shrink-0">£{(rj.travelPay ?? 0).toFixed(2)}</span>
+                              </div>
+                            )}
 
-                                {(rj.travelPay ?? 0) > 0 && (
-                                  <tr>
-                                    <td colSpan={4} className="py-[3px] pr-2 text-muted-foreground">Travel</td>
-                                    <td className="py-[3px] font-mono font-semibold text-right">£{(rj.travelPay ?? 0).toFixed(2)}</td>
-                                  </tr>
-                                )}
+                            {(rj.mileage ?? 0) > 0 && (
+                              <div className="flex items-start justify-between gap-3 py-[3px]">
+                                <p className="text-xs text-muted-foreground">Mileage ({rj.mileageMiles} mi)</p>
+                                <span className="font-mono text-xs font-semibold tabular-nums shrink-0">£{(rj.mileage ?? 0).toFixed(2)}</span>
+                              </div>
+                            )}
 
-                                {(rj.mileage ?? 0) > 0 && (
-                                  <tr>
-                                    <td colSpan={4} className="py-[3px] pr-2 text-muted-foreground">Mileage ({rj.mileageMiles} mi)</td>
-                                    <td className="py-[3px] font-mono font-semibold text-right">£{(rj.mileage ?? 0).toFixed(2)}</td>
-                                  </tr>
-                                )}
+                            {(rj.equipmentTotal ?? 0) > 0 && (
+                              <div className="flex items-start justify-between gap-3 py-[3px]">
+                                <p className="text-xs text-muted-foreground">Equipment{(rj.equipmentDiscount ?? 0) > 0 ? ` (−${rj.equipmentDiscount}%)` : ''}</p>
+                                <span className="font-mono text-xs font-semibold tabular-nums shrink-0">£{(rj.equipmentTotal ?? 0).toFixed(2)}</span>
+                              </div>
+                            )}
 
-                                {(rj.equipmentTotal ?? 0) > 0 && (
-                                  <tr>
-                                    <td colSpan={4} className="py-[3px] pr-2 text-muted-foreground">
-                                      Equipment{(rj.equipmentDiscount ?? 0) > 0 ? ` (−${rj.equipmentDiscount}%)` : ''}
-                                    </td>
-                                    <td className="py-[3px] font-mono font-semibold text-right">£{(rj.equipmentTotal ?? 0).toFixed(2)}</td>
-                                  </tr>
-                                )}
+                            {(day.expensesAmount ?? 0) > 0 && (
+                              <div className="flex items-start justify-between gap-3 py-[3px]">
+                                <p className="text-xs text-muted-foreground">Expenses{day.expensesNotes ? ` · ${day.expensesNotes}` : ''}</p>
+                                <span className="font-mono text-xs font-semibold tabular-nums shrink-0">£{(day.expensesAmount ?? 0).toFixed(2)}</span>
+                              </div>
+                            )}
 
-                                {(day.expensesAmount ?? 0) > 0 && (
-                                  <tr>
-                                    <td colSpan={4} className="py-[3px] pr-2 text-muted-foreground">
-                                      Expenses{day.expensesNotes ? ` · ${day.expensesNotes}` : ''}
-                                    </td>
-                                    <td className="py-[3px] font-mono font-semibold text-right">£{(day.expensesAmount ?? 0).toFixed(2)}</td>
-                                  </tr>
-                                )}
-
-                                <tr>
-                                  <td colSpan={5} className="pt-1.5 pb-0"><div className="border-t border-border/50" /></td>
-                                </tr>
-                                <tr>
-                                  <td colSpan={4} className="pt-1 font-bold text-xs uppercase tracking-wide text-foreground">Day Total</td>
-                                  <td className="pt-1 font-mono font-bold text-sm text-foreground text-right">£{(day.grand_total || 0).toFixed(2)}</td>
-                                </tr>
-                              </tbody>
-                            </table>
+                            <div className="border-t border-border/40 mt-1 pt-1.5 flex items-center justify-between">
+                              <span className="text-xs font-black uppercase tracking-wide">Day Total</span>
+                              <span className="font-mono text-sm font-black tabular-nums">£{(day.grand_total || 0).toFixed(2)}</span>
+                            </div>
                           </div>
                         )}
                       </div>
