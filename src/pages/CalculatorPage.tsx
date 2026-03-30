@@ -1975,8 +1975,8 @@ export function CalculatorPage() {
                                 <div className="border-t border-border/40 my-1" />
                                 {rj.penalties!.map((p, i) => (
                                   <div key={`p-${i}`} className="flex items-start justify-between gap-3 py-[3px]">
-                                    <p className="text-xs text-orange-600 leading-tight">{p.description}</p>
-                                    <span className="font-mono text-xs font-semibold tabular-nums text-orange-600 shrink-0 pt-0.5">£{p.total.toFixed(2)}</span>
+                                    <p className="text-xs text-muted-foreground leading-tight">{p.description}</p>
+                                    <span className="font-mono text-xs font-semibold tabular-nums shrink-0 pt-0.5">£{p.total.toFixed(2)}</span>
                                   </div>
                                 ))}
                               </>
