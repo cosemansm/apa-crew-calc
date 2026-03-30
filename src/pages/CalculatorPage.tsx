@@ -198,6 +198,7 @@ interface DayResultJson {
   equipmentValue?: number;
   equipmentDiscount?: number;
   equipmentTotal?: number;
+  dayDescription?: string;
 }
 
 interface ProjectDaySummary {
@@ -206,6 +207,7 @@ interface ProjectDaySummary {
   role_name: string;
   grand_total: number;
   day_number: number;
+  day_type?: string;
   result_json?: DayResultJson;
   wrap_time?: string;
   call_time?: string;
@@ -372,6 +374,17 @@ function ProjectCalendar({
     </div>
   );
 }
+
+const DAY_TYPE_SHORT: Record<string, string> = {
+  basic_working: 'Shoot Day',
+  continuous_working: 'Shoot Day',
+  prep: 'Prep Day',
+  recce: 'Recce Day',
+  build_strike: 'Build / Strike Day',
+  pre_light: 'Pre-light Day',
+  rest: 'Rest Day',
+  travel: 'Travel Day',
+};
 
 const SESSION_KEY = 'crewrate-calc-state';
 
@@ -646,7 +659,7 @@ export function CalculatorPage() {
   useEffect(() => {
     if (projectId) {
       supabase.from('project_days')
-        .select('id, work_date, role_name, grand_total, day_number, result_json, wrap_time, call_time, expenses_amount, expenses_notes')
+        .select('id, work_date, role_name, grand_total, day_number, day_type, result_json, wrap_time, call_time, expenses_amount, expenses_notes')
         .eq('project_id', projectId)
         .order('work_date', { ascending: true })
         .then(({ data }) => {
@@ -850,7 +863,7 @@ export function CalculatorPage() {
 
   const refreshProjectDays = async (projId: string) => {
     const { data } = await supabase.from('project_days')
-      .select('id, work_date, role_name, grand_total, day_number, result_json, wrap_time, call_time, expenses_amount, expenses_notes')
+      .select('id, work_date, role_name, grand_total, day_number, day_type, result_json, wrap_time, call_time, expenses_amount, expenses_notes')
       .eq('project_id', projId)
       .order('work_date', { ascending: true });
     if (data) setProjectDays(data as ProjectDaySummary[]);
@@ -1837,6 +1850,7 @@ export function CalculatorPage() {
                 work_date: string;
                 role_name: string;
                 grand_total: number;
+                day_type?: string;
                 isCurrent: boolean;
                 rj?: DayResultJson;
                 expensesAmount?: number;
@@ -1847,6 +1861,7 @@ export function CalculatorPage() {
                   work_date: d.work_date,
                   role_name: d.role_name,
                   grand_total: d.grand_total,
+                  day_type: d.day_type,
                   isCurrent: false,
                   rj: d.result_json,
                   expensesAmount: d.expenses_amount,
@@ -1857,6 +1872,7 @@ export function CalculatorPage() {
                   work_date: workDate,
                   role_name: selectedRole?.role ?? '—',
                   grand_total: result.grandTotal + (parseFloat(expensesDayAmount) || 0),
+                  day_type: dayType,
                   isCurrent: true,
                   expensesAmount: parseFloat(expensesDayAmount) || 0,
                   expensesNotes: expensesDayNotes,
@@ -1870,6 +1886,7 @@ export function CalculatorPage() {
                     equipmentValue: result.equipmentValue,
                     equipmentDiscount: result.equipmentDiscount,
                     equipmentTotal: result.equipmentTotal,
+                    dayDescription: result.dayDescription,
                   },
                 },
               ].sort((a, b) => a.work_date.localeCompare(b.work_date));
@@ -1879,9 +1896,8 @@ export function CalculatorPage() {
               const isMultiDay = allDays.length > 1;
 
               return (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {allDays.map((day, idx) => {
-                    const isExpanded = expandedDays.has(day.key);
                     const rj = day.rj;
                     const hasDetail = rj && (
                       (rj.lineItems?.length ?? 0) > 0 ||
@@ -1890,149 +1906,141 @@ export function CalculatorPage() {
                       (rj.mileage ?? 0) > 0
                     );
 
-                    return (
-                      <div key={day.key}>
-                        {idx > 0 && <Separator className="mb-3" />}
+                    // Day type label: prefer stored dayDescription, fall back to day_type map
+                    const dayLabel = rj?.dayDescription
+                      ?? (day.day_type ? DAY_TYPE_SHORT[day.day_type] : undefined)
+                      ?? '—';
 
-                        {/* Day header row */}
-                        <div
-                          className={cn(
-                            'flex items-center justify-between rounded-xl px-3 py-2 -mx-1 transition-colors',
-                            day.isCurrent ? 'bg-primary/8 ring-1 ring-primary/20' : 'hover:bg-muted/40 cursor-pointer',
-                          )}
-                          onClick={() => { if (!day.isCurrent) loadDayById(day.key); }}
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            {hasDetail && (
-                              <ChevronRight className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform', day.isCurrent && 'rotate-90')} />
-                            )}
+                    return (
+                      <div
+                        key={day.key}
+                        className={cn(
+                          'rounded-2xl border overflow-hidden transition-all',
+                          day.isCurrent
+                            ? 'border-[#FFD528] shadow-[0_0_0_1px_#FFD528]'
+                            : 'border-border cursor-pointer hover:border-muted-foreground/30',
+                        )}
+                        onClick={() => { if (!day.isCurrent) loadDayById(day.key); }}
+                      >
+                        {/* Day header */}
+                        <div className={cn('px-3 pt-3 pb-2.5', day.isCurrent ? 'bg-[#FFD528]/6' : '')}>
+                          <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <p className="text-sm font-medium leading-tight">
-                                Day {idx + 1}
-                                {day.isCurrent && <span className="ml-1.5 text-xs text-[#FFD528] font-normal">(editing)</span>}
+                              <div className="flex items-baseline gap-1.5">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Day {idx + 1}</span>
+                                <span className="text-xs font-semibold text-foreground">
+                                  {day.work_date ? format(parseISO(day.work_date), 'EEE d MMM yyyy') : '—'}
+                                </span>
+                              </div>
+                              <p className="text-[11px] font-bold uppercase tracking-wide text-[#FFD528] mt-0.5 leading-tight">
+                                {dayLabel}
                               </p>
-                              <p className="text-xs text-muted-foreground truncate">
-                                {day.work_date ? format(parseISO(day.work_date), 'EEE dd MMM') : '—'}
-                                {day.role_name && ` · ${day.role_name}`}
-                              </p>
+                              <p className="text-[10px] text-muted-foreground/60 truncate mt-0.5">{day.role_name}</p>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                            <span className="font-mono text-sm font-semibold">
-                              £{(day.grand_total || 0).toFixed(2)}
-                            </span>
-                            {!day.isCurrent && (
-                              <button
-                                onClick={e => { e.stopPropagation(); removeDay(day.key); }}
-                                className="p-1 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors"
-                                title="Remove day"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            )}
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className="font-mono text-sm font-bold">£{(day.grand_total || 0).toFixed(2)}</span>
+                              {!day.isCurrent && (
+                                <button
+                                  onClick={e => { e.stopPropagation(); removeDay(day.key); }}
+                                  className="p-1 rounded-lg text-muted-foreground/40 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                  title="Remove day"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
 
-                        {/* Expandable detail — always shown for the day currently loaded in the calculator */}
+                        {/* Line items — always visible for current day */}
                         {day.isCurrent && hasDetail && rj && (
-                          <div className="mt-2 ml-5 space-y-1.5 text-sm">
-                            {/* Basic line items */}
-                            {rj.lineItems?.map((item, i) => (
-                              <div key={i} className="flex justify-between gap-2">
-                                <div className="min-w-0">
-                                  <span className="text-muted-foreground">{item.description}</span>
-                                  {(item.timeFrom && item.timeTo) || (item.rate && item.hours) ? (
-                                    <p className="text-xs text-muted-foreground/60 font-mono">
+                          <div className="border-t border-[#FFD528]/25 bg-background px-3 pt-2 pb-3">
+                            <table className="w-full text-xs border-collapse">
+                              <tbody>
+                                {rj.lineItems?.map((item, i) => (
+                                  <tr key={i} className="group">
+                                    <td className="py-[3px] pr-2 text-muted-foreground align-top">{item.description}</td>
+                                    <td className="py-[3px] pr-2 font-mono text-muted-foreground/60 whitespace-nowrap align-top text-right">
                                       {item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : ''}
-                                      {item.rate && item.hours ? ` · £${item.rate} × ${Math.abs(item.rate - item.total) < 1 ? '1' : item.hours % 1 === 0 ? `${item.hours}h` : `${item.hours.toFixed(2)}h`}` : ''}
-                                    </p>
-                                  ) : null}
-                                </div>
-                                <span className="font-mono text-xs shrink-0">£{item.total.toFixed(2)}</span>
-                              </div>
-                            ))}
-
-                            {/* Penalties / OT */}
-                            {(rj.penalties?.length ?? 0) > 0 && (
-                              <>
-                                <div className="pt-1 border-t border-border/60" />
-                                <p className="text-xs font-medium text-orange-600">Penalties & OT</p>
-                                {rj.penalties!.map((p, i) => (
-                                  <div key={i} className="flex justify-between text-orange-700">
-                                    <span>{p.description}</span>
-                                    <span className="font-mono text-xs">£{p.total.toFixed(2)}</span>
-                                  </div>
+                                    </td>
+                                    <td className="py-[3px] pr-1 font-mono text-muted-foreground/70 whitespace-nowrap align-top text-right">
+                                      {item.rate ? `£${item.rate}` : ''}
+                                    </td>
+                                    <td className="py-[3px] pr-2 font-mono text-muted-foreground/70 whitespace-nowrap align-top text-right">
+                                      {item.hours != null && item.hours !== 0
+                                        ? item.hours % 1 === 0 ? `${item.hours}` : item.hours.toFixed(2)
+                                        : ''}
+                                    </td>
+                                    <td className="py-[3px] font-mono font-semibold text-foreground whitespace-nowrap align-top text-right">
+                                      £{item.total.toFixed(2)}
+                                    </td>
+                                  </tr>
                                 ))}
-                              </>
-                            )}
 
-                            {/* Travel */}
-                            {(rj.travelPay ?? 0) > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Travel</span>
-                                <span className="font-mono text-xs">£{(rj.travelPay ?? 0).toFixed(2)}</span>
-                              </div>
-                            )}
+                                {(rj.penalties?.length ?? 0) > 0 && (
+                                  <>
+                                    <tr><td colSpan={5} className="pt-1.5 pb-0.5"><div className="border-t border-border/50" /></td></tr>
+                                    {rj.penalties!.map((p, i) => (
+                                      <tr key={`p-${i}`}>
+                                        <td colSpan={4} className="py-[3px] pr-2 text-orange-600">{p.description}</td>
+                                        <td className="py-[3px] font-mono font-semibold text-orange-600 text-right">£{p.total.toFixed(2)}</td>
+                                      </tr>
+                                    ))}
+                                  </>
+                                )}
 
-                            {/* Mileage */}
-                            {(rj.mileage ?? 0) > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">Mileage ({rj.mileageMiles} mi @ 50p)</span>
-                                <span className="font-mono text-xs">£{(rj.mileage ?? 0).toFixed(2)}</span>
-                              </div>
-                            )}
+                                {(rj.travelPay ?? 0) > 0 && (
+                                  <tr>
+                                    <td colSpan={4} className="py-[3px] pr-2 text-muted-foreground">Travel</td>
+                                    <td className="py-[3px] font-mono font-semibold text-right">£{(rj.travelPay ?? 0).toFixed(2)}</td>
+                                  </tr>
+                                )}
 
-                            {/* Equipment */}
-                            {(rj.equipmentTotal ?? 0) > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">
-                                  Equipment{(rj.equipmentDiscount ?? 0) > 0 ? ` (−${rj.equipmentDiscount}%)` : ''}
-                                </span>
-                                <span className="font-mono text-xs">£{(rj.equipmentTotal ?? 0).toFixed(2)}</span>
-                              </div>
-                            )}
+                                {(rj.mileage ?? 0) > 0 && (
+                                  <tr>
+                                    <td colSpan={4} className="py-[3px] pr-2 text-muted-foreground">Mileage ({rj.mileageMiles} mi)</td>
+                                    <td className="py-[3px] font-mono font-semibold text-right">£{(rj.mileage ?? 0).toFixed(2)}</td>
+                                  </tr>
+                                )}
 
-                            {/* Expenses */}
-                            {(day.expensesAmount ?? 0) > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-muted-foreground">
-                                  Expenses{day.expensesNotes ? ` (${day.expensesNotes})` : ''}
-                                </span>
-                                <span className="font-mono text-xs">£{(day.expensesAmount ?? 0).toFixed(2)}</span>
-                              </div>
-                            )}
+                                {(rj.equipmentTotal ?? 0) > 0 && (
+                                  <tr>
+                                    <td colSpan={4} className="py-[3px] pr-2 text-muted-foreground">
+                                      Equipment{(rj.equipmentDiscount ?? 0) > 0 ? ` (−${rj.equipmentDiscount}%)` : ''}
+                                    </td>
+                                    <td className="py-[3px] font-mono font-semibold text-right">£{(rj.equipmentTotal ?? 0).toFixed(2)}</td>
+                                  </tr>
+                                )}
 
-                            {/* Day total inside expanded */}
-                            <div className="flex justify-between font-semibold pt-1 border-t border-border/60">
-                              <span>Day Total</span>
-                              <span className="font-mono text-xs text-primary">£{(day.grand_total || 0).toFixed(2)}</span>
-                            </div>
+                                {(day.expensesAmount ?? 0) > 0 && (
+                                  <tr>
+                                    <td colSpan={4} className="py-[3px] pr-2 text-muted-foreground">
+                                      Expenses{day.expensesNotes ? ` · ${day.expensesNotes}` : ''}
+                                    </td>
+                                    <td className="py-[3px] font-mono font-semibold text-right">£{(day.expensesAmount ?? 0).toFixed(2)}</td>
+                                  </tr>
+                                )}
+
+                                <tr>
+                                  <td colSpan={5} className="pt-1.5 pb-0"><div className="border-t border-border/50" /></td>
+                                </tr>
+                                <tr>
+                                  <td colSpan={4} className="pt-1 font-bold text-xs uppercase tracking-wide text-foreground">Day Total</td>
+                                  <td className="pt-1 font-mono font-bold text-sm text-foreground text-right">£{(day.grand_total || 0).toFixed(2)}</td>
+                                </tr>
+                              </tbody>
+                            </table>
                           </div>
                         )}
                       </div>
                     );
                   })}
 
-                  {/* Project total */}
-                  {isMultiDay && (
-                    <>
-                      <Separator />
-                      <div className="flex justify-between text-base font-bold px-1">
-                        <span>Job Total</span>
-                        <span className="font-mono text-foreground">£{projectTotal.toFixed(2)}</span>
-                      </div>
-                    </>
-                  )}
-
-                  {!isMultiDay && (
-                    <>
-                      <Separator />
-                      <div className="flex justify-between text-base font-bold px-1">
-                        <span>Total</span>
-                        <span className="font-mono text-foreground">£{result.grandTotal.toFixed(2)}</span>
-                      </div>
-                    </>
-                  )}
+                  {/* Project / job total */}
+                  <div className="flex justify-between text-sm font-bold px-1 pt-1">
+                    <span>{isMultiDay ? 'Job Total' : 'Total'}</span>
+                    <span className="font-mono">£{projectTotal.toFixed(2)}</span>
+                  </div>
 
                   {saveSuccess && (
                     <Button
