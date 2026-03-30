@@ -69,12 +69,15 @@ const DEFAULT_WRAP_HOURS: Partial<Record<DayType, number>> = {
 };
 
 
-function TimePicker({ value, onChange, label, labelAddon, triggerClassName }: {
+function TimePicker({ value, onChange, label, labelAddon, triggerClassName, showNextDay, isNextDay, onNextDayChange }: {
   value: string;
   onChange: (v: string) => void;
   label?: string;
   labelAddon?: React.ReactNode;
   triggerClassName?: string;
+  showNextDay?: boolean;
+  isNextDay?: boolean;
+  onNextDayChange?: (v: boolean) => void;
 }) {
   const safe = /^\d{2}:\d{2}$/.test(value) ? value : '08:00';
   const [hh, mm] = safe.split(':').map(Number);
@@ -104,14 +107,38 @@ function TimePicker({ value, onChange, label, labelAddon, triggerClassName }: {
             type="button"
             className={cn(
               'flex h-10 w-full items-center justify-between rounded-2xl border border-input bg-background px-3 py-2 text-sm font-mono font-semibold tracking-wider hover:border-[#FFD528] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              isNextDay && 'border-[#FFD528] bg-amber-50',
               triggerClassName
             )}
           >
-            {safe}
+            <span>
+              {safe}
+              {isNextDay && (
+                <span className="ml-1.5 text-[9px] font-bold bg-[#FFD528] text-[#1F1F21] rounded px-1 py-0.5 align-middle tracking-normal">+1</span>
+              )}
+            </span>
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-1 shrink-0" />
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-3" align="start">
+          {showNextDay && (
+            <div className="flex bg-muted rounded-lg p-0.5 gap-0.5 mb-3">
+              <button
+                type="button"
+                onClick={() => onNextDayChange?.(false)}
+                className={cn('flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors', !isNextDay ? 'bg-[#1F1F21] text-[#FFD528]' : 'text-muted-foreground hover:text-foreground')}
+              >
+                Same Day
+              </button>
+              <button
+                type="button"
+                onClick={() => onNextDayChange?.(true)}
+                className={cn('flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors', isNextDay ? 'bg-[#FFD528] text-[#1F1F21]' : 'text-muted-foreground hover:text-foreground')}
+              >
+                Next Day +1
+              </button>
+            </div>
+          )}
           <div className="flex gap-3">
             <div>
               <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Hour</p>
@@ -358,6 +385,7 @@ interface SessionState {
   isBankHoliday: boolean;
   callTime: string;
   wrapTime: string;
+  wrapNextDay: boolean;
   firstBreakGiven: boolean;
   firstBreakTime: string;
   firstBreakDuration: string;
@@ -422,6 +450,7 @@ export function CalculatorPage() {
   const [bankHolidays, setBankHolidays] = useState<Set<string>>(new Set());
   const [callTime, setCallTime] = useState(ss?.callTime ?? '08:00');
   const [wrapTime, setWrapTime] = useState(ss?.wrapTime ?? '19:00');
+  const [wrapNextDay, setWrapNextDay] = useState(ss?.wrapNextDay ?? false);
   // Track whether the user has manually set wrap time; if not, auto-follow call time
   const wrapManualRef = useRef(!!ss?.wrapTime); // treat restored session as manual
   const [firstBreakGiven, setFirstBreakGiven] = useState(ss?.firstBreakGiven ?? true);
@@ -495,6 +524,7 @@ export function CalculatorPage() {
       isBankHoliday,
       callTime,
       wrapTime,
+      wrapNextDay,
       firstBreakGiven,
       firstBreakTime,
       firstBreakDuration,
@@ -675,6 +705,14 @@ export function CalculatorPage() {
     return prevDay.wrap_time;
   }, [projectDays, workDate, currentDayId]);
 
+  // When wrap crosses midnight, encode hours > 24 so the engine sees the true duration.
+  // e.g. wrapTime "02:30" + wrapNextDay → effectiveWrapTime "26:30"
+  const effectiveWrapTime = useMemo(() => {
+    if (!wrapNextDay) return wrapTime;
+    const [h, m] = wrapTime.split(':');
+    return `${String(parseInt(h) + 24).padStart(2, '0')}:${m}`;
+  }, [wrapTime, wrapNextDay]);
+
   const result: CalculationResult | null = useMemo(() => {
     if (!selectedRole || !agreedRate) return null;
     const rate = parseInt(agreedRate);
@@ -686,7 +724,7 @@ export function CalculatorPage() {
       dayType,
       dayOfWeek,
       callTime,
-      wrapTime,
+      wrapTime: effectiveWrapTime,
       firstBreakGiven,
       firstBreakTime: firstBreakGiven ? firstBreakTime : undefined,
       firstBreakDurationMins: parseInt(firstBreakDuration) || 60,
@@ -701,7 +739,7 @@ export function CalculatorPage() {
       equipmentValue: parseFloat(equipmentValue) || 0,
       equipmentDiscount: parseFloat(equipmentDiscount) || 0,
     });
-  }, [selectedRole, agreedRate, dayType, dayOfWeek, callTime, wrapTime, firstBreakGiven, firstBreakTime, firstBreakDuration, secondBreakGiven, secondBreakTime, secondBreakDuration, continuousFirstBreakGiven, continuousAdditionalBreakGiven, travelHours, mileage, autoPreviousWrap, workDate, isBankHoliday, equipmentValue, equipmentDiscount]);
+  }, [selectedRole, agreedRate, dayType, dayOfWeek, callTime, effectiveWrapTime, firstBreakGiven, firstBreakTime, firstBreakDuration, secondBreakGiven, secondBreakTime, secondBreakDuration, continuousFirstBreakGiven, continuousAdditionalBreakGiven, travelHours, mileage, autoPreviousWrap, workDate, isBankHoliday, equipmentValue, equipmentDiscount]);
 
   // Mark dirty whenever the calculated result changes (but not during load/reset)
   useEffect(() => {
@@ -756,7 +794,15 @@ export function CalculatorPage() {
     setIsBankHoliday(day.is_bank_holiday ?? false);
     setDayType(day.day_type as DayType);
     setCallTime(day.call_time);
-    setWrapTime(day.wrap_time);
+    // Decode next-day wrap: hours ≥ 24 means it was saved as an over-midnight wrap
+    const rawWrapHr = parseInt(day.wrap_time.split(':')[0]);
+    if (rawWrapHr >= 24) {
+      setWrapNextDay(true);
+      setWrapTime(`${String(rawWrapHr - 24).padStart(2, '0')}:${day.wrap_time.split(':')[1]}`);
+    } else {
+      setWrapNextDay(false);
+      setWrapTime(day.wrap_time);
+    }
     setFirstBreakGiven(day.first_break_given ?? true);
     setFirstBreakTime(day.first_break_time || '13:00');
     setFirstBreakDuration(String(day.first_break_duration ?? 60));
@@ -838,6 +884,7 @@ export function CalculatorPage() {
     setIsBankHoliday(false);
     setCallTime('08:00');
     setWrapTime('19:00');
+    setWrapNextDay(false);
     setFirstBreakGiven(true);
     setFirstBreakTime('13:00');
     setFirstBreakDuration('60');
@@ -870,6 +917,7 @@ export function CalculatorPage() {
     setDayType('basic_working');
     setCallTime('08:00');
     setWrapTime('19:00');
+    setWrapNextDay(false);
     setFirstBreakGiven(true);
     setFirstBreakTime('13:00');
     setFirstBreakDuration('60');
@@ -917,7 +965,7 @@ export function CalculatorPage() {
       day_type: dayType,
       day_of_week: dayOfWeek,
       call_time: callTime,
-      wrap_time: wrapTime,
+      wrap_time: effectiveWrapTime,
       result_json: result,
       grand_total: result.grandTotal + (parseFloat(expensesDayAmount) || 0),
       first_break_given: firstBreakGiven,
@@ -1232,8 +1280,9 @@ export function CalculatorPage() {
               let isUnderMin = false;
               let hrs = 0, mins = 0, effectiveHrs = 0;
               if (hasTimes) {
-                let callMins = parseInt(callTime.split(':')[0]) * 60 + parseInt(callTime.split(':')[1]);
-                let wrapMins = parseInt(wrapTime.split(':')[0]) * 60 + parseInt(wrapTime.split(':')[1]);
+                const callMins = parseInt(callTime.split(':')[0]) * 60 + parseInt(callTime.split(':')[1]);
+                // Use effectiveWrapTime (hours > 24 when next-day) so duration is always correct
+                let wrapMins = parseInt(effectiveWrapTime.split(':')[0]) * 60 + parseInt(effectiveWrapTime.split(':')[1]);
                 if (wrapMins <= callMins) wrapMins += 24 * 60;
                 const totalHrs = (wrapMins - callMins) / 60;
                 effectiveHrs = dayType === 'travel' ? Math.max(totalHrs, 5) : totalHrs;
@@ -1291,6 +1340,9 @@ export function CalculatorPage() {
                     labelAddon={infoAddon}
                     value={wrapTime}
                     onChange={(v) => { wrapManualRef.current = true; setWrapTime(v); }}
+                    showNextDay
+                    isNextDay={wrapNextDay}
+                    onNextDayChange={(v) => { wrapManualRef.current = true; setWrapNextDay(v); }}
                   />
                 </div>
               );
