@@ -69,8 +69,27 @@ const DEFAULT_WRAP_HOURS: Partial<Record<DayType, number>> = {
 };
 
 
-function TimePicker({ value, onChange, label, labelAddon }: { value: string; onChange: (v: string) => void; label?: string; labelAddon?: React.ReactNode }) {
+function TimePicker({ value, onChange, label, labelAddon, triggerClassName }: {
+  value: string;
+  onChange: (v: string) => void;
+  label?: string;
+  labelAddon?: React.ReactNode;
+  triggerClassName?: string;
+}) {
   const safe = /^\d{2}:\d{2}$/.test(value) ? value : '08:00';
+  const [hh, mm] = safe.split(':').map(Number);
+  const [open, setOpen] = useState(false);
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const minutes = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+
+  const selectHour = (hour: number) => {
+    onChange(`${String(hour).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
+  };
+  const selectMinute = (minute: number) => {
+    onChange(`${String(hh).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
+    setOpen(false);
+  };
+
   return (
     <div className="space-y-1.5">
       {label && (
@@ -79,12 +98,65 @@ function TimePicker({ value, onChange, label, labelAddon }: { value: string; onC
           {labelAddon}
         </div>
       )}
-      <input
-        type="time"
-        value={safe}
-        onChange={e => { if (e.target.value) onChange(e.target.value); }}
-        className="flex h-10 w-full rounded-2xl border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-      />
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              'flex h-10 w-full items-center justify-between rounded-2xl border border-input bg-background px-3 py-2 text-sm font-mono font-semibold tracking-wider hover:border-[#FFD528] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+              triggerClassName
+            )}
+          >
+            {safe}
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-1 shrink-0" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-3" align="start">
+          <div className="flex gap-3">
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Hour</p>
+              <div className="grid grid-cols-4 gap-1">
+                {hours.map(hour => (
+                  <button
+                    key={hour}
+                    type="button"
+                    onClick={() => selectHour(hour)}
+                    className={cn(
+                      'w-9 h-7 rounded-lg text-xs font-semibold transition-colors',
+                      hour === hh
+                        ? 'bg-[#1F1F21] text-[#FFD528]'
+                        : 'border border-transparent hover:border-[#FFD528] text-foreground'
+                    )}
+                  >
+                    {String(hour).padStart(2, '0')}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="w-px bg-border" />
+            <div>
+              <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Min</p>
+              <div className="grid grid-cols-3 gap-1">
+                {minutes.map(minute => (
+                  <button
+                    key={minute}
+                    type="button"
+                    onClick={() => selectMinute(minute)}
+                    className={cn(
+                      'w-9 h-7 rounded-lg text-xs font-semibold transition-colors',
+                      minute === mm
+                        ? 'bg-[#1F1F21] text-[#FFD528]'
+                        : 'border border-transparent hover:border-[#FFD528] text-foreground'
+                    )}
+                  >
+                    {String(minute).padStart(2, '0')}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
@@ -1061,99 +1133,71 @@ export function CalculatorPage() {
             <Separator />
 
             {/* Role Selection */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Crew Role</Label>
-                <Select onValueChange={handleRoleChange} value={selectedRole?.role}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a role..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customRoles.length > 0 && (
-                      <SelectGroup>
-                        <SelectLabel className="flex items-center gap-1">
-                          <Star className="h-3 w-3 fill-[#FFD528] text-[#FFD528]" /> Custom Rates
-                        </SelectLabel>
-                        {customRoles.map(role => (
-                          <SelectItem key={`custom-${role.customId}`} value={role.role}>
+            <div className="space-y-2">
+              <Label>Crew Role</Label>
+              <Select onValueChange={handleRoleChange} value={selectedRole?.role}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a role..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {customRoles.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel className="flex items-center gap-1">
+                        <Star className="h-3 w-3 fill-[#FFD528] text-[#FFD528]" /> Custom Rates
+                      </SelectLabel>
+                      {customRoles.map(role => (
+                        <SelectItem key={`custom-${role.customId}`} value={role.role}>
+                          {role.role}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  )}
+                  {favouriteRoles.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel className="flex items-center gap-1">
+                        <Star className="h-3 w-3 fill-amber-500 text-amber-500" /> Favourites
+                      </SelectLabel>
+                      {favouriteRoles.map(roleName => {
+                        const role = APA_CREW_ROLES.find(r => r.role === roleName);
+                        return role ? (
+                          <SelectItem key={`fav-${role.role}`} value={role.role}>
+                            {role.role}
+                          </SelectItem>
+                        ) : null;
+                      })}
+                    </SelectGroup>
+                  )}
+                  {DEPARTMENTS.map(dept => {
+                    const deptRoles = getRolesByDepartment(dept).filter(r => !favouriteRoles.includes(r.role));
+                    if (deptRoles.length === 0) return null;
+                    return (
+                      <SelectGroup key={dept}>
+                        <SelectLabel>{dept}</SelectLabel>
+                        {deptRoles.map(role => (
+                          <SelectItem key={role.role} value={role.role}>
                             {role.role}
                           </SelectItem>
                         ))}
                       </SelectGroup>
-                    )}
-                    {favouriteRoles.length > 0 && (
-                      <SelectGroup>
-                        <SelectLabel className="flex items-center gap-1">
-                          <Star className="h-3 w-3 fill-amber-500 text-amber-500" /> Favourites
-                        </SelectLabel>
-                        {favouriteRoles.map(roleName => {
-                          const role = APA_CREW_ROLES.find(r => r.role === roleName);
-                          return role ? (
-                            <SelectItem key={`fav-${role.role}`} value={role.role}>
-                              {role.role}
-                            </SelectItem>
-                          ) : null;
-                        })}
-                      </SelectGroup>
-                    )}
-                    {DEPARTMENTS.map(dept => {
-                      const deptRoles = getRolesByDepartment(dept).filter(r => !favouriteRoles.includes(r.role));
-                      if (deptRoles.length === 0) return null;
-                      return (
-                        <SelectGroup key={dept}>
-                          <SelectLabel>{dept}</SelectLabel>
-                          {deptRoles.map(role => (
-                            <SelectItem key={role.role} value={role.role}>
-                              {role.role}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="rate">Day Rate</Label>
-                  {selectedRole && agreedRate && !selectedRole.isBuyout && (
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button className="flex items-center justify-center h-5 w-5 rounded-full text-muted-foreground/40 hover:text-muted-foreground/80 transition-colors">
-                          <Info className="h-3.5 w-3.5" />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent align="end" className="w-64 px-4 py-3 text-sm space-y-2">
-                        <p className="font-medium text-foreground">Rate Breakdown</p>
-                        {selectedRole.isCustom ? (
-                          <div className="space-y-1 text-muted-foreground">
-                            <p>Custom grade · OT x{selectedRole.otCoefficient}</p>
-                            <p>BHR: <strong className="text-foreground">£{selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)}/hr</strong></p>
-                            {selectedRole.otCoefficient > 0 && (
-                              <p>OT rate: <strong className="text-foreground">£{Math.round((selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)) * selectedRole.otCoefficient)}/hr</strong></p>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="space-y-1 text-muted-foreground">
-                            <p>BHR: <strong className="text-foreground">£{Math.round(parseInt(agreedRate) / 10)}/hr</strong> <span className="text-xs">(1/10 of day rate)</span></p>
-                            {selectedRole.otGrade !== 'N/A' && (
-                              <>
-                                <p>OT Grade: <strong className="text-foreground">{selectedRole.otGrade}</strong> (x{selectedRole.otCoefficient})</p>
-                                <p>OT rate: <strong className="text-foreground">£{Math.round(Math.round(parseInt(agreedRate) / 10) * selectedRole.otCoefficient)}/hr</strong></p>
-                              </>
-                            )}
-                          </div>
-                        )}
-                      </PopoverContent>
-                    </Popover>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              {selectedRole && agreedRate && (
+                <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                  <span className="inline-flex items-center bg-[#1F1F21] text-[#FFD528] text-xs font-bold px-2.5 py-1 rounded-full font-mono">
+                    £{agreedRate}/day
+                  </span>
+                  {!selectedRole.isBuyout && (
+                    <span className="text-xs text-muted-foreground">
+                      BHR £{selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)}/hr
+                      {selectedRole.otGrade !== 'N/A' && (
+                        <> · OT Grade {selectedRole.otGrade} · OT £{Math.round((selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)) * selectedRole.otCoefficient)}/hr</>
+                      )}
+                    </span>
                   )}
                 </div>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">£</span>
-                  <Input id="rate" type="number" className="pl-7" value={agreedRate} onChange={e => setAgreedRate(e.target.value)} placeholder={selectedRole ? `${selectedRole.minRate || '—'} - ${selectedRole.maxRate || '—'}` : 'Select role first'} />
-                </div>
-              </div>
+              )}
             </div>
 
             <Separator />
@@ -1313,11 +1357,10 @@ export function CalculatorPage() {
                           <div className="ml-7 flex items-center gap-3 flex-wrap">
                             <div className="flex flex-col gap-1">
                               <span className="text-xs text-muted-foreground">Time</span>
-                              <input
-                                type="time"
+                              <TimePicker
                                 value={firstBreakTime}
-                                onChange={e => { if (e.target.value) setFirstBreakTime(e.target.value); }}
-                                className="h-9 w-[110px] rounded-xl border border-input bg-background px-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                onChange={setFirstBreakTime}
+                                triggerClassName="h-9 w-[110px] rounded-xl"
                               />
                             </div>
                             <div className="flex flex-col gap-1">
@@ -1353,11 +1396,10 @@ export function CalculatorPage() {
                           <div className="ml-7 flex items-center gap-3 flex-wrap">
                             <div className="flex flex-col gap-1">
                               <span className="text-xs text-muted-foreground">Time</span>
-                              <input
-                                type="time"
+                              <TimePicker
                                 value={secondBreakTime}
-                                onChange={e => { if (e.target.value) setSecondBreakTime(e.target.value); }}
-                                className="h-9 w-[110px] rounded-xl border border-input bg-background px-2.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                onChange={setSecondBreakTime}
+                                triggerClassName="h-9 w-[110px] rounded-xl"
                               />
                             </div>
                             <div className="flex flex-col gap-1">

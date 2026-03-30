@@ -23,3 +23,7 @@ dist-ssr/
 
 # Vercel
 .vercel
+.env*.local
+
+# Brainstorm sessions
+.superpowers/
