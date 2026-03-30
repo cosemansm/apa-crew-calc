@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/usePageTitle';
-import { Calculator } from 'lucide-react';
+import logoSrc from '@/assets/logo.png';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -77,8 +77,8 @@ export function LoginPage() {
     <main id="main-content" className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="h-12 w-12 rounded-2xl bg-[#FFD528] flex items-center justify-center">
-            <Calculator className="h-6 w-6 text-[#1F1F21]" />
+          <div className="h-12 w-12 rounded-2xl bg-[#FFD528] flex items-center justify-center overflow-hidden">
+            <img src={logoSrc} alt="Crew Dock" className="h-9 w-9 object-contain" style={{ mixBlendMode: 'multiply' }} />
           </div>
           <h1 className="text-3xl font-bold">Crew Dock</h1>
         </div>

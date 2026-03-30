@@ -3,6 +3,7 @@ import { Calculator, FileText, LogOut, Sparkles, Menu, X, LayoutDashboard, Setti
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import logoSrc from '@/assets/logo.png';
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -33,8 +34,8 @@ export function AppLayout() {
           "flex items-center h-[72px] px-4 shrink-0",
           sidebarExpanded ? "gap-3 justify-start" : "justify-center"
         )}>
-          <div className="h-10 w-10 rounded-2xl bg-[#FFD528] flex items-center justify-center shrink-0">
-            <Calculator className="h-5 w-5 text-[#1F1F21]" />
+          <div className="h-10 w-10 rounded-2xl bg-[#FFD528] flex items-center justify-center shrink-0 overflow-hidden">
+            <img src={logoSrc} alt="Crew Dock" className="h-7 w-7 object-contain" style={{ mixBlendMode: 'multiply' }} />
           </div>
           {sidebarExpanded && (
             <span className="text-lg font-bold text-white tracking-tight whitespace-nowrap">
@@ -156,8 +157,8 @@ export function AppLayout() {
         <div className="md:hidden fixed top-0 left-0 right-0 z-50 p-3 print:hidden">
           <header className="bg-[#1F1F21] rounded-2xl shadow-2xl h-14 flex items-center justify-between px-4">
             <Link to="/dashboard" className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-xl bg-[#FFD528] flex items-center justify-center shrink-0">
-                <Calculator className="h-4 w-4 text-[#1F1F21]" />
+              <div className="h-8 w-8 rounded-xl bg-[#FFD528] flex items-center justify-center shrink-0 overflow-hidden">
+                <img src={logoSrc} alt="Crew Dock" className="h-6 w-6 object-contain" style={{ mixBlendMode: 'multiply' }} />
               </div>
               <span className="text-base font-bold text-white tracking-tight">Crew Dock</span>
             </Link>
