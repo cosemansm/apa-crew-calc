@@ -2,7 +2,7 @@
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
-function buildHtml(message: string): string {
+function buildHtml(message: string, fromName?: string): string {
   // Convert plain-text message to HTML paragraphs
   const paragraphs = message
     .split('\n')
@@ -34,8 +34,10 @@ function buildHtml(message: string): string {
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr>
                 <td>
-                  <span style="display:inline-block;background:#FFD528;border-radius:8px;width:36px;height:36px;text-align:center;vertical-align:middle;line-height:0"><img src="https://crewdock.app/logo.png" alt="Crew Dock" width="22" height="22" style="display:inline-block;vertical-align:middle;margin-top:7px"></span>
-                  <span style="color:#ffffff;font-weight:700;font-size:18px;vertical-align:middle;margin-left:10px">Crew Dock</span>
+                  ${fromName
+                    ? `<span style="color:#ffffff;font-weight:700;font-size:20px">${fromName}</span>`
+                    : `<span style="display:inline-block;background:#FFD528;border-radius:8px;width:36px;height:36px;text-align:center;vertical-align:middle;line-height:0"><img src="https://crewdock.app/logo.png" alt="Crew Dock" width="22" height="22" style="display:inline-block;vertical-align:middle;margin-top:7px"></span><span style="color:#ffffff;font-weight:700;font-size:18px;vertical-align:middle;margin-left:10px">Crew Dock</span>`
+                  }
                 </td>
                 <td align="right">
                   <span style="color:#9A9A9A;font-size:12px">Invoice</span>
@@ -87,7 +89,7 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({ error: 'Email service not configured — add RESEND_API_KEY to environment variables' });
   }
 
-  const { to, subject, message, pdfBase64, fileName } = req.body;
+  const { to, subject, message, pdfBase64, fileName, fromName } = req.body;
 
   if (!to || !subject || !pdfBase64) {
     return res.status(400).json({ error: 'Missing required fields: to, subject, pdfBase64' });
@@ -104,11 +106,11 @@ export default async function handler(req: any, res: any) {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'Crew Dock <invoices@crewdock.app>',
+        from: fromName ? `${fromName} via Crew Dock <invoices@crewdock.app>` : 'Crew Dock <invoices@crewdock.app>',
         to: toArray,
         subject,
         text: message,        // plain-text fallback
-        html: buildHtml(message), // HTML version (better deliverability)
+        html: buildHtml(message, fromName), // HTML version (better deliverability)
         attachments: [
           {
             filename: attachmentName,
