@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Calculator, FileText, LogOut, Sparkles, Menu, X, LayoutDashboard, Settings, User, ChevronLeft, ChevronRight, FolderOpen, LifeBuoy } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { cn } from '@/lib/utils';
 import logoSrc from '@/assets/logo.png';
 
@@ -16,6 +17,7 @@ const navItems = [
 
 export function AppLayout() {
   const { user, signOut } = useAuth();
+  const { isPremium, isTrialing, trialDaysLeft } = useSubscription();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
@@ -48,6 +50,7 @@ export function AppLayout() {
         <nav aria-label="Main navigation" className="flex-1 px-3 py-2 space-y-1">
           {navItems.map(({ path, label, icon: Icon }) => {
             const isActive = location.pathname === path;
+            const isAIInput = path === '/ai-input';
             return (
               <Link key={path} to={path}>
                 <div
@@ -61,9 +64,12 @@ export function AppLayout() {
                 >
                   <Icon className="h-5 w-5 shrink-0" />
                   {sidebarExpanded && (
-                    <span className="text-sm font-medium whitespace-nowrap font-mono">
+                    <span className="text-sm font-medium whitespace-nowrap font-mono flex-1">
                       {label}
                     </span>
+                  )}
+                  {sidebarExpanded && isAIInput && !isPremium && (
+                    <span className="text-[10px] font-bold text-[#FFD528] opacity-80">✦</span>
                   )}
                 </div>
               </Link>
@@ -73,6 +79,29 @@ export function AppLayout() {
 
         {/* Divider */}
         <div className="mx-4 border-t border-white/10" />
+
+        {/* Plan status badge */}
+        {sidebarExpanded && isTrialing && (
+          <div className="px-3 py-1">
+            <span className="text-[10px] font-bold text-[#FFD528] bg-[#FFD528]/10 border border-[#FFD528]/25 rounded-full px-2.5 py-0.5">
+              ✦ Trial — {trialDaysLeft}d left
+            </span>
+          </div>
+        )}
+        {sidebarExpanded && !isPremium && !isTrialing && (
+          <div className="px-3 py-1">
+            <span className="text-[10px] font-bold text-white/40 bg-white/5 border border-white/10 rounded-full px-2.5 py-0.5">
+              Free plan
+            </span>
+          </div>
+        )}
+        {sidebarExpanded && isPremium && !isTrialing && (
+          <div className="px-3 py-1">
+            <span className="text-[10px] font-bold text-[#4ade80] bg-[#4ade80]/10 border border-[#4ade80]/25 rounded-full px-2.5 py-0.5">
+              ✦ Pro
+            </span>
+          </div>
+        )}
 
         {/* Bottom: Settings + User */}
         <div className="px-3 py-3 space-y-1">
@@ -189,6 +218,15 @@ export function AppLayout() {
                   </Link>
                 );
               })}
+
+              {/* Mobile trial badge */}
+              {isTrialing && (
+                <div className="px-3 py-2">
+                  <span className="text-[10px] font-bold text-[#FFD528] bg-[#FFD528]/10 border border-[#FFD528]/25 rounded-full px-2.5 py-0.5">
+                    ✦ Trial — {trialDaysLeft}d left
+                  </span>
+                </div>
+              )}
 
               <div className="border-t border-white/10 mt-1 pt-1">
                 <Link to="/settings" onClick={() => setMobileMenuOpen(false)}>
