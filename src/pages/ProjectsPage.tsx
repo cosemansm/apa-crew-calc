@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { Card, CardContent } from '@/components/ui/card';
@@ -662,60 +662,63 @@ export function ProjectsPage() {
 
                             {/* Line items */}
                             {(lineItems.length > 0 || penalties.length > 0 || travelPay > 0 || mileagePay > 0) && (
-                              <div className="px-4 py-2 space-y-0.5">
-                                {lineItems.map((item, i) => {
-                                  const isFlatRate = !!(item.rate && Math.abs(item.total - item.rate) < 1);
-                                  const isDayRate = item.isDayRate || isFlatRate;
-                                  const timePart = item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : '';
-                                  let ratePart = '';
-                                  if (item.rate && item.hours) {
-                                    if (isDayRate) {
-                                      ratePart = `£${item.total} × 1`;
-                                    } else {
-                                      ratePart = `£${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
+                              <div className="px-4 py-2">
+                                <div className="grid gap-x-3" style={{ gridTemplateColumns: '1fr auto auto' }}>
+                                  {lineItems.map((item, i) => {
+                                    const isFlatRate = !!(item.rate && Math.abs(item.total - item.rate) < 1);
+                                    const isDayRate = item.isDayRate || isFlatRate;
+                                    const timePart = item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : '';
+                                    let ratePart = '';
+                                    if (item.rate && item.hours) {
+                                      ratePart = isDayRate
+                                        ? `£${item.total} × 1`
+                                        : `£${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
                                     }
-                                  }
-                                  const detail = [timePart, ratePart].filter(Boolean).join(' · ');
-                                  return (
-                                    <div key={i} className="flex items-baseline justify-between gap-2 py-[3px]">
-                                      <p className="text-xs text-muted-foreground leading-tight shrink-0">{item.description}</p>
-                                      <div className="flex items-baseline gap-2 shrink-0">
-                                        {detail && <span className="text-[10px] text-muted-foreground/50 font-mono">{detail}</span>}
-                                        <span className="font-mono text-xs font-semibold tabular-nums">£{item.total.toFixed(2)}</span>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                                {penalties.map((item, i) => {
-                                  const pIsFlatRate = !!(item.rate && Math.abs(item.total - item.rate) < 1);
-                                  let pDetail = '';
-                                  if (item.rate && item.hours) {
-                                    pDetail = pIsFlatRate
-                                      ? `£${item.rate} × 1`
-                                      : `£${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
-                                  }
-                                  return (
-                                    <div key={`pen-${i}`} className="flex items-baseline justify-between gap-2 py-[3px]">
-                                      <p className="text-xs text-muted-foreground leading-tight shrink-0">{item.description}</p>
-                                      <div className="flex items-baseline gap-2 shrink-0">
-                                        {pDetail && <span className="text-[10px] text-muted-foreground/50 font-mono">{pDetail}</span>}
-                                        <span className="font-mono text-xs font-semibold tabular-nums">£{item.total.toFixed(2)}</span>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                                {travelPay > 0 && (
-                                  <div className="flex items-start justify-between gap-3 py-[3px]">
-                                    <p className="text-xs text-muted-foreground leading-tight">Travel pay</p>
-                                    <span className="font-mono text-xs font-semibold tabular-nums shrink-0 pt-0.5">£{travelPay.toFixed(2)}</span>
-                                  </div>
-                                )}
-                                {mileagePay > 0 && (
-                                  <div className="flex items-start justify-between gap-3 py-[3px]">
-                                    <p className="text-xs text-muted-foreground leading-tight">Mileage ({day.result_json?.mileageMiles || 0} mi)</p>
-                                    <span className="font-mono text-xs font-semibold tabular-nums shrink-0 pt-0.5">£{mileagePay.toFixed(2)}</span>
-                                  </div>
-                                )}
+                                    const detail = [timePart, ratePart].filter(Boolean).join(' · ');
+                                    return (
+                                      <Fragment key={i}>
+                                        <p className="text-xs text-muted-foreground leading-tight py-[3px] self-center">{item.description}</p>
+                                        <span className="text-[10px] text-muted-foreground/50 font-mono text-right self-center py-[3px]">{detail}</span>
+                                        <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{item.total.toFixed(2)}</span>
+                                      </Fragment>
+                                    );
+                                  })}
+                                  {penalties.length > 0 && (
+                                    <>
+                                      <div className="col-span-3 border-t border-border/40 my-1" />
+                                      {penalties.map((item, i) => {
+                                        const pIsFlatRate = !!(item.rate && Math.abs(item.total - item.rate) < 1);
+                                        let pDetail = '';
+                                        if (item.rate && item.hours) {
+                                          pDetail = pIsFlatRate
+                                            ? `£${item.rate} × 1`
+                                            : `£${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
+                                        }
+                                        return (
+                                          <Fragment key={`pen-${i}`}>
+                                            <p className="text-xs text-muted-foreground leading-tight py-[3px] self-center">{item.description}</p>
+                                            <span className="text-[10px] text-muted-foreground/50 font-mono text-right self-center py-[3px]">{pDetail}</span>
+                                            <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{item.total.toFixed(2)}</span>
+                                          </Fragment>
+                                        );
+                                      })}
+                                    </>
+                                  )}
+                                  {travelPay > 0 && (
+                                    <Fragment key="travel">
+                                      <p className="text-xs text-muted-foreground py-[3px] self-center">Travel pay</p>
+                                      <span />
+                                      <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{travelPay.toFixed(2)}</span>
+                                    </Fragment>
+                                  )}
+                                  {mileagePay > 0 && (
+                                    <Fragment key="mileage">
+                                      <p className="text-xs text-muted-foreground py-[3px] self-center">Mileage ({day.result_json?.mileageMiles || 0} mi)</p>
+                                      <span />
+                                      <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{mileagePay.toFixed(2)}</span>
+                                    </Fragment>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>

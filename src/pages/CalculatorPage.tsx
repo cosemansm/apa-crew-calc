@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, Fragment } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -1954,82 +1954,82 @@ export function CalculatorPage() {
 
                         {/* Line items — always visible for current day */}
                         {day.isCurrent && hasDetail && rj && (
-                          <div className="border-t border-[#FFD528]/25 bg-background px-3 pt-2 pb-3 space-y-0.5">
-                            {rj.lineItems?.map((item, i) => {
-                              const isFlatRate = !!(item.rate && Math.abs(item.total - item.rate) < 1);
-                              const isDayRate = item.isDayRate || isFlatRate;
-                              const timePart = item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : '';
-                              let ratePart = '';
-                              if (item.rate && item.hours) {
-                                if (isDayRate) {
-                                  ratePart = `£${item.total} × 1`;
-                                } else {
-                                  ratePart = `£${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
+                          <div className="border-t border-[#FFD528]/25 bg-background px-3 pt-2 pb-3">
+                            <div className="grid gap-x-3" style={{ gridTemplateColumns: '1fr auto auto' }}>
+                              {rj.lineItems?.map((item, i) => {
+                                const isFlatRate = !!(item.rate && Math.abs(item.total - item.rate) < 1);
+                                const isDayRate = item.isDayRate || isFlatRate;
+                                const timePart = item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : '';
+                                let ratePart = '';
+                                if (item.rate && item.hours) {
+                                  ratePart = isDayRate
+                                    ? `£${item.total} × 1`
+                                    : `£${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
                                 }
-                              }
-                              const detail = [timePart, ratePart].filter(Boolean).join(' · ');
-                              return (
-                                <div key={i} className="flex items-baseline justify-between gap-2 py-[3px]">
-                                  <p className="text-xs text-muted-foreground leading-tight shrink-0">{item.description}</p>
-                                  <div className="flex items-baseline gap-2 shrink-0">
-                                    {detail && <span className="text-[10px] text-muted-foreground/50 font-mono">{detail}</span>}
-                                    <span className="font-mono text-xs font-semibold tabular-nums">£{item.total.toFixed(2)}</span>
-                                  </div>
-                                </div>
-                              );
-                            })}
+                                const detail = [timePart, ratePart].filter(Boolean).join(' · ');
+                                return (
+                                  <Fragment key={i}>
+                                    <p className="text-xs text-muted-foreground leading-tight py-[3px] self-center">{item.description}</p>
+                                    <span className="text-[10px] text-muted-foreground/50 font-mono text-right self-center py-[3px]">{detail}</span>
+                                    <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{item.total.toFixed(2)}</span>
+                                  </Fragment>
+                                );
+                              })}
 
-                            {(rj.penalties?.length ?? 0) > 0 && (
-                              <>
-                                <div className="border-t border-border/40 my-1" />
-                                {rj.penalties!.map((p, i) => {
-                                  const pIsFlatRate = !!(p.rate && Math.abs(p.total - p.rate) < 1);
-                                  let pDetail = '';
-                                  if (p.rate && p.hours) {
-                                    pDetail = pIsFlatRate
-                                      ? `£${p.rate} × 1`
-                                      : `£${p.rate} × ${parseFloat(p.hours.toFixed(2))}`;
-                                  }
-                                  return (
-                                    <div key={`p-${i}`} className="flex items-baseline justify-between gap-2 py-[3px]">
-                                      <p className="text-xs text-muted-foreground leading-tight shrink-0">{p.description}</p>
-                                      <div className="flex items-baseline gap-2 shrink-0">
-                                        {pDetail && <span className="text-[10px] text-muted-foreground/50 font-mono">{pDetail}</span>}
-                                        <span className="font-mono text-xs font-semibold tabular-nums">£{p.total.toFixed(2)}</span>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </>
-                            )}
+                              {(rj.penalties?.length ?? 0) > 0 && (
+                                <>
+                                  <div className="col-span-3 border-t border-border/40 my-1" />
+                                  {rj.penalties!.map((p, i) => {
+                                    const pIsFlatRate = !!(p.rate && Math.abs(p.total - p.rate) < 1);
+                                    let pDetail = '';
+                                    if (p.rate && p.hours) {
+                                      pDetail = pIsFlatRate
+                                        ? `£${p.rate} × 1`
+                                        : `£${p.rate} × ${parseFloat(p.hours.toFixed(2))}`;
+                                    }
+                                    return (
+                                      <Fragment key={`p-${i}`}>
+                                        <p className="text-xs text-muted-foreground leading-tight py-[3px] self-center">{p.description}</p>
+                                        <span className="text-[10px] text-muted-foreground/50 font-mono text-right self-center py-[3px]">{pDetail}</span>
+                                        <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{p.total.toFixed(2)}</span>
+                                      </Fragment>
+                                    );
+                                  })}
+                                </>
+                              )}
 
-                            {(rj.travelPay ?? 0) > 0 && (
-                              <div className="flex items-start justify-between gap-3 py-[3px]">
-                                <p className="text-xs text-muted-foreground">Travel</p>
-                                <span className="font-mono text-xs font-semibold tabular-nums shrink-0">£{(rj.travelPay ?? 0).toFixed(2)}</span>
-                              </div>
-                            )}
+                              {(rj.travelPay ?? 0) > 0 && (
+                                <Fragment key="travel">
+                                  <p className="text-xs text-muted-foreground py-[3px] self-center">Travel</p>
+                                  <span />
+                                  <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{(rj.travelPay ?? 0).toFixed(2)}</span>
+                                </Fragment>
+                              )}
 
-                            {(rj.mileage ?? 0) > 0 && (
-                              <div className="flex items-start justify-between gap-3 py-[3px]">
-                                <p className="text-xs text-muted-foreground">Mileage ({rj.mileageMiles} mi)</p>
-                                <span className="font-mono text-xs font-semibold tabular-nums shrink-0">£{(rj.mileage ?? 0).toFixed(2)}</span>
-                              </div>
-                            )}
+                              {(rj.mileage ?? 0) > 0 && (
+                                <Fragment key="mileage">
+                                  <p className="text-xs text-muted-foreground py-[3px] self-center">Mileage ({rj.mileageMiles} mi)</p>
+                                  <span />
+                                  <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{(rj.mileage ?? 0).toFixed(2)}</span>
+                                </Fragment>
+                              )}
 
-                            {(rj.equipmentTotal ?? 0) > 0 && (
-                              <div className="flex items-start justify-between gap-3 py-[3px]">
-                                <p className="text-xs text-muted-foreground">Equipment{(rj.equipmentDiscount ?? 0) > 0 ? ` (−${rj.equipmentDiscount}%)` : ''}</p>
-                                <span className="font-mono text-xs font-semibold tabular-nums shrink-0">£{(rj.equipmentTotal ?? 0).toFixed(2)}</span>
-                              </div>
-                            )}
+                              {(rj.equipmentTotal ?? 0) > 0 && (
+                                <Fragment key="equip">
+                                  <p className="text-xs text-muted-foreground py-[3px] self-center">Equipment{(rj.equipmentDiscount ?? 0) > 0 ? ` (−${rj.equipmentDiscount}%)` : ''}</p>
+                                  <span />
+                                  <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{(rj.equipmentTotal ?? 0).toFixed(2)}</span>
+                                </Fragment>
+                              )}
 
-                            {(day.expensesAmount ?? 0) > 0 && (
-                              <div className="flex items-start justify-between gap-3 py-[3px]">
-                                <p className="text-xs text-muted-foreground">Expenses{day.expensesNotes ? ` · ${day.expensesNotes}` : ''}</p>
-                                <span className="font-mono text-xs font-semibold tabular-nums shrink-0">£{(day.expensesAmount ?? 0).toFixed(2)}</span>
-                              </div>
-                            )}
+                              {(day.expensesAmount ?? 0) > 0 && (
+                                <Fragment key="expenses">
+                                  <p className="text-xs text-muted-foreground py-[3px] self-center">Expenses{day.expensesNotes ? ` · ${day.expensesNotes}` : ''}</p>
+                                  <span />
+                                  <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{(day.expensesAmount ?? 0).toFixed(2)}</span>
+                                </Fragment>
+                              )}
+                            </div>
 
                             <div className="border-t border-border/40 mt-1 pt-1.5 flex items-center justify-between">
                               <span className="text-xs font-black uppercase tracking-wide">Day Total</span>
