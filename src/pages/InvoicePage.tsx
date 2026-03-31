@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import logoImg from '@/assets/logo.png';
 import { useLocation } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { format, parseISO } from 'date-fns';
@@ -503,11 +504,10 @@ export function InvoicePage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div style={{
                     backgroundColor: '#FFD528', borderRadius: '10px',
-                    width: '40px', height: '40px', flexShrink: 0,
+                    width: '44px', height: '44px', flexShrink: 0,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '20px', lineHeight: '40px', textAlign: 'center',
                   }}>
-                    ⚓
+                    <img src={logoImg} alt="Crew Dock" style={{ width: '28px', height: '28px', objectFit: 'contain', display: 'block' }} />
                   </div>
                   <div>
                     <div style={{ color: '#ffffff', fontWeight: '700', fontSize: '18px', letterSpacing: '-0.3px', lineHeight: '1.2' }}>Crew Dock</div>
@@ -519,8 +519,8 @@ export function InvoicePage() {
                   <div style={{
                     backgroundColor: '#FFD528', color: '#1F1F21',
                     fontWeight: '800', fontSize: '18px', letterSpacing: '3px',
-                    padding: '8px 22px', borderRadius: '8px',
-                    lineHeight: '1.2', display: 'inline-block',
+                    padding: '10px 24px', borderRadius: '8px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
                     INVOICE
                   </div>
