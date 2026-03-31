@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Analytics } from '@vercel/analytics/react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 import { AppLayout } from '@/components/AppLayout';
 import { LoginPage } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
@@ -31,20 +32,22 @@ export default function App() {
     <>
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-            <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/calculator" element={<CalculatorPage />} />
-              <Route path="/projects" element={<ProjectsPage />} />
-              <Route path="/ai-input" element={<AIInputPage />} />
-              <Route path="/history" element={<Navigate to="/projects" replace />} />
-              <Route path="/invoices" element={<InvoicePage />} />
-              <Route path="/support" element={<SupportPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-            </Route>
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
+          <SubscriptionProvider>
+            <Routes>
+              <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+              <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+                <Route path="/dashboard" element={<DashboardPage />} />
+                <Route path="/calculator" element={<CalculatorPage />} />
+                <Route path="/projects" element={<ProjectsPage />} />
+                <Route path="/ai-input" element={<AIInputPage />} />
+                <Route path="/history" element={<Navigate to="/projects" replace />} />
+                <Route path="/invoices" element={<InvoicePage />} />
+                <Route path="/support" element={<SupportPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+              </Route>
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </SubscriptionProvider>
         </AuthProvider>
       </BrowserRouter>
       <Analytics />
