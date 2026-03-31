@@ -48,7 +48,7 @@ export default async function handler(req: any, res: any) {
     }
 
     // Delete all user-owned rows from each table
-    const userTables = ['projects', 'user_settings', 'favourite_roles', 'custom_roles', 'equipment_packages', 'calculation_history'];
+    const userTables = ['projects', 'user_settings', 'favourite_roles', 'custom_roles', 'equipment_packages', 'calculation_history', 'subscriptions'];
     for (const table of userTables) {
       await fetch(`${SUPABASE_URL}/rest/v1/${table}?user_id=eq.${userId}`, {
         method: 'DELETE',
