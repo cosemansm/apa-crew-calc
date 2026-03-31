@@ -729,7 +729,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
     equipmentTotal,
     grandTotal,
     callType,
-    dayDescription: `${convertedToContinuous ? 'Converted to Continuous (break missed)' : isBasicWorkingNSD && input.dayType !== 'basic_working' && input.dayType !== 'continuous_working' && input.dayType !== 'rest' && input.dayType !== 'travel' ? `${dayDescriptions[input.dayType]} (Basic Working Day rules — S.2.3)` : dayDescriptions[dayType]} - ${callType.charAt(0).toUpperCase() + callType.slice(1)} Call`,
+    dayDescription: `${convertedToContinuous ? 'Continuous Working Day' : isBasicWorkingNSD && input.dayType !== 'basic_working' && input.dayType !== 'continuous_working' && input.dayType !== 'rest' && input.dayType !== 'travel' ? `${dayDescriptions[input.dayType]} (Basic Working Day rules — S.2.3)` : dayDescriptions[dayType]} - ${callType.charAt(0).toUpperCase() + callType.slice(1)} Call`,
   };
 }
 
