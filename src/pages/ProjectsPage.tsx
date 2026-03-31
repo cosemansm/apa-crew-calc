@@ -686,12 +686,24 @@ export function ProjectsPage() {
                                     </div>
                                   );
                                 })}
-                                {penalties.map((item, i) => (
-                                  <div key={`pen-${i}`} className="flex items-start justify-between gap-3 py-[3px]">
-                                    <p className="text-xs text-muted-foreground leading-tight">{item.description}</p>
-                                    <span className="font-mono text-xs font-semibold tabular-nums shrink-0 pt-0.5">£{item.total.toFixed(2)}</span>
-                                  </div>
-                                ))}
+                                {penalties.map((item, i) => {
+                                  const pIsFlatRate = !!(item.rate && Math.abs(item.total - item.rate) < 1);
+                                  let pDetail = '';
+                                  if (item.rate && item.hours) {
+                                    pDetail = pIsFlatRate
+                                      ? `£${item.rate} × 1`
+                                      : `£${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
+                                  }
+                                  return (
+                                    <div key={`pen-${i}`} className="flex items-baseline justify-between gap-2 py-[3px]">
+                                      <p className="text-xs text-muted-foreground leading-tight shrink-0">{item.description}</p>
+                                      <div className="flex items-baseline gap-2 shrink-0">
+                                        {pDetail && <span className="text-[10px] text-muted-foreground/50 font-mono">{pDetail}</span>}
+                                        <span className="font-mono text-xs font-semibold tabular-nums">£{item.total.toFixed(2)}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
                                 {travelPay > 0 && (
                                   <div className="flex items-start justify-between gap-3 py-[3px]">
                                     <p className="text-xs text-muted-foreground leading-tight">Travel pay</p>

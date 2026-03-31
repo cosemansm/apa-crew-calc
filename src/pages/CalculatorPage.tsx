@@ -1982,12 +1982,24 @@ export function CalculatorPage() {
                             {(rj.penalties?.length ?? 0) > 0 && (
                               <>
                                 <div className="border-t border-border/40 my-1" />
-                                {rj.penalties!.map((p, i) => (
-                                  <div key={`p-${i}`} className="flex items-start justify-between gap-3 py-[3px]">
-                                    <p className="text-xs text-muted-foreground leading-tight">{p.description}</p>
-                                    <span className="font-mono text-xs font-semibold tabular-nums shrink-0 pt-0.5">£{p.total.toFixed(2)}</span>
-                                  </div>
-                                ))}
+                                {rj.penalties!.map((p, i) => {
+                                  const pIsFlatRate = !!(p.rate && Math.abs(p.total - p.rate) < 1);
+                                  let pDetail = '';
+                                  if (p.rate && p.hours) {
+                                    pDetail = pIsFlatRate
+                                      ? `£${p.rate} × 1`
+                                      : `£${p.rate} × ${parseFloat(p.hours.toFixed(2))}`;
+                                  }
+                                  return (
+                                    <div key={`p-${i}`} className="flex items-baseline justify-between gap-2 py-[3px]">
+                                      <p className="text-xs text-muted-foreground leading-tight shrink-0">{p.description}</p>
+                                      <div className="flex items-baseline gap-2 shrink-0">
+                                        {pDetail && <span className="text-[10px] text-muted-foreground/50 font-mono">{pDetail}</span>}
+                                        <span className="font-mono text-xs font-semibold tabular-nums">£{p.total.toFixed(2)}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
                               </>
                             )}
 
