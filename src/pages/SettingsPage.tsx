@@ -15,8 +15,10 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { cn } from '@/lib/utils';
 import { DEPARTMENTS } from '@/data/apa-rates';
 
@@ -174,7 +176,7 @@ const NAV_ITEMS: { id: SectionId; label: string; icon: React.ElementType; badge?
   { id: 'custom-rates',     label: 'Custom Rates',     icon: Briefcase },
   { id: 'my-equipment',     label: 'My Equipment',     icon: Package },
   { id: 'password',         label: 'Password',         icon: Lock },
-  { id: 'billing',          label: 'Billing',          icon: CreditCard, badge: 'Soon' },
+  { id: 'billing',          label: 'Plan & Billing',   icon: CreditCard },
   { id: 'integrations',     label: 'Integrations',     icon: Plug },
   { id: 'danger-zone',      label: 'Danger Zone',      icon: AlertTriangle, danger: true },
 ];
@@ -185,6 +187,12 @@ export function SettingsPage() {
   usePageTitle('Settings');
   const { user } = useAuth();
   const [activeSection, setActiveSection] = useState<SectionId>('user-details');
+  const { subscription, isPremium, isTrialing, trialDaysLeft, trialExtended } = useSubscription();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('yearly');
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
 
   // User details
   const [displayName, setDisplayName] = useState('');
@@ -257,6 +265,18 @@ export function SettingsPage() {
     loadCustomRoles();
     loadEquipmentPackages();
   }, [user]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('stripe') === 'success') {
+      setActiveSection('billing');
+      window.history.replaceState({}, '', '/settings');
+    }
+    if (location.state?.section === 'billing') {
+      setActiveSection('billing');
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, []);
 
   // ── Save helpers ──────────────────────────────────────────────────────────
 
@@ -377,6 +397,41 @@ export function SettingsPage() {
   const handleDeleteEquipmentPackage = async (id: string) => {
     await supabase.from('equipment_packages').delete().eq('id', id);
     await loadEquipmentPackages();
+  };
+
+  const handleUpgrade = async () => {
+    if (!user) return;
+    setCheckoutLoading(true);
+    try {
+      const priceId = billingCycle === 'monthly'
+        ? import.meta.env.VITE_STRIPE_PRICE_MONTHLY
+        : import.meta.env.VITE_STRIPE_PRICE_YEARLY;
+      const res = await fetch('/api/stripe/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priceId, userId: user.id, userEmail: user.email }),
+      });
+      const { url } = await res.json();
+      if (url) window.location.href = url;
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
+
+  const handleManagePlan = async () => {
+    if (!user) return;
+    setPortalLoading(true);
+    try {
+      const res = await fetch('/api/stripe/create-portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const { url } = await res.json();
+      if (url) window.location.href = url;
+    } finally {
+      setPortalLoading(false);
+    }
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -732,15 +787,144 @@ export function SettingsPage() {
 
           {/* BILLING */}
           {activeSection === 'billing' && (
-            <Card className="opacity-60">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5" /> Billing <Badge variant="secondary">Coming Soon</Badge></CardTitle>
-                <CardDescription>Manage your subscription and payment methods</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">Billing management will be available in a future update.</p>
-              </CardContent>
-            </Card>
+            <div className="space-y-6">
+              {/* Current plan status */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5" /> Plan & Billing
+                  </CardTitle>
+                  <CardDescription>Your current plan and payment settings</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Status pill */}
+                  <div className="flex items-center justify-between p-4 bg-muted rounded-xl">
+                    <div>
+                      <p className="text-sm font-semibold">
+                        {isPremium && !isTrialing ? '✦ Crew Dock Pro' : isTrialing ? 'Crew Dock Pro (Trial)' : 'Free'}
+                      </p>
+                      {isTrialing && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Trial ends in {trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''}
+                        </p>
+                      )}
+                      {isPremium && !isTrialing && subscription?.current_period_end && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Renews {new Date(subscription.current_period_end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      )}
+                      {!isPremium && !isTrialing && (
+                        <p className="text-xs text-muted-foreground mt-0.5">Core features only — Pro features locked</p>
+                      )}
+                    </div>
+                    <span className={cn('text-xs font-bold px-3 py-1 rounded-full border', isPremium && !isTrialing
+                      ? 'bg-green-500/10 border-green-500/25 text-green-400'
+                      : isTrialing
+                      ? 'bg-[#FFD528]/10 border-[#FFD528]/25 text-[#FFD528]'
+                      : 'bg-white/5 border-white/10 text-white/40'
+                    )}>
+                      {isPremium && !isTrialing ? 'Active' : isTrialing ? 'Trial' : 'Free'}
+                    </span>
+                  </div>
+
+                  {/* Manage plan (Pro only) */}
+                  {isPremium && !isTrialing && (
+                    <div className="space-y-2">
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={handleManagePlan}
+                        disabled={portalLoading}
+                      >
+                        {portalLoading ? 'Opening portal...' : 'Manage Plan & Billing'}
+                      </Button>
+                      <p className="text-xs text-muted-foreground text-center">
+                        Update card, view invoices, or cancel via the Stripe billing portal.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Upgrade card (non-Pro only) */}
+              {(!isPremium || isTrialing) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      {isTrialing ? 'Upgrade to keep Pro access' : 'Unlock Crew Dock Pro'}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Billing cycle toggle */}
+                    <div className="flex gap-1 p-1 bg-muted rounded-xl w-fit">
+                      <button
+                        onClick={() => setBillingCycle('monthly')}
+                        className={cn('px-4 py-1.5 rounded-lg text-sm font-medium transition-all', billingCycle === 'monthly' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground')}
+                      >
+                        Monthly
+                      </button>
+                      <button
+                        onClick={() => setBillingCycle('yearly')}
+                        className={cn('flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all', billingCycle === 'yearly' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground')}
+                      >
+                        Yearly
+                        <span className="text-[10px] font-bold bg-green-500/15 text-green-400 px-1.5 py-0.5 rounded">Save 28%</span>
+                      </button>
+                    </div>
+
+                    {/* Price display */}
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl font-bold">{billingCycle === 'monthly' ? '£3.45' : '£29.95'}</span>
+                      <span className="text-muted-foreground text-sm">{billingCycle === 'monthly' ? '/ month' : '/ year'}</span>
+                      {billingCycle === 'yearly' && (
+                        <span className="text-xs text-muted-foreground ml-1">(£2.50/mo)</span>
+                      )}
+                    </div>
+
+                    {/* Feature list */}
+                    <ul className="space-y-1.5 text-sm text-muted-foreground">
+                      {[
+                        'AI Input — describe your day, auto-fills the calculator',
+                        'Invoice direct — send PDF invoices by email',
+                        '3 years data retention',
+                        'Bookkeeping integrations (coming soon)',
+                      ].map(f => (
+                        <li key={f} className="flex items-center gap-2">
+                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                            <path d="M2.5 7L5.5 10L11.5 4" stroke="#FFD528" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          {f}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <Button
+                      className="w-full bg-[#FFD528] text-[#1F1F21] hover:bg-[#FFD528]/90 font-bold"
+                      onClick={handleUpgrade}
+                      disabled={checkoutLoading}
+                    >
+                      {checkoutLoading ? 'Redirecting...' : `Upgrade to Pro — ${billingCycle === 'monthly' ? '£3.45/mo' : '£29.95/yr'}`}
+                    </Button>
+
+                    {/* Review extension CTA */}
+                    {!trialExtended ? (
+                      <Button variant="outline" className="w-full" onClick={() => {
+                        window.open('https://crewdock.app', '_blank', 'noopener,noreferrer');
+                      }}>
+                        Leave a review → 14 days free
+                      </Button>
+                    ) : (
+                      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground border border-border rounded-xl py-2.5">
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                          <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Review extension already used
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           )}
 
           {/* INTEGRATIONS */}
