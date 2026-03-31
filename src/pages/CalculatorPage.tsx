@@ -1956,17 +1956,17 @@ export function CalculatorPage() {
                         {day.isCurrent && hasDetail && rj && (
                           <div className="border-t border-[#FFD528]/25 bg-background px-3 pt-2 pb-3 space-y-0.5">
                             {rj.lineItems?.map((item, i) => (
-                              <div key={i} className="flex items-start justify-between gap-3 py-[3px]">
-                                <div className="min-w-0">
-                                  <p className="text-xs text-muted-foreground leading-tight">{item.description}</p>
-                                  {(item.timeFrom && item.timeTo) || item.rate ? (
-                                    <p className="text-[10px] text-muted-foreground/50 font-mono mt-0.5">
+                              <div key={i} className="flex items-baseline justify-between gap-2 py-[3px]">
+                                <p className="text-xs text-muted-foreground leading-tight shrink-0">{item.description}</p>
+                                <div className="flex items-baseline gap-2 shrink-0">
+                                  {((item.timeFrom && item.timeTo) || (item.rate && item.hours)) && (
+                                    <span className="text-[10px] text-muted-foreground/50 font-mono">
                                       {item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : ''}
-                                      {item.rate && item.hours ? `${item.timeFrom ? ' · ' : ''}£${item.rate} × ${item.hours % 1 === 0 ? item.hours : item.hours.toFixed(2)}h` : ''}
-                                    </p>
-                                  ) : null}
+                                      {item.rate && item.hours ? `${item.timeFrom ? ' · ' : ''}£${item.rate} × ${parseFloat(item.hours.toFixed(2))}` : ''}
+                                    </span>
+                                  )}
+                                  <span className="font-mono text-xs font-semibold tabular-nums">£{item.total.toFixed(2)}</span>
                                 </div>
-                                <span className="font-mono text-xs font-semibold tabular-nums shrink-0 pt-0.5">£{item.total.toFixed(2)}</span>
                               </div>
                             ))}
 
