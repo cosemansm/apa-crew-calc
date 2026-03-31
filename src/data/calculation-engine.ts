@@ -245,7 +245,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
     const hourlyRate = Math.round(bhr * rateMultiplier);
     const nsdOtStartTime = addHoursToTime(callTime, otStartNSD);
     lineItems.push({
-      description: `${dayType === 'build_strike' ? 'Build/Strike' : dayType.charAt(0).toUpperCase() + dayType.slice(1)} Day (${baseHours} hrs)`,
+      description: `${dayType === 'build_strike' ? 'Build/Strike' : dayType.charAt(0).toUpperCase() + dayType.slice(1)} Day`,
       hours: baseHours,
       rate: hourlyRate,
       total: baseHours * hourlyRate,
@@ -270,7 +270,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
     const hourlyRate = Math.round(bhr * rateMultiplier);
     const plOtStartTime = addHoursToTime(callTime, 9);
     lineItems.push({
-      description: `Pre-light Day (${baseHours} hrs + 1hr lunch)`,
+      description: 'Pre-light Day',
       hours: baseHours,
       rate: hourlyRate,
       total: baseHours * hourlyRate,
@@ -450,7 +450,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
         } else {
           const pmWkdOtStart = addHoursToTime(callTime, 11);
           lineItems.push({ description: `Early Call Overtime (${callTime}-07:00)`, hours: earlyHours, rate: bhr, total: Math.round(earlyHours * bhr), timeFrom: callTime, timeTo: '07:00' });
-          lineItems.push({ description: 'Basic Daily Rate (10+1 hrs)', hours: 11, rate: bdr, total: bdr, timeFrom: '07:00', timeTo: pmWkdOtStart });
+          lineItems.push({ description: 'Basic Daily Rate', hours: 11, rate: bdr, total: bdr, timeFrom: '07:00', timeTo: pmWkdOtStart });
           const otHours = Math.max(0, dayLength - 11);
           if (otHours > 0) {
             lineItems.push({ description: 'Overtime (BHR)', hours: roundOTHours(otHours), rate: bhr, total: roundOTHours(otHours) * bhr, timeFrom: pmWkdOtStart, timeTo: wrapTime });
@@ -481,7 +481,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
       } else {
         // Weekday early call
         lineItems.push({ description: `Early Call Overtime (${callTime}-07:00)`, hours: earlyHours, rate: otRate, total: Math.round(earlyHours * otRate), timeFrom: callTime, timeTo: '07:00' });
-        lineItems.push({ description: 'Basic Daily Rate (10+1 hrs)', hours: 11, rate: bdr, total: bdr, timeFrom: '07:00', timeTo: basicOtStartTime });
+        lineItems.push({ description: 'Basic Daily Rate', hours: 11, rate: bdr, total: bdr, timeFrom: '07:00', timeTo: basicOtStartTime });
         const otHours = Math.max(0, dayLength - otStartHours);
         if (otHours > 0) {
           const { regularOT, midnightOT } = splitAfterMidnightOT(roundOTHours(otHours), callTime, wrapTime, dayLength);
@@ -563,7 +563,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
 
     } else {
       // Section 2.1.1: Standard call (7am-11am), Mon-Fri
-      lineItems.push({ description: 'Basic Daily Rate (10+1 hrs)', hours: 11, rate: bdr, total: bdr, timeFrom: callTime, timeTo: basicOtStartTime });
+      lineItems.push({ description: 'Basic Daily Rate', hours: 11, rate: bdr, total: bdr, timeFrom: callTime, timeTo: basicOtStartTime });
       const otHours = Math.max(0, dayLength - otStartHours);
 
       if (otHours > 0 && !isPMPARunner) {
@@ -648,13 +648,13 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
     // FIX #24: Only check 9hr break if day exceeds 9hrs
     if (dayLength > 9) {
       if (convertedToContinuous ? !input.secondBreakGiven : !input.continuousFirstBreakGiven) {
-        penalties.push({ description: 'No 2nd break (after 9h)', hours: 0.5, rate: bhr, total: Math.round(bhr * 0.5) });
+        penalties.push({ description: 'No 2nd break', hours: 0.5, rate: bhr, total: Math.round(bhr * 0.5) });
       }
     }
     // Additional 30-min break after 12.5 hours
     if (dayLength > 12.5) {
       if (convertedToContinuous ? true : !input.continuousAdditionalBreakGiven) {
-        penalties.push({ description: 'No add\'l break (after 12.5h)', hours: 0.5, rate: bhr, total: Math.round(bhr * 0.5) });
+        penalties.push({ description: 'No add\'l break', hours: 0.5, rate: bhr, total: Math.round(bhr * 0.5) });
       }
     }
   }
