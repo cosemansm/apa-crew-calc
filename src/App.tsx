@@ -11,6 +11,7 @@ import { InvoicePage } from '@/pages/InvoicePage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { ProjectsPage } from '@/pages/ProjectsPage';
 import { SupportPage } from '@/pages/SupportPage';
+import { ReviewPopupController } from '@/components/ReviewPopupController';
 import type { ReactNode } from 'react';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -47,6 +48,7 @@ export default function App() {
               </Route>
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
+            <ReviewPopupController />
           </SubscriptionProvider>
         </AuthProvider>
       </BrowserRouter>
