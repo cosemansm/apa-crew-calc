@@ -16,6 +16,8 @@ export interface CrewRole {
   customId?: string;
   /** Flat all-in daily rate — no OT, no BHR breakdown applied */
   isBuyout?: boolean;
+  /** Union-mandated fixed OT rate (overrides BHR × coefficient calculation) */
+  customOtRate?: number;
 }
 
 // All rates from APA Appendix 1 (Effective 1 Sept 2025)
@@ -51,12 +53,12 @@ export const APA_CREW_ROLES: CrewRole[] = [
   { role: 'Senior Video Operator', department: 'Video', minRate: null, maxRate: 503, otGrade: 'II', otCoefficient: 1.25 },
   { role: 'Video Operator', department: 'Video', minRate: 324, maxRate: 391, otGrade: 'I', otCoefficient: 1.5 },
 
-  // Lighting
-  { role: 'Gaffer', department: 'Lighting', minRate: null, maxRate: 568, otGrade: 'II', otCoefficient: 1.25 },
-  { role: 'Lighting Technician', department: 'Lighting', minRate: null, maxRate: 444, otGrade: 'I', otCoefficient: 1.5 },
-  { role: 'Advanced Rigger', department: 'Lighting', minRate: 331, maxRate: 386, otGrade: 'I', otCoefficient: 1.5 },
-  { role: 'Basic Rigger', department: 'Lighting', minRate: 326, maxRate: 345, otGrade: 'I', otCoefficient: 1.5 },
-  { role: 'Programmable Lighting Desk Op.', department: 'Lighting', minRate: 378, maxRate: 512, otGrade: 'II', otCoefficient: 1.25 },
+  // Lighting — OT rates fixed by lighting branch of the union
+  { role: 'Gaffer', department: 'Lighting', minRate: null, maxRate: 568, otGrade: 'II', otCoefficient: 1.25, customOtRate: 71 },
+  { role: 'Lighting Technician', department: 'Lighting', minRate: null, maxRate: 444, otGrade: 'I', otCoefficient: 1.5, customOtRate: 67 },
+  { role: 'Advanced Rigger', department: 'Lighting', minRate: 331, maxRate: 386, otGrade: 'I', otCoefficient: 1.5, customOtRate: 58 },
+  { role: 'Basic Rigger', department: 'Lighting', minRate: 326, maxRate: 345, otGrade: 'I', otCoefficient: 1.5, customOtRate: 52 },
+  { role: 'Programmable Lighting Desk Op.', department: 'Lighting', minRate: 378, maxRate: 512, otGrade: 'II', otCoefficient: 1.25, customOtRate: 67 },
 
   // SFX
   { role: 'SFX Supervisor', department: 'SFX', minRate: 935, maxRate: 1516, otGrade: 'III', otCoefficient: 1.0 },

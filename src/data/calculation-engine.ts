@@ -155,7 +155,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
 
   // Determine OT coefficient from the role data
   const otCoefficient = role.otCoefficient;
-  const otRate = Math.round(bhr * otCoefficient);
+  const otRate = role.customOtRate ?? Math.round(bhr * otCoefficient);
   const tripleBhr = bhr * 3;
 
   // Buyout: return agreed daily rate as a single line item, no OT or BHR breakdown.
