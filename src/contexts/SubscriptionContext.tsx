@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -7,7 +7,7 @@ export interface Subscription {
   user_id: string;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
-  status: string;
+  status: 'trialing' | 'active' | 'lifetime' | 'past_due' | 'canceled' | 'unpaid';
   trial_ends_at: string;
   current_period_end: string | null;
   trial_extended: boolean;
@@ -23,6 +23,7 @@ interface SubscriptionContextType {
   trialDaysLeft: number;
   trialExtended: boolean;
   loading: boolean;
+  error: Error | null;
   refresh: () => Promise<void>;
 }
 
@@ -32,25 +33,35 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  const fetchSubscription = async () => {
+  const fetchSubscription = useCallback(async () => {
+    setLoading(true);
     if (!user) {
       setSubscription(null);
+      setError(null);
       setLoading(false);
       return;
     }
-    const { data } = await supabase
+    const { data, error: fetchError } = await supabase
       .from('subscriptions')
       .select('*')
       .eq('user_id', user.id)
       .single();
-    setSubscription(data ?? null);
+    if (fetchError) {
+      console.error('Failed to fetch subscription:', fetchError);
+      setError(new Error(fetchError.message));
+      setSubscription(null);
+    } else {
+      setError(null);
+      setSubscription(data ?? null);
+    }
     setLoading(false);
-  };
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetchSubscription();
-  }, [user?.id]);
+  }, [fetchSubscription]);
 
   const now = new Date();
   const trialEndsAt = subscription ? new Date(subscription.trial_ends_at) : null;
@@ -73,6 +84,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         trialDaysLeft,
         trialExtended: subscription?.trial_extended ?? false,
         loading,
+        error,
         refresh: fetchSubscription,
       }}
     >
