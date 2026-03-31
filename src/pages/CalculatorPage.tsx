@@ -12,10 +12,12 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown, Trash2, Receipt, Info, Check, Cloud, Car } from 'lucide-react';
 import { format, getDay, addDays, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
+import { toast } from 'sonner';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek, type CalculationResult } from '@/data/calculation-engine';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 import { cn } from '@/lib/utils';
 import { getUKBankHolidays } from '@/lib/bankHolidays';
 
@@ -438,6 +440,7 @@ interface UserProject {
 export function CalculatorPage() {
   usePageTitle('Rate Calculator');
   const { user } = useAuth();
+  const { isPremium } = useSubscription();
   const [searchParams, setSearchParams] = useSearchParams();
   const projectId = searchParams.get('project');
   const projectNameFromUrl = searchParams.get('name');
@@ -960,6 +963,19 @@ export function CalculatorPage() {
     // Resolve or create a project
     let resolvedProjectId = projectId;
     if (!resolvedProjectId) {
+      // Enforce 10-job limit for free users
+      if (!isPremium) {
+        const { count } = await supabase
+          .from('projects')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+        if ((count ?? 0) >= 10) {
+          setSaving(false);
+          toast.error('Free plan limit reached — upgrade to Pro for unlimited jobs, or delete an existing job to free a slot.');
+          return null;
+        }
+      }
+
       const { data: proj, error: projError } = await supabase.from('projects').insert({
         user_id: user.id,
         name: projectName || 'Untitled',
