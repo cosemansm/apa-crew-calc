@@ -34,7 +34,7 @@ function buildHtml(message: string): string {
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr>
                 <td>
-                  <span style="display:inline-block;background:#FFD528;border-radius:8px;width:32px;height:32px;line-height:32px;text-align:center;font-size:16px;vertical-align:middle">⚓</span>
+                  <span style="display:inline-block;background:#FFD528;border-radius:8px;width:36px;height:36px;text-align:center;vertical-align:middle;line-height:0"><img src="https://crewdock.app/logo.png" alt="Crew Dock" width="22" height="22" style="display:inline-block;vertical-align:middle;margin-top:7px"></span>
                   <span style="color:#ffffff;font-weight:700;font-size:18px;vertical-align:middle;margin-left:10px">Crew Dock</span>
                 </td>
                 <td align="right">
