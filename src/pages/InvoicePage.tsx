@@ -72,7 +72,7 @@ export function InvoicePage() {
 
   const [clientEmail, setClientEmail] = useState('');
 
-  const [detailedInvoice, setDetailedInvoice] = useState(false);
+  const detailedInvoice = true;
 
   const [downloading, setDownloading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -393,29 +393,6 @@ export function InvoicePage() {
               </div>
             </div>
 
-            <Separator />
-
-            {/* Invoice type toggle */}
-            <div className="space-y-2">
-              <Label>Invoice Style</Label>
-              <div className="flex rounded-xl border border-border overflow-hidden">
-                <button
-                  onClick={() => setDetailedInvoice(false)}
-                  className={`flex-1 py-2 px-3 text-sm font-medium transition-colors ${!detailedInvoice ? 'bg-[#1F1F21] text-white' : 'bg-white text-muted-foreground hover:bg-muted/40'}`}
-                >
-                  Simple
-                </button>
-                <button
-                  onClick={() => setDetailedInvoice(true)}
-                  className={`flex-1 py-2 px-3 text-sm font-medium transition-colors ${detailedInvoice ? 'bg-[#1F1F21] text-white' : 'bg-white text-muted-foreground hover:bg-muted/40'}`}
-                >
-                  Detailed
-                </button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {detailedInvoice ? 'Shows full breakdown per day — base rate, OT, penalties, equipment, expenses' : 'One line per day with total only'}
-              </p>
-            </div>
 
             <Separator />
 

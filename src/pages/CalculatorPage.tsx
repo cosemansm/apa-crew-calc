@@ -2024,7 +2024,7 @@ export function CalculatorPage() {
 
                               {(day.expensesAmount ?? 0) > 0 && (
                                 <Fragment key="expenses">
-                                  <p className="text-xs text-muted-foreground py-[3px] self-center">Expenses{day.expensesNotes ? ` · ${day.expensesNotes}` : ''}</p>
+                                  <p className="text-xs text-muted-foreground py-[3px] self-center">Expenses</p>
                                   <span />
                                   <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{(day.expensesAmount ?? 0).toFixed(2)}</span>
                                 </Fragment>
