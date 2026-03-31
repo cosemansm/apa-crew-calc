@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { ProLockOverlay } from '@/components/ProLockOverlay';
 import {
   Sparkles, Send, Loader2, AlertCircle, ChevronLeft, ChevronRight,
   CheckCircle2, Save, TriangleAlert, CalendarIcon, Star,
@@ -495,7 +496,11 @@ export function AIInputPage() {
 
   if (stage === 'input') {
     return (
-      <div className="max-w-3xl mx-auto space-y-6">
+      <ProLockOverlay
+        featureName="AI Input"
+        featureDescription="Describe your day in plain text and let AI fill in the calculator automatically."
+      >
+        <div className="max-w-3xl mx-auto space-y-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -555,14 +560,19 @@ export function AIInputPage() {
             ))}
           </CardContent>
         </Card>
-      </div>
+        </div>
+      </ProLockOverlay>
     );
   }
 
   // ─── Review stage ─────────────────────────────────────────────────────────
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4">
+    <ProLockOverlay
+      featureName="AI Input"
+      featureDescription="Describe your day in plain text and let AI fill in the calculator automatically."
+    >
+      <div className="max-w-3xl mx-auto space-y-4">
 
       {/* Header */}
       <div className="flex items-center gap-3">
@@ -797,5 +807,6 @@ export function AIInputPage() {
         </CardContent>
       </Card>
     </div>
+    </ProLockOverlay>
   );
 }
