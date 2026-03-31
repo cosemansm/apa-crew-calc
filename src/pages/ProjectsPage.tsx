@@ -25,7 +25,7 @@ interface HistoryDay {
   agreed_rate: number;
   grand_total: number;
   result_json: {
-    lineItems?: { description: string; hours?: number; rate?: number; total: number; timeFrom?: string; timeTo?: string }[];
+    lineItems?: { description: string; hours?: number; rate?: number; total: number; timeFrom?: string; timeTo?: string; isDayRate?: boolean }[];
     penalties?: { description: string; hours?: number; rate?: number; total: number }[];
     travelPay?: number;
     mileage?: number;
@@ -70,7 +70,7 @@ interface ProjectDay {
   grand_total: number;
   agreed_rate: number;
   result_json?: {
-    lineItems?: { description: string; hours?: number; rate?: number; total: number; timeFrom?: string; timeTo?: string }[];
+    lineItems?: { description: string; hours?: number; rate?: number; total: number; timeFrom?: string; timeTo?: string; isDayRate?: boolean }[];
     penalties?: { description: string; hours?: number; rate?: number; total: number }[];
     travelPay?: number;
     mileage?: number;
@@ -665,11 +665,12 @@ export function ProjectsPage() {
                               <div className="px-4 py-2 space-y-0.5">
                                 {lineItems.map((item, i) => {
                                   const isFlatRate = !!(item.rate && Math.abs(item.total - item.rate) < 1);
+                                  const isDayRate = item.isDayRate || isFlatRate;
                                   const timePart = item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : '';
                                   let ratePart = '';
                                   if (item.rate && item.hours) {
-                                    if (isFlatRate) {
-                                      ratePart = `£${item.rate} × 1${item.hours > 1 ? ` · ${parseFloat(item.hours.toFixed(2))}h` : ''}`;
+                                    if (isDayRate) {
+                                      ratePart = `£${item.total} × 1`;
                                     } else {
                                       ratePart = `£${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
                                     }

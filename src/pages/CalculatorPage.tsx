@@ -189,7 +189,7 @@ function TimePicker({ value, onChange, label, labelAddon, triggerClassName, show
 }
 
 interface DayResultJson {
-  lineItems?: { description: string; hours?: number; rate?: number; total: number; timeFrom?: string; timeTo?: string }[];
+  lineItems?: { description: string; hours?: number; rate?: number; total: number; timeFrom?: string; timeTo?: string; isDayRate?: boolean }[];
   penalties?: { description: string; hours?: number; rate?: number; total: number }[];
   subtotal?: number;
   travelPay?: number;
@@ -1957,11 +1957,12 @@ export function CalculatorPage() {
                           <div className="border-t border-[#FFD528]/25 bg-background px-3 pt-2 pb-3 space-y-0.5">
                             {rj.lineItems?.map((item, i) => {
                               const isFlatRate = !!(item.rate && Math.abs(item.total - item.rate) < 1);
+                              const isDayRate = item.isDayRate || isFlatRate;
                               const timePart = item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : '';
                               let ratePart = '';
                               if (item.rate && item.hours) {
-                                if (isFlatRate) {
-                                  ratePart = `£${item.rate} × 1${item.hours > 1 ? ` · ${parseFloat(item.hours.toFixed(2))}h` : ''}`;
+                                if (isDayRate) {
+                                  ratePart = `£${item.total} × 1`;
                                 } else {
                                   ratePart = `£${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
                                 }

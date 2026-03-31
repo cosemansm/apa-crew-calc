@@ -28,24 +28,26 @@ function PublicRoute({ children }: { children: ReactNode }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-          <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/calculator" element={<CalculatorPage />} />
-            <Route path="/projects" element={<ProjectsPage />} />
-            <Route path="/ai-input" element={<AIInputPage />} />
-            <Route path="/history" element={<Navigate to="/projects" replace />} />
-            <Route path="/invoices" element={<InvoicePage />} />
-            <Route path="/support" element={<SupportPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
-    <Analytics />
+    <>
+      <BrowserRouter>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+            <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/calculator" element={<CalculatorPage />} />
+              <Route path="/projects" element={<ProjectsPage />} />
+              <Route path="/ai-input" element={<AIInputPage />} />
+              <Route path="/history" element={<Navigate to="/projects" replace />} />
+              <Route path="/invoices" element={<InvoicePage />} />
+              <Route path="/support" element={<SupportPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+            </Route>
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+      <Analytics />
+    </>
   );
 }

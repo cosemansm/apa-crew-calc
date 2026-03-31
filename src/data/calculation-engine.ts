@@ -45,6 +45,7 @@ export interface CalculationLineItem {
   total: number;
   timeFrom?: string; // HH:MM — start of this charge period
   timeTo?: string;   // HH:MM — end of this charge period
+  isDayRate?: boolean; // flat day fee — display as rate×1, not rate×hours
 }
 
 export interface CalculationResult {
@@ -250,6 +251,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
       total: baseHours * hourlyRate,
       timeFrom: callTime,
       timeTo: nsdOtStartTime,
+      isDayRate: true,
     });
     // PM/PA/Runner: no OT on non-shooting days (Appendix 1(a): "SHOOT DAYS ONLY")
     if (!isPMPARunner) {
@@ -274,6 +276,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
       total: baseHours * hourlyRate,
       timeFrom: callTime,
       timeTo: plOtStartTime,
+      isDayRate: true,
     });
     // Section 2.3 table: £7.50 meal allowance if meal not provided on pre-light
     if (!input.firstBreakGiven) {
