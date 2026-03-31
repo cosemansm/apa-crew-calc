@@ -19,6 +19,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
 import { STATUS_CONFIG, StatusBadge, type ProjectStatus } from './ProjectsPage';
+import { TrialBanner } from '@/components/TrialBanner';
 
 interface Project {
   id: string;
@@ -277,6 +278,7 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <TrialBanner />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
