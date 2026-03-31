@@ -25,7 +25,7 @@ Founding member pricing is out of scope for v1.
 ## Feature Tiers
 
 ### Free (always available)
-- Unlimited jobs and day tracking
+- Up to 10 active jobs and day tracking (deleting a job frees a slot — limit is on current count, not lifetime total)
 - Calculator (full APA rate engine)
 - Custom rates, kit packages, favourite roles
 - Client list, dashboard, history
@@ -106,7 +106,7 @@ Users can earn one 14-day Pro extension by leaving a review. This is a one-time 
 
 ### Trigger points
 
-1. **Day 12 pop-up + email** — shown once when the user logs in on day 12 of their trial (days since `created_at >= 12`). Also triggers a Resend email.
+1. **Day 12 pop-up + email** — shown once when the user logs in on day 10 of their trial (days since `created_at >= 12`). Also triggers a Resend email.
 2. **Trial-expired pop-up** — shown on the user's first login after `trial_ends_at` has passed, **only if** `trial_extended = false`. Not shown again after dismissal.
 
 ### Honour system flow
@@ -177,7 +177,7 @@ Gold `✦ Trial` badge showing days remaining. Visible throughout the trial and 
 Subtle strip in the last 5 days: *"Trial ends in X days — Upgrade"*. Uses `trialDaysLeft`.
 
 ### 3. Day 12 review pop-up
-- Triggered once on login when `daysSinceSignup >= 12`, `trial_extended = false`, and `review_popup_shown = false`
+- Triggered once on login when `daysSinceSignup >= 10`, `trial_extended = false`, and `review_popup_shown = false`
 - Shows days remaining, review CTA, and "Upgrade to Pro instead" secondary action
 - Dismiss sets `review_popup_shown = true` in the `subscriptions` table — persists across devices
 - Also triggers a Resend email with the same message
