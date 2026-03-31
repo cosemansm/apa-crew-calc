@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   FolderOpen, Plus, Clock, PoundSterling, ChevronRight,
   Calendar, User, Edit3, X, Sparkles, Trash2, Copy,
-  History, ChevronDown, ChevronUp, Search,
+  History, ChevronDown, ChevronUp, Search, FileText,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { supabase } from '@/lib/supabase';
@@ -88,6 +88,17 @@ const DAY_TYPE_LABELS: Record<string, string> = {
   recce: 'Recce Day',
   build_strike: 'Build/Strike',
   pre_light: 'Pre-light',
+};
+
+const DAY_TYPE_SHORT: Record<string, string> = {
+  basic_working: 'Shoot Day',
+  continuous_working: 'Shoot Day',
+  prep: 'Prep Day',
+  recce: 'Recce Day',
+  build_strike: 'Build / Strike Day',
+  pre_light: 'Pre-light Day',
+  rest: 'Rest Day',
+  travel: 'Travel Day',
 };
 
 // ── StatusBadge ──────────────────────────────────────────────────────────────
@@ -397,9 +408,9 @@ export function ProjectsPage() {
                           </div>
                         ))}
                         {day.result_json.penalties?.map((p, i) => (
-                          <div key={i} className="flex justify-between text-orange-600">
-                            <span>{p.description}</span>
-                            <span className="font-mono">£{p.total.toFixed(2)}</span>
+                          <div key={i} className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{p.description}</span>
+                            <span className="font-mono shrink-0">£{p.total.toFixed(2)}</span>
                           </div>
                         ))}
                         {(day.result_json.travelPay ?? 0) > 0 && (
@@ -540,6 +551,15 @@ export function ProjectsPage() {
                   <div className="flex items-center gap-2 shrink-0">
                     <Button
                       size="sm"
+                      variant="outline"
+                      onClick={() => navigate('/invoices', { state: { projectId: selectedProject.id } })}
+                      className="gap-1.5"
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Go to Invoice
+                    </Button>
+                    <Button
+                      size="sm"
                       onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
                       className="gap-1.5"
                     >
@@ -612,29 +632,27 @@ export function ProjectsPage() {
                           <div key={day.id} className="rounded-xl border border-border overflow-hidden">
                             {/* Day header */}
                             <div className="flex items-center justify-between px-4 py-3 bg-muted/40">
-                              <div className="flex items-center gap-3">
-                                <div className="h-7 w-7 rounded-full bg-[#1F1F21] flex items-center justify-center shrink-0">
-                                  <span className="text-[11px] font-bold text-white">{idx + 1}</span>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs font-black uppercase tracking-widest text-foreground">Day {idx + 1}</span>
+                                  <span className="text-xs text-muted-foreground">{format(parseISO(day.work_date), 'EEE dd MMM yyyy')}</span>
                                 </div>
-                                <div>
-                                  <p className="text-sm font-semibold">
-                                    {format(parseISO(day.work_date), 'EEEE dd MMM yyyy')}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {DAY_TYPE_LABELS[day.day_type] || day.day_type}
-                                    {day.call_time && day.wrap_time && ` · ${day.call_time} – ${day.wrap_time}`}
-                                  </p>
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  <span className="text-[10px] font-bold tracking-widest uppercase text-[#FFD528] bg-[#1F1F21] px-1.5 py-0.5 rounded">
+                                    {DAY_TYPE_SHORT[day.day_type] || DAY_TYPE_LABELS[day.day_type] || day.day_type}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">{day.role_name}</span>
+                                  {day.call_time && day.wrap_time && (
+                                    <span className="text-xs text-muted-foreground font-mono">{day.call_time} – {day.wrap_time}</span>
+                                  )}
                                 </div>
                               </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <div className="text-right">
-                                  <p className="text-sm font-bold">£{(day.grand_total || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                                  <p className="text-xs text-muted-foreground">{day.role_name}</p>
-                                </div>
+                              <div className="flex items-center gap-2 shrink-0 ml-3">
+                                <p className="text-sm font-bold tabular-nums">£{(day.grand_total || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                                 <button
                                   onClick={() => removeDay(day.id)}
                                   disabled={deletingDayId === day.id}
-                                  className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 transition-colors"
+                                  className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-red-500 hover:bg-red-50 transition-colors"
                                   title="Remove day"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
@@ -644,37 +662,37 @@ export function ProjectsPage() {
 
                             {/* Line items */}
                             {(lineItems.length > 0 || penalties.length > 0 || travelPay > 0 || mileagePay > 0) && (
-                              <div className="px-4 py-2 space-y-1">
+                              <div className="px-4 py-2 space-y-0.5">
                                 {lineItems.map((item, i) => (
-                                  <div key={i} className="flex justify-between gap-2 text-xs text-muted-foreground">
+                                  <div key={i} className="flex items-start justify-between gap-3 py-[3px]">
                                     <div className="min-w-0">
-                                      <span>{item.description}</span>
+                                      <p className="text-xs text-muted-foreground leading-tight">{item.description}</p>
                                       {(item.timeFrom && item.timeTo) || (item.rate && item.hours) ? (
-                                        <p className="text-[10px] text-muted-foreground/60 font-mono">
+                                        <p className="text-[10px] text-muted-foreground/50 font-mono mt-0.5">
                                           {item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : ''}
-                                          {item.rate && item.hours ? ` · £${item.rate} × ${Math.abs(item.rate - item.total) < 1 ? '1' : item.hours % 1 === 0 ? `${item.hours}h` : `${item.hours.toFixed(2)}h`}` : ''}
+                                          {item.rate && item.hours ? `${item.timeFrom ? ' · ' : ''}£${item.rate} × ${item.hours % 1 === 0 ? `${item.hours}h` : `${item.hours.toFixed(2)}h`}` : ''}
                                         </p>
                                       ) : null}
                                     </div>
-                                    <span className="font-medium text-foreground shrink-0">£{item.total.toFixed(2)}</span>
+                                    <span className="font-mono text-xs font-semibold tabular-nums shrink-0 pt-0.5">£{item.total.toFixed(2)}</span>
                                   </div>
                                 ))}
                                 {penalties.map((item, i) => (
-                                  <div key={`pen-${i}`} className="flex justify-between text-xs text-orange-600">
-                                    <span>{item.description}</span>
-                                    <span className="font-medium">£{item.total.toFixed(2)}</span>
+                                  <div key={`pen-${i}`} className="flex items-start justify-between gap-3 py-[3px]">
+                                    <p className="text-xs text-muted-foreground leading-tight">{item.description}</p>
+                                    <span className="font-mono text-xs font-semibold tabular-nums shrink-0 pt-0.5">£{item.total.toFixed(2)}</span>
                                   </div>
                                 ))}
                                 {travelPay > 0 && (
-                                  <div className="flex justify-between text-xs text-muted-foreground">
-                                    <span>Travel pay</span>
-                                    <span className="font-medium text-foreground">£{travelPay.toFixed(2)}</span>
+                                  <div className="flex items-start justify-between gap-3 py-[3px]">
+                                    <p className="text-xs text-muted-foreground leading-tight">Travel pay</p>
+                                    <span className="font-mono text-xs font-semibold tabular-nums shrink-0 pt-0.5">£{travelPay.toFixed(2)}</span>
                                   </div>
                                 )}
                                 {mileagePay > 0 && (
-                                  <div className="flex justify-between text-xs text-muted-foreground">
-                                    <span>Mileage ({day.result_json?.mileageMiles || 0} mi)</span>
-                                    <span className="font-medium text-foreground">£{mileagePay.toFixed(2)}</span>
+                                  <div className="flex items-start justify-between gap-3 py-[3px]">
+                                    <p className="text-xs text-muted-foreground leading-tight">Mileage ({day.result_json?.mileageMiles || 0} mi)</p>
+                                    <span className="font-mono text-xs font-semibold tabular-nums shrink-0 pt-0.5">£{mileagePay.toFixed(2)}</span>
                                   </div>
                                 )}
                               </div>
@@ -694,13 +712,23 @@ export function ProjectsPage() {
                         </span>
                       </div>
 
-                      <Button
-                        className="w-full gap-2 mt-1"
-                        onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
-                      >
-                        <Edit3 className="h-4 w-4" />
-                        Edit in Calculator
-                      </Button>
+                      <div className="flex gap-2 mt-1">
+                        <Button
+                          variant="outline"
+                          className="flex-1 gap-2"
+                          onClick={() => navigate('/invoices', { state: { projectId: selectedProject.id } })}
+                        >
+                          <FileText className="h-4 w-4" />
+                          Go to Invoice
+                        </Button>
+                        <Button
+                          className="flex-1 gap-2"
+                          onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
+                        >
+                          <Edit3 className="h-4 w-4" />
+                          Edit in Calculator
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </CardContent>

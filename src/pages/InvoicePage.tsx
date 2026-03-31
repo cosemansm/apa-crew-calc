@@ -107,9 +107,18 @@ export function InvoicePage() {
         if (data) {
           const days = data as unknown as ProjectDay[];
           setAllDays(days);
-          const preselect = (location.state as { dayId?: string } | null)?.dayId;
-          if (preselect) {
-            const preselectDay = days.find(d => d.id === preselect);
+          const state = location.state as { dayId?: string; projectId?: string } | null;
+          const preselectProjectId = state?.projectId;
+          const preselectDayId = state?.dayId;
+          if (preselectProjectId) {
+            const projDays = days.filter(d => d.project_id === preselectProjectId);
+            if (projDays.length > 0) {
+              setSelectedProjectId(preselectProjectId);
+              setSelected(projDays.map(d => d.id));
+              if (projDays[0].projects?.client_name) setClientName(projDays[0].projects.client_name);
+            }
+          } else if (preselectDayId) {
+            const preselectDay = days.find(d => d.id === preselectDayId);
             if (preselectDay) {
               const projId = preselectDay.project_id;
               setSelectedProjectId(projId);
