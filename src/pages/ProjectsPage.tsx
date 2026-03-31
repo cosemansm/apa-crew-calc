@@ -663,20 +663,28 @@ export function ProjectsPage() {
                             {/* Line items */}
                             {(lineItems.length > 0 || penalties.length > 0 || travelPay > 0 || mileagePay > 0) && (
                               <div className="px-4 py-2 space-y-0.5">
-                                {lineItems.map((item, i) => (
-                                  <div key={i} className="flex items-baseline justify-between gap-2 py-[3px]">
-                                    <p className="text-xs text-muted-foreground leading-tight shrink-0">{item.description}</p>
-                                    <div className="flex items-baseline gap-2 shrink-0">
-                                      {((item.timeFrom && item.timeTo) || (item.rate && item.hours)) && (
-                                        <span className="text-[10px] text-muted-foreground/50 font-mono">
-                                          {item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : ''}
-                                          {item.rate && item.hours ? `${item.timeFrom ? ' · ' : ''}£${item.rate} × ${parseFloat(item.hours.toFixed(2))}` : ''}
-                                        </span>
-                                      )}
-                                      <span className="font-mono text-xs font-semibold tabular-nums">£{item.total.toFixed(2)}</span>
+                                {lineItems.map((item, i) => {
+                                  const isFlatRate = !!(item.rate && Math.abs(item.total - item.rate) < 1);
+                                  const timePart = item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : '';
+                                  let ratePart = '';
+                                  if (item.rate && item.hours) {
+                                    if (isFlatRate) {
+                                      ratePart = `£${item.rate} × 1${item.hours > 1 ? ` · ${parseFloat(item.hours.toFixed(2))}h` : ''}`;
+                                    } else {
+                                      ratePart = `£${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
+                                    }
+                                  }
+                                  const detail = [timePart, ratePart].filter(Boolean).join(' · ');
+                                  return (
+                                    <div key={i} className="flex items-baseline justify-between gap-2 py-[3px]">
+                                      <p className="text-xs text-muted-foreground leading-tight shrink-0">{item.description}</p>
+                                      <div className="flex items-baseline gap-2 shrink-0">
+                                        {detail && <span className="text-[10px] text-muted-foreground/50 font-mono">{detail}</span>}
+                                        <span className="font-mono text-xs font-semibold tabular-nums">£{item.total.toFixed(2)}</span>
+                                      </div>
                                     </div>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                                 {penalties.map((item, i) => (
                                   <div key={`pen-${i}`} className="flex items-start justify-between gap-3 py-[3px]">
                                     <p className="text-xs text-muted-foreground leading-tight">{item.description}</p>
