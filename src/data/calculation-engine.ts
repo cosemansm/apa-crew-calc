@@ -670,8 +670,11 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
     if (gap < 0) gap += 24 * 60;
     const gapHours = gap / 60;
     if (gapHours < 11) {
-      // Capped at 1 hour penalty per T&Cs
-      penalties.push({ description: 'TOC (1hr)', hours: 1, rate: otRate, total: otRate });
+      // TOC = shortfall from 11hrs, rounded up to nearest 30 mins (same as OT), capped at 1hr
+      const shortfall = 11 - gapHours;
+      const tocHours = Math.min(1, roundOTHours(shortfall));
+      const tocLabel = tocHours === 1 ? 'TOC (1hr)' : `TOC (${tocHours * 60}min)`;
+      penalties.push({ description: tocLabel, hours: tocHours, rate: otRate, total: Math.round(otRate * tocHours) });
     }
   }
 
