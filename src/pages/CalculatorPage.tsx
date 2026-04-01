@@ -1923,9 +1923,14 @@ export function CalculatorPage() {
                     );
 
                     // Day type label: prefer stored dayDescription, fall back to day_type map
-                    const dayLabel = rj?.dayDescription
+                    // Normalise legacy "Converted to Continuous…" text to the canonical label
+                    const rawDayLabel = rj?.dayDescription
                       ?? (day.day_type ? DAY_TYPE_SHORT[day.day_type] : undefined)
                       ?? '—';
+                    const dayLabel = rawDayLabel.replace(
+                      /^Converted to Continuous[^-]*/i,
+                      'Continuous Working Day ',
+                    );
 
                     return (
                       <div
