@@ -644,18 +644,14 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
   }
 
   // Continuous working day break penalties (Section 6.4)
+  // Applies equally to genuine continuous days and basic days converted to continuous.
+  // Always use the continuous break fields — never the basic-day secondBreakGiven field.
   if (!isPMPARunner && dayType === 'continuous_working') {
-    // FIX #24: Only check 9hr break if day exceeds 9hrs
-    if (dayLength > 9) {
-      if (convertedToContinuous ? !input.secondBreakGiven : !input.continuousFirstBreakGiven) {
-        penalties.push({ description: 'No 2nd break', hours: 0.5, rate: bhr, total: Math.round(bhr * 0.5) });
-      }
+    if (dayLength > 9 && !input.continuousFirstBreakGiven) {
+      penalties.push({ description: 'No 2nd break', hours: 0.5, rate: bhr, total: Math.round(bhr * 0.5) });
     }
-    // Additional 30-min break after 12.5 hours
-    if (dayLength > 12.5) {
-      if (convertedToContinuous ? true : !input.continuousAdditionalBreakGiven) {
-        penalties.push({ description: 'No add\'l break', hours: 0.5, rate: bhr, total: Math.round(bhr * 0.5) });
-      }
+    if (dayLength > 12.5 && !input.continuousAdditionalBreakGiven) {
+      penalties.push({ description: 'No add\'l break', hours: 0.5, rate: bhr, total: Math.round(bhr * 0.5) });
     }
   }
 
@@ -670,8 +666,8 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
     if (gap < 0) gap += 24 * 60;
     const gapHours = gap / 60;
     if (gapHours < 11) {
-      // TOC = shortfall from 11hrs, rounded up to nearest 30 mins (same as OT), no cap
-      const shortfall = 11 - gapHours;
+      // APA S.5: "they may only be engaged to work one hour of TOC" — cap at 1hr
+      const shortfall = Math.min(11 - gapHours, 1);
       const tocHours = roundOTHours(shortfall);
       const tocLabel = `TOC (${tocHours}hr)`;
       penalties.push({ description: tocLabel, hours: tocHours, rate: otRate, total: Math.round(otRate * tocHours) });
