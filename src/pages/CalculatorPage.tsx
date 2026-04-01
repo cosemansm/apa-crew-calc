@@ -766,6 +766,22 @@ export function CalculatorPage() {
     if (result !== null) setIsDirty(true);
   }, [result]);
 
+  // Heal stale grand_total: when a saved day is loaded and the live result
+  // differs from the stored value (e.g. after engine bug fixes or a previous
+  // day's wrap time changed), silently update the DB so collapsed days always
+  // show the correct total without requiring the user to manually re-save.
+  useEffect(() => {
+    if (!currentDayId || !result || isDirty || !projectId) return;
+    const stored = projectDays.find(d => d.id === currentDayId);
+    if (!stored) return;
+    const liveTotal = result.grandTotal + (parseFloat(expensesDayAmount) || 0);
+    if (Math.abs(liveTotal - stored.grand_total) < 0.005) return;
+    supabase.from('project_days')
+      .update({ grand_total: liveTotal, result_json: result })
+      .eq('id', currentDayId)
+      .then(() => refreshProjectDays(projectId));
+  }, [currentDayId, result]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Auto-save: fires 1.5s after result changes, when minimum fields are ready ──
   useEffect(() => {
     if (!result || !user || !selectedRole || !agreedRate || !isDirty) return;
