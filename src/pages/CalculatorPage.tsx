@@ -1976,7 +1976,7 @@ export function CalculatorPage() {
                         {/* Line items — always visible for current day */}
                         {day.isCurrent && hasDetail && rj && (
                           <div className="border-t border-[#FFD528]/25 bg-background px-3 pt-2 pb-3">
-                            <div className="grid gap-x-3" style={{ gridTemplateColumns: '1fr auto auto' }}>
+                            <div className="grid gap-x-3 items-center" style={{ gridTemplateColumns: '1fr auto' }}>
                               {rj.lineItems?.map((item, i) => {
                                 const isFlatRate = !!(item.rate && Math.abs(item.total - item.rate) < 1);
                                 const isDayRate = item.isDayRate || isFlatRate;
@@ -1990,16 +1990,18 @@ export function CalculatorPage() {
                                 const detail = [timePart, ratePart].filter(Boolean).join(' · ');
                                 return (
                                   <Fragment key={i}>
-                                    <p className="text-xs text-muted-foreground leading-tight py-[3px] self-center">{item.description}</p>
-                                    <span className="text-[10px] text-muted-foreground/50 font-mono text-right self-center py-[3px]">{detail}</span>
-                                    <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{item.total.toFixed(2)}</span>
+                                    <div className="py-[3px]">
+                                      <p className="text-xs text-muted-foreground leading-tight">{item.description}</p>
+                                      {detail && <span className="text-[10px] text-muted-foreground/50 font-mono">{detail}</span>}
+                                    </div>
+                                    <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">£{item.total.toFixed(2)}</span>
                                   </Fragment>
                                 );
                               })}
 
                               {(rj.penalties?.length ?? 0) > 0 && (
                                 <>
-                                  <div className="col-span-3 border-t border-border/40 my-1" />
+                                  <div className="col-span-2 border-t border-border/40 my-1" />
                                   {rj.penalties!.map((p, i) => {
                                     const pIsFlatRate = !!(p.rate && Math.abs(p.total - p.rate) < 1);
                                     let pDetail = '';
@@ -2010,9 +2012,11 @@ export function CalculatorPage() {
                                     }
                                     return (
                                       <Fragment key={`p-${i}`}>
-                                        <p className="text-xs text-muted-foreground leading-tight py-[3px] self-center">{p.description}</p>
-                                        <span className="text-[10px] text-muted-foreground/50 font-mono text-right self-center py-[3px]">{pDetail}</span>
-                                        <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{p.total.toFixed(2)}</span>
+                                        <div className="py-[3px]">
+                                          <p className="text-xs text-muted-foreground leading-tight">{p.description}</p>
+                                          {pDetail && <span className="text-[10px] text-muted-foreground/50 font-mono">{pDetail}</span>}
+                                        </div>
+                                        <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">£{p.total.toFixed(2)}</span>
                                       </Fragment>
                                     );
                                   })}
@@ -2021,33 +2025,29 @@ export function CalculatorPage() {
 
                               {(rj.travelPay ?? 0) > 0 && (
                                 <Fragment key="travel">
-                                  <p className="text-xs text-muted-foreground py-[3px] self-center">Travel</p>
-                                  <span />
-                                  <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{(rj.travelPay ?? 0).toFixed(2)}</span>
+                                  <p className="text-xs text-muted-foreground py-[3px]">Travel</p>
+                                  <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">£{(rj.travelPay ?? 0).toFixed(2)}</span>
                                 </Fragment>
                               )}
 
                               {(rj.mileage ?? 0) > 0 && (
                                 <Fragment key="mileage">
-                                  <p className="text-xs text-muted-foreground py-[3px] self-center">Mileage ({rj.mileageMiles} mi)</p>
-                                  <span />
-                                  <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{(rj.mileage ?? 0).toFixed(2)}</span>
+                                  <p className="text-xs text-muted-foreground py-[3px]">Mileage ({rj.mileageMiles} mi)</p>
+                                  <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">£{(rj.mileage ?? 0).toFixed(2)}</span>
                                 </Fragment>
                               )}
 
                               {(rj.equipmentTotal ?? 0) > 0 && (
                                 <Fragment key="equip">
-                                  <p className="text-xs text-muted-foreground py-[3px] self-center">Equipment{(rj.equipmentDiscount ?? 0) > 0 ? ` (−${rj.equipmentDiscount}%)` : ''}</p>
-                                  <span />
-                                  <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{(rj.equipmentTotal ?? 0).toFixed(2)}</span>
+                                  <p className="text-xs text-muted-foreground py-[3px]">Equipment{(rj.equipmentDiscount ?? 0) > 0 ? ` (−${rj.equipmentDiscount}%)` : ''}</p>
+                                  <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">£{(rj.equipmentTotal ?? 0).toFixed(2)}</span>
                                 </Fragment>
                               )}
 
                               {(day.expensesAmount ?? 0) > 0 && (
                                 <Fragment key="expenses">
-                                  <p className="text-xs text-muted-foreground py-[3px] self-center">Expenses</p>
-                                  <span />
-                                  <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{(day.expensesAmount ?? 0).toFixed(2)}</span>
+                                  <p className="text-xs text-muted-foreground py-[3px]">Expenses</p>
+                                  <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">£{(day.expensesAmount ?? 0).toFixed(2)}</span>
                                 </Fragment>
                               )}
                             </div>
