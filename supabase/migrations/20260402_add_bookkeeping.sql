@@ -1,5 +1,5 @@
 -- ── Bookkeeping connections (shared: FreeAgent, Xero, QuickBooks) ─────────────
-CREATE TABLE IF NOT EXISTS bookkeeping_connections (
+CREATE TABLE IF NOT EXISTS public.bookkeeping_connections (
   id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id       UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   platform      TEXT NOT NULL CHECK (platform IN ('xero', 'quickbooks', 'freeagent')),
@@ -14,15 +14,21 @@ CREATE TABLE IF NOT EXISTS bookkeeping_connections (
   UNIQUE (user_id, platform)
 );
 
-ALTER TABLE bookkeeping_connections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bookkeeping_connections ENABLE ROW LEVEL SECURITY;
 
+-- Tokens are readable by authenticated users (their own rows only via RLS).
+-- All writes go through service-role serverless functions (callback, refresh).
 CREATE POLICY "Users manage own connections"
-  ON bookkeeping_connections FOR ALL
+  ON public.bookkeeping_connections FOR ALL
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
+-- Service role needs explicit grants to bypass RLS for server-side writes
+GRANT ALL ON public.bookkeeping_connections TO service_role;
+
 -- ── VAT registration (used in all bookkeeping exports) ────────────────────────
-ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS vat_registered BOOLEAN DEFAULT false;
+ALTER TABLE public.user_settings ADD COLUMN IF NOT EXISTS vat_registered BOOLEAN DEFAULT false;
 
 -- ── Job reference on projects (optional, flows to exports) ───────────────────
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS job_reference TEXT;
+-- Max 255 chars — FreeAgent reference field limit
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS job_reference TEXT CHECK (char_length(job_reference) <= 255);
