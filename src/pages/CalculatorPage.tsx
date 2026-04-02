@@ -2187,6 +2187,7 @@ export function CalculatorPage() {
                 className="mt-0.5 shrink-0"
               />
               <span className="text-xs text-muted-foreground leading-relaxed">
+                <span className="text-xs font-medium text-muted-foreground/70 uppercase tracking-wide mr-1">Optional</span>
                 I consent to sharing my calculation data (role, rate, times, and result) with Crew Dock to help investigate this report. This data will only be used to resolve the issue and will not be sold or passed to third parties beyond our service providers.
               </span>
             </label>
@@ -2198,6 +2199,7 @@ export function CalculatorPage() {
                 className="mt-0.5 shrink-0"
               />
               <span className="text-xs text-muted-foreground leading-relaxed">
+                <span className="text-xs font-medium text-destructive/70 uppercase tracking-wide mr-1">Required</span>
                 I agree to the{' '}
                 <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">Terms & Conditions</a>
                 {' '}and{' '}
@@ -2210,7 +2212,7 @@ export function CalculatorPage() {
           {reportSent
             ? <p className="text-sm text-green-600">Thanks — we'll look into it!</p>
             : (
-              <Button onClick={handleSendReport} disabled={reportSending} className="w-full">
+              <Button onClick={handleSendReport} disabled={reportSending || !reportAgreeTerms} className="w-full">
                 <Send className="h-4 w-4 mr-2" />
                 {reportSending ? 'Sending...' : 'Send Report'}
               </Button>
