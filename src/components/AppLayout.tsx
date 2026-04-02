@@ -17,7 +17,8 @@ const navItems = [
 
 export function AppLayout() {
   const { user, signOut } = useAuth();
-  const { isPremium, isTrialing, trialDaysLeft } = useSubscription();
+  const { subscription, isPremium, isTrialing, trialDaysLeft } = useSubscription();
+  const isLifetime = subscription?.status === 'lifetime';
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
@@ -91,14 +92,21 @@ export function AppLayout() {
         {sidebarExpanded && !isPremium && !isTrialing && (
           <div className="px-3 py-1">
             <span className="text-[10px] font-bold text-white/40 bg-white/5 border border-white/10 rounded-full px-2.5 py-0.5">
-              Free plan
+              Free Plan
             </span>
           </div>
         )}
-        {sidebarExpanded && isPremium && !isTrialing && (
+        {sidebarExpanded && isLifetime && (
+          <div className="px-3 py-1">
+            <span className="text-[10px] font-bold text-[#c084fc] bg-purple-500/10 border border-purple-500/25 rounded-full px-2.5 py-0.5">
+              ✦ Lifetime
+            </span>
+          </div>
+        )}
+        {sidebarExpanded && isPremium && !isTrialing && !isLifetime && (
           <div className="px-3 py-1">
             <span className="text-[10px] font-bold text-[#4ade80] bg-[#4ade80]/10 border border-[#4ade80]/25 rounded-full px-2.5 py-0.5">
-              ✦ Pro
+              ✦ Pro Plan
             </span>
           </div>
         )}
@@ -219,14 +227,29 @@ export function AppLayout() {
                 );
               })}
 
-              {/* Mobile trial badge */}
-              {isTrialing && (
-                <div className="px-3 py-2">
+              {/* Mobile plan badge */}
+              <div className="px-3 py-2">
+                {isTrialing && (
                   <span className="text-[10px] font-bold text-[#FFD528] bg-[#FFD528]/10 border border-[#FFD528]/25 rounded-full px-2.5 py-0.5">
                     ✦ Trial — {trialDaysLeft}d left
                   </span>
-                </div>
-              )}
+                )}
+                {!isPremium && !isTrialing && (
+                  <span className="text-[10px] font-bold text-white/40 bg-white/5 border border-white/10 rounded-full px-2.5 py-0.5">
+                    Free Plan
+                  </span>
+                )}
+                {isLifetime && (
+                  <span className="text-[10px] font-bold text-[#c084fc] bg-purple-500/10 border border-purple-500/25 rounded-full px-2.5 py-0.5">
+                    ✦ Lifetime
+                  </span>
+                )}
+                {isPremium && !isTrialing && !isLifetime && (
+                  <span className="text-[10px] font-bold text-[#4ade80] bg-[#4ade80]/10 border border-[#4ade80]/25 rounded-full px-2.5 py-0.5">
+                    ✦ Pro Plan
+                  </span>
+                )}
+              </div>
 
               <div className="border-t border-white/10 mt-1 pt-1">
                 <Link to="/settings" onClick={() => setMobileMenuOpen(false)}>

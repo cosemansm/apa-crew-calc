@@ -20,6 +20,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
 import { STATUS_CONFIG, StatusBadge, type ProjectStatus } from './ProjectsPage';
 import { TrialBanner } from '@/components/TrialBanner';
+import { useSubscription } from '@/contexts/SubscriptionContext';
 
 interface Project {
   id: string;
@@ -55,6 +56,8 @@ function dayTotal(d: ProjectDay): number {
 export function DashboardPage() {
   usePageTitle('Dashboard');
   const { user } = useAuth();
+  const { subscription, isPremium, isTrialing, trialDaysLeft } = useSubscription();
+  const isLifetime = subscription?.status === 'lifetime';
   const navigate = useNavigate();
   const location = useLocation();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -285,7 +288,29 @@ export function DashboardPage() {
           <h1 className="text-3xl font-bold tracking-tight">
             Hi, {displayName || user?.email?.split('@')[0] || 'there'}!
           </h1>
-          <p className="text-muted-foreground mt-1">Let's manage your crew bookings</p>
+          <div className="flex items-center gap-2 mt-1">
+            <p className="text-muted-foreground">Let's manage your crew bookings</p>
+            {isTrialing && (
+              <span className="text-[10px] font-bold text-[#FFD528] bg-[#FFD528]/10 border border-[#FFD528]/25 rounded-full px-2.5 py-0.5">
+                ✦ Trial — {trialDaysLeft}d left
+              </span>
+            )}
+            {!isPremium && !isTrialing && (
+              <span className="text-[10px] font-bold text-white/40 bg-white/5 border border-white/10 rounded-full px-2.5 py-0.5">
+                Free Plan
+              </span>
+            )}
+            {isLifetime && (
+              <span className="text-[10px] font-bold text-[#c084fc] bg-purple-500/10 border border-purple-500/25 rounded-full px-2.5 py-0.5">
+                ✦ Lifetime
+              </span>
+            )}
+            {isPremium && !isTrialing && !isLifetime && (
+              <span className="text-[10px] font-bold text-[#4ade80] bg-[#4ade80]/10 border border-[#4ade80]/25 rounded-full px-2.5 py-0.5">
+                ✦ Pro Plan
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => navigate('/ai-input')} className="gap-2">
