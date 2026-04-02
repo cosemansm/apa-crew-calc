@@ -23,9 +23,18 @@ export default async function handler(req: any, res: any) {
       },
     }
   );
+
+  if (!getRes.ok) {
+    const errText = await getRes.text();
+    return res.status(500).json({ error: `Supabase error (${getRes.status}): ${errText}` });
+  }
+
   const rows = await getRes.json();
-  if (!Array.isArray(rows) || rows.length === 0) {
-    return res.status(404).json({ error: 'Subscription not found' });
+  if (!Array.isArray(rows)) {
+    return res.status(500).json({ error: `Unexpected response from database: ${JSON.stringify(rows)}` });
+  }
+  if (rows.length === 0) {
+    return res.status(404).json({ error: `No subscription row found for user ${userId}` });
   }
   if (rows[0].trial_extended === true) {
     return res.status(409).json({ error: 'Review extension already used' });
