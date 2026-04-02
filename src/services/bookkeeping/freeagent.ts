@@ -122,6 +122,7 @@ async function createInvoice(
     invoice: {
       contact: contactUrl,
       reference: payload.invoiceNumber,
+      status: 'Draft',
       dated_on: new Date().toISOString().split('T')[0],
       due_on: dueDate.toISOString().split('T')[0],
       payment_terms_in_days: 30,
