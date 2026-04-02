@@ -20,8 +20,32 @@ async function getRawBody(req: any): Promise<Buffer> {
 }
 
 async function updateSubscription(customerId: string, patch: Record<string, unknown>) {
+  // First try matching by stripe_customer_id (fast path)
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/subscriptions?stripe_customer_id=eq.${customerId}&select=id`,
+    {
+      headers: {
+        apikey: SUPABASE_SERVICE_ROLE_KEY!,
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+    }
+  );
+  const rows = await res.json();
+
+  let filter = `stripe_customer_id=eq.${customerId}`;
+
+  // Fallback: customer ID not stored yet — look up via Stripe customer metadata
+  if (!Array.isArray(rows) || rows.length === 0) {
+    const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
+    const userId = customer.metadata?.supabase_user_id;
+    if (!userId) return; // can't identify the user
+    // Also store the customer ID so future events match the fast path
+    filter = `user_id=eq.${userId}`;
+    patch = { ...patch, stripe_customer_id: customerId };
+  }
+
   await fetch(
-    `${SUPABASE_URL}/rest/v1/subscriptions?stripe_customer_id=eq.${customerId}`,
+    `${SUPABASE_URL}/rest/v1/subscriptions?${filter}`,
     {
       method: 'PATCH',
       headers: {
