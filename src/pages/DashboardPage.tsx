@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
   Plus, FolderOpen, Star, StarOff, ChevronLeft, ChevronRight,
-  Calendar, PoundSterling, Clock, X, TrendingUp, Sparkles
+  Calendar, PoundSterling, Clock, X, TrendingUp, Sparkles, ExternalLink
 } from 'lucide-react';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, getDay,
@@ -118,6 +119,18 @@ export function DashboardPage() {
       .select('*')
       .eq('user_id', user!.id);
     if (data) setFavourites(data);
+  };
+
+  const updateProjectStatus = async (projectId: string, newStatus: ProjectStatus) => {
+    const { error } = await supabase
+      .from('projects')
+      .update({ status: newStatus })
+      .eq('id', projectId);
+    if (!error) {
+      setProjects(prev => prev.map(p =>
+        p.id === projectId ? { ...p, status: newStatus } : p
+      ));
+    }
   };
 
   const toggleFavourite = async (role: CrewRole) => {
@@ -413,28 +426,70 @@ export function DashboardPage() {
                                                '2px';
 
                       return (
-                        <div
-                          key={`${dp.project_id}-${i}`}
-                          title={dp.projectName}
-                          style={{
-                            backgroundColor: colour,
-                            borderRadius: br,
-                            marginTop: 2,
-                            marginLeft: ml,
-                            marginRight: mr,
-                            padding: '2px 4px',
-                            fontSize: 10,
-                            fontWeight: 500,
-                            color: '#fff',
-                            lineHeight: '1.4',
-                            minHeight: 16,
-                            overflow: 'hidden',
-                            whiteSpace: 'nowrap',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
-                          {connPrev ? '\u00A0' : dp.projectName}
-                        </div>
+                        <Popover key={`${dp.project_id}-${i}`}>
+                          <PopoverTrigger asChild>
+                            <div
+                              title={dp.projectName}
+                              style={{
+                                backgroundColor: colour,
+                                borderRadius: br,
+                                marginTop: 2,
+                                marginLeft: ml,
+                                marginRight: mr,
+                                padding: '2px 4px',
+                                fontSize: 10,
+                                fontWeight: 500,
+                                color: '#fff',
+                                lineHeight: '1.4',
+                                minHeight: 16,
+                                overflow: 'hidden',
+                                whiteSpace: 'nowrap',
+                                textOverflow: 'ellipsis',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {connPrev ? '\u00A0' : dp.projectName}
+                            </div>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 p-4" side="bottom" align="start">
+                            <p className="font-semibold text-sm text-[#1F1F21] leading-tight mb-0.5">{dp.projectName}</p>
+                            <p className="text-xs text-muted-foreground mb-3">
+                              {format(parseISO(dp.work_date), 'EEE d MMM yyyy')}
+                              {dp.role_name ? ` · ${dp.role_name}` : ''}
+                            </p>
+                            <p className="text-lg font-bold tracking-tight mb-3">
+                              £{dayTotal(dp).toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                            </p>
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Project status</p>
+                            <div className="grid grid-cols-2 gap-1 mb-3">
+                              {(Object.keys(STATUS_CONFIG) as ProjectStatus[]).map(s => {
+                                const cfg = STATUS_CONFIG[s];
+                                const active = dp.projectStatus === s;
+                                return (
+                                  <button
+                                    key={s}
+                                    onClick={() => updateProjectStatus(dp.project_id, s)}
+                                    className="text-[10px] font-medium px-2 py-1 rounded-lg border transition-all text-left"
+                                    style={{
+                                      backgroundColor: active ? cfg.badgeBg : 'transparent',
+                                      color: active ? cfg.badgeText : '#6B7280',
+                                      borderColor: active ? cfg.badgeBorder : '#E5E7EB',
+                                    }}
+                                  >
+                                    {cfg.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <button
+                              onClick={() => navigate(`/calculator?project=${dp.project_id}`)}
+                              className="flex items-center gap-1.5 text-xs font-medium text-[#1F1F21] hover:text-[#FFD528] transition-colors w-full"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              Edit day in Calculator
+                            </button>
+                          </PopoverContent>
+                        </Popover>
                       );
                     })}
                     {dayProjects.length > 2 && (
