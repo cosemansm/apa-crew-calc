@@ -16,11 +16,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { exportToFreeAgent, isFreeAgentConnected } from '@/services/bookkeeping/freeagent';
+import { BookkeepingCTA } from '@/components/BookkeepingCTA';
 
 interface Project {
   id: string;
   name: string;
   client_name: string | null;
+  job_reference: string | null;
 }
 
 interface DayResultJson {
@@ -75,6 +79,15 @@ export function InvoicePage() {
 
   const detailedInvoice = true;
 
+  const [vatRegistered, setVatRegistered] = useState(false);
+
+  const [faConnected, setFaConnected] = useState<boolean | null>(null);
+  const [exportingFa, setExportingFa] = useState(false);
+  const [faExportUrl, setFaExportUrl] = useState<string | null>(null);
+  const [faExportError, setFaExportError] = useState<string | null>(null);
+
+  const { isPremium } = useSubscription();
+
   const [downloading, setDownloading] = useState(false);
   const [sending, setSending] = useState(false);
 
@@ -95,7 +108,7 @@ export function InvoicePage() {
 
     supabase
       .from('projects')
-      .select('id, name, client_name')
+      .select('id, name, client_name, job_reference')
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
       .then(({ data }) => { if (data) setProjects(data); });
@@ -143,6 +156,7 @@ export function InvoicePage() {
         if (data.bank_account_name) setBankAccountName(data.bank_account_name);
         if (data.bank_sort_code) setBankSortCode(data.bank_sort_code);
         if (data.bank_account_number) setBankAccountNumber(data.bank_account_number);
+        setVatRegistered(data.vat_registered ?? false);
       });
   }, [user]);
 
@@ -156,11 +170,41 @@ export function InvoicePage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+    isFreeAgentConnected(user.id).then(setFaConnected).catch(() => setFaConnected(false));
+  }, [user?.id]);
+
+  const handleExportToFreeAgent = async () => {
+    if (!user || selectedDays.length === 0) return;
+    setExportingFa(true);
+    setFaExportUrl(null);
+    setFaExportError(null);
+    try {
+      const { invoiceUrl } = await exportToFreeAgent(user.id, {
+        clientName,
+        projectName: selectedProject?.name ?? '',
+        jobReference: jobReference.trim() || null,
+        invoiceNumber,
+        days: selectedDays,
+        vatRegistered,
+      });
+      setFaExportUrl(invoiceUrl);
+    } catch (err) {
+      setFaExportError(err instanceof Error ? err.message : 'Failed to export to FreeAgent');
+    } finally {
+      setExportingFa(false);
+    }
+  };
+
   const handleSelectProject = (proj: Project) => {
     setSelectedProjectId(proj.id);
     setShowProjectPicker(false);
     setSelected(allDays.filter(d => d.project_id === proj.id).map(d => d.id));
     if (proj.client_name) setClientName(proj.client_name);
+    setJobReference(proj.job_reference ?? '');
+    setFaExportUrl(null);
+    setFaExportError(null);
   };
 
   const selectedProject = projects.find(p => p.id === selectedProjectId);
@@ -484,11 +528,43 @@ export function InvoicePage() {
             </Button>
           </div>
 
+          {/* FreeAgent export button — only shown when connected and Pro */}
+          {isPremium && faConnected && (
+            <Button
+              variant="outline"
+              className="w-full gap-2"
+              onClick={handleExportToFreeAgent}
+              disabled={exportingFa || selectedDays.length === 0}
+            >
+              {exportingFa
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending to FreeAgent…</>
+                : 'Send to FreeAgent'
+              }
+            </Button>
+          )}
+
+          {/* FreeAgent export result */}
+          {faExportUrl && (
+            <p className="text-xs text-center">
+              <a href={faExportUrl} target="_blank" rel="noopener noreferrer" className="text-[#FFD528] underline">
+                View draft invoice in FreeAgent →
+              </a>
+            </p>
+          )}
+          {faExportError && (
+            <p className="text-xs text-red-500 text-center">{faExportError}</p>
+          )}
+
           {selectedDays.length === 0 && (
             <p className="text-xs text-muted-foreground text-center">Select a job to enable download</p>
           )}
           {selectedDays.length > 0 && !clientEmail.trim() && (
             <p className="text-xs text-muted-foreground text-center">Add a client email address to enable sending</p>
+          )}
+
+          {/* BookkeepingCTA — shown when FreeAgent not connected */}
+          {user && faConnected === false && (
+            <BookkeepingCTA userId={user.id} />
           )}
 
           {/* Invoice document — responsive in preview, forced to 794px only during PDF export */}
