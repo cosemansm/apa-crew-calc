@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown, Trash2, Receipt, Info, Check, Cloud, Car } from 'lucide-react';
+import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown, Trash2, Receipt, Info, Check, Cloud, Car, Send } from 'lucide-react';
 import { format, getDay, addDays, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { toast } from 'sonner';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
@@ -515,6 +517,12 @@ export function CalculatorPage() {
   // Pending within-page navigation when user has unsaved changes
   const [pendingDayId, setPendingDayId] = useState<string | null>(null);
 
+  // Miscalculation report
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportMessage, setReportMessage] = useState('');
+  const [reportSending, setReportSending] = useState(false);
+  const [reportSent, setReportSent] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
 
   // Change Project picker
   const [allProjects, setAllProjects] = useState<UserProject[]>([]);
@@ -1100,6 +1108,33 @@ export function CalculatorPage() {
     // Only proceed to a fresh form if the save succeeded
     if (!savedId) return;
     handleAddNewDay(nextAvailableDate(workDate));
+  };
+
+  const handleSendReport = async () => {
+    if (!reportMessage.trim()) { setReportError('Please describe the issue'); return; }
+    setReportSending(true);
+    setReportError(null);
+    try {
+      const res = await fetch('/api/send-support', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: user?.user_metadata?.full_name || user?.email || 'Unknown',
+          email: user?.email || 'unknown@unknown.com',
+          subject: 'Miscalculation Report',
+          message: reportMessage.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setReportError(data.error || 'Failed to send'); setReportSending(false); return; }
+      setReportSent(true);
+      setReportMessage('');
+      setReportSending(false);
+      setTimeout(() => { setReportOpen(false); setReportSent(false); }, 2500);
+    } catch (err) {
+      setReportError(String(err));
+      setReportSending(false);
+    }
   };
 
   return (
@@ -2093,6 +2128,15 @@ export function CalculatorPage() {
                       <InvoiceIcon className="h-4 w-4 mr-2" /> Convert to Invoice
                     </Button>
                   )}
+
+                  <p className="text-center mt-3">
+                    <button
+                      onClick={() => { setReportOpen(true); setReportSent(false); setReportError(null); }}
+                      className="text-xs text-muted-foreground/60 hover:text-muted-foreground underline underline-offset-2 transition-colors"
+                    >
+                      Report a miscalculation
+                    </button>
+                  </p>
                 </div>
               );
             })()}
@@ -2101,6 +2145,35 @@ export function CalculatorPage() {
 
       </div>
     </div>
+
+    <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Report a Miscalculation</DialogTitle>
+          <DialogDescription>
+            Describe what you think is incorrect and we'll look into it.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 mt-2">
+          <Textarea
+            value={reportMessage}
+            onChange={e => setReportMessage(e.target.value)}
+            placeholder="e.g. The overtime rate on a Sunday prep day seems too low..."
+            rows={5}
+          />
+          {reportError && <p className="text-sm text-destructive">{reportError}</p>}
+          {reportSent
+            ? <p className="text-sm text-green-600">Thanks — we'll look into it!</p>
+            : (
+              <Button onClick={handleSendReport} disabled={reportSending} className="w-full">
+                <Send className="h-4 w-4 mr-2" />
+                {reportSending ? 'Sending...' : 'Send Report'}
+              </Button>
+            )
+          }
+        </div>
+      </DialogContent>
+    </Dialog>
     </>
   );
 }
