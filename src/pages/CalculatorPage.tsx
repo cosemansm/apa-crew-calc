@@ -2199,7 +2199,6 @@ export function CalculatorPage() {
                 className="mt-0.5 shrink-0"
               />
               <span className="text-xs text-muted-foreground leading-relaxed">
-                <span className="text-xs font-medium text-destructive/70 uppercase tracking-wide mr-1">Required</span>
                 I agree to the{' '}
                 <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">Terms & Conditions</a>
                 {' '}and{' '}
