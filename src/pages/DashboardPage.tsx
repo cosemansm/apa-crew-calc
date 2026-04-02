@@ -508,7 +508,7 @@ export function DashboardPage() {
                       <PopoverContent className="w-auto p-2" side="bottom" align="start">
                         <button
                           onClick={() => setShowNewProject(true)}
-                          className="flex items-center gap-1.5 text-xs font-medium text-[#1F1F21] hover:text-[#FFD528] transition-colors"
+                          className="flex items-center gap-1.5 text-xs font-medium text-[#1F1F21] hover:text-[#FFD528] transition-colors outline-none"
                         >
                           <Plus className="h-3 w-3" />
                           Add job
