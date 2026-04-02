@@ -397,12 +397,13 @@ export function DashboardPage() {
               {calendarDays.map(date => {
                 const dayProjects = getDayProjects(date);
                 const isToday = isSameDay(date, new Date());
-                return (
+                const isEmpty = dayProjects.length === 0;
+
+                const dayCell = (
                   <div
-                    key={date.toISOString()}
                     className={`min-h-[52px] p-1 text-sm transition-all overflow-hidden ${
                       isToday ? 'bg-gray-100 rounded' : 'hover:bg-muted rounded'
-                    }`}
+                    } ${isEmpty ? 'cursor-pointer' : ''}`}
                   >
                     <span className={`block text-xs mb-0.5 ${isToday ? 'font-bold text-[#1F1F21]' : 'text-muted-foreground'}`}>
                       {format(date, 'd')}
@@ -499,6 +500,25 @@ export function DashboardPage() {
                     )}
                   </div>
                 );
+
+                if (isEmpty) {
+                  return (
+                    <Popover key={date.toISOString()}>
+                      <PopoverTrigger asChild>{dayCell}</PopoverTrigger>
+                      <PopoverContent className="w-auto p-2" side="bottom" align="start">
+                        <button
+                          onClick={() => setShowNewProject(true)}
+                          className="flex items-center gap-1.5 text-xs font-medium text-[#1F1F21] hover:text-[#FFD528] transition-colors"
+                        >
+                          <Plus className="h-3 w-3" />
+                          Add job
+                        </button>
+                      </PopoverContent>
+                    </Popover>
+                  );
+                }
+
+                return <div key={date.toISOString()}>{dayCell}</div>;
               })}
             </div>
           </CardContent>
