@@ -1,13 +1,26 @@
+// Vercel Serverless Function — initiates FreeAgent OAuth flow
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
-  const userId = req.query.userId as string;
-  if (!userId) return res.status(400).json({ error: 'missing_user_id' });
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-  // CSRF nonce + userId encoded together in state
+export default function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'GET') return res.status(405).json({ error: 'method_not_allowed' });
+
+  const clientId = process.env.FREEAGENT_CLIENT_ID;
+  const redirectUri = process.env.FREEAGENT_REDIRECT_URI;
+  if (!clientId || !redirectUri) {
+    return res.status(500).json({ error: 'freeagent_not_configured' });
+  }
+
+  const userId = req.query.userId as string;
+  if (!userId || !UUID_RE.test(userId)) {
+    return res.status(400).json({ error: 'missing_or_invalid_user_id' });
+  }
+
   const nonce = crypto.randomBytes(16).toString('hex');
-  const state = `${nonce}:${userId}`;
+  // Encode state as base64url JSON — keeps userId opaque in the redirect URL
+  const state = Buffer.from(JSON.stringify({ nonce, userId })).toString('base64url');
 
   res.setHeader(
     'Set-Cookie',
@@ -15,9 +28,9 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
   );
 
   const params = new URLSearchParams({
-    client_id: process.env.FREEAGENT_CLIENT_ID!,
+    client_id: clientId,
     response_type: 'code',
-    redirect_uri: process.env.FREEAGENT_REDIRECT_URI!,
+    redirect_uri: redirectUri,
     state,
   });
 
