@@ -838,16 +838,21 @@ export function SettingsPage() {
                       >
                         {portalLoading ? 'Opening portal...' : 'Manage Plan & Billing'}
                       </Button>
-                      <p className="text-xs text-muted-foreground text-center">
-                        Update card, view invoices, or cancel via the Stripe billing portal.
-                      </p>
+                      <Button
+                        variant="ghost"
+                        className="w-full text-muted-foreground hover:text-destructive"
+                        onClick={handleManagePlan}
+                        disabled={portalLoading}
+                      >
+                        Cancel subscription
+                      </Button>
                     </div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Upgrade card (non-Pro only) */}
-              {(!isPremium || isTrialing) && (
+              {/* Upgrade card (trial and free users only) */}
+              {(!isPremium || isTrialing) && !(isPremium && !isTrialing) && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base">
