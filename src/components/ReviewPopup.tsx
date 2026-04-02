@@ -57,11 +57,10 @@ export function ReviewPopup({ type, onClose }: ReviewPopupProps) {
         await refresh();
         setPhase('success');
       } else {
-        const body = await res.json().catch(() => ({}));
-        setClaimError(body.error ?? 'Something went wrong. Please try again.');
+        setClaimError('Something went wrong. Please try again or contact support.');
       }
     } catch {
-      setClaimError('Network error. Please check your connection and try again.');
+      setClaimError('Something went wrong. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
