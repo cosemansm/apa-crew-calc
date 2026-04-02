@@ -14,8 +14,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { isFreeAgentConnected, disconnectFreeAgent } from '@/services/bookkeeping/freeagent';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -244,6 +246,11 @@ export function SettingsPage() {
   const [editEquipmentRate, setEditEquipmentRate] = useState('');
   const [equipmentError, setEquipmentError] = useState<string | null>(null);
 
+  // Integrations
+  const [faConnected, setFaConnected] = useState<boolean | null>(null);
+  const [vatRegistered, setVatRegistered] = useState(false);
+  const [disconnectingFa, setDisconnectingFa] = useState(false);
+
   // ── Load ──────────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -260,6 +267,7 @@ export function SettingsPage() {
         setBankAccountName(data.bank_account_name ?? '');
         setBankSortCode(data.bank_sort_code ?? '');
         setBankAccountNumber(data.bank_account_number ?? '');
+        setVatRegistered(data.vat_registered ?? false);
       }
     });
     loadCustomRoles();
@@ -278,6 +286,20 @@ export function SettingsPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+    isFreeAgentConnected(user.id).then(setFaConnected).catch(() => setFaConnected(false));
+  }, [user?.id]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('connected') === 'freeagent') {
+      setFaConnected(true);
+      setActiveSection('integrations');
+      navigate('/settings', { replace: true });
+    }
+  }, [location.search]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Save helpers ──────────────────────────────────────────────────────────
 
   const upsertSettings = async (patch: Record<string, unknown>) => {
@@ -286,6 +308,24 @@ export function SettingsPage() {
       { user_id: user.id, updated_at: new Date().toISOString(), ...patch },
       { onConflict: 'user_id' }
     );
+  };
+
+  const handleDisconnectFreeAgent = async () => {
+    if (!user) return;
+    setDisconnectingFa(true);
+    try {
+      await disconnectFreeAgent(user.id);
+      setFaConnected(false);
+    } catch {
+      // ignore — connection check will still reflect real state
+    } finally {
+      setDisconnectingFa(false);
+    }
+  };
+
+  const handleVatToggle = async (checked: boolean) => {
+    setVatRegistered(checked);
+    await upsertSettings({ vat_registered: checked });
   };
 
   const handleSaveUser = async () => {
@@ -934,44 +974,103 @@ export function SettingsPage() {
 
           {/* INTEGRATIONS */}
           {activeSection === 'integrations' && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Plug className="h-5 w-5" /> Integrations</CardTitle>
-                <CardDescription>Connect your accounting software to sync invoices and expenses automatically</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {[
-                  {
-                    name: 'Xero',
-                    description: 'Sync invoices and expenses directly to Xero',
-                    logo: xeroLogo,
-                  },
-                  {
-                    name: 'QuickBooks',
-                    description: 'Push invoices and track income in QuickBooks',
-                    logo: quickbooksLogo,
-                  },
-                  {
-                    name: 'FreeAgent',
-                    description: 'Send invoices and log expenses in FreeAgent',
-                    logo: freeagentLogo,
-                  },
-                ].map(({ name, description, logo }) => (
-                  <div key={name} className="flex items-center justify-between gap-4 p-4 rounded-xl border border-border">
+            <div id="bookkeeping" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><Plug className="h-5 w-5" /> Connected Accounts</CardTitle>
+                  <CardDescription>Connect your accounting software to push draft invoices directly from Crew Dock</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {/* FreeAgent — live */}
+                  <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-border">
                     <div className="flex items-center gap-4">
                       <div className="h-10 w-10 rounded-lg border border-border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
-                        <img src={logo} alt={name} className="h-7 w-7 object-contain" />
+                        <img src={freeagentLogo} alt="FreeAgent" className="h-7 w-7 object-contain" />
                       </div>
                       <div>
-                        <p className="font-medium text-sm">{name}</p>
-                        <p className="text-xs text-muted-foreground">{description}</p>
+                        <p className="font-medium text-sm">FreeAgent</p>
+                        <p className="text-xs text-muted-foreground">Send invoices and log expenses in FreeAgent</p>
+                      </div>
+                    </div>
+                    <div className="shrink-0">
+                      {faConnected === null ? (
+                        <Badge variant="secondary">Checking…</Badge>
+                      ) : faConnected ? (
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-green-100 text-green-700 border-green-200">Connected</Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={disconnectingFa}
+                            onClick={handleDisconnectFreeAgent}
+                          >
+                            {disconnectingFa ? 'Disconnecting…' : 'Disconnect'}
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          disabled={!isPremium}
+                          onClick={() => {
+                            if (user) window.location.href = `/api/auth/freeagent/start?userId=${user.id}`;
+                          }}
+                        >
+                          Connect
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Xero — coming soon */}
+                  <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-border opacity-60">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-lg border border-border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
+                        <img src={xeroLogo} alt="Xero" className="h-7 w-7 object-contain" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">Xero</p>
+                        <p className="text-xs text-muted-foreground">Sync invoices and expenses directly to Xero</p>
                       </div>
                     </div>
                     <Badge variant="secondary" className="shrink-0">Coming Soon</Badge>
                   </div>
-                ))}
-              </CardContent>
-            </Card>
+
+                  {/* QuickBooks — coming soon */}
+                  <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-border opacity-60">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-lg border border-border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
+                        <img src={quickbooksLogo} alt="QuickBooks" className="h-7 w-7 object-contain" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm">QuickBooks</p>
+                        <p className="text-xs text-muted-foreground">Push invoices and track income in QuickBooks</p>
+                      </div>
+                    </div>
+                    <Badge variant="secondary" className="shrink-0">Coming Soon</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* VAT */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">VAT Settings</CardTitle>
+                  <CardDescription>Used when exporting invoices to your accounting software</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="vat-toggle" className="text-sm font-medium cursor-pointer">
+                      I am VAT registered (adds 20% to exported invoices)
+                    </Label>
+                    <Switch
+                      id="vat-toggle"
+                      checked={vatRegistered}
+                      onCheckedChange={handleVatToggle}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {/* DANGER ZONE */}
