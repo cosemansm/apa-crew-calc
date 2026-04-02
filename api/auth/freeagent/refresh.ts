@@ -54,7 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
 
   // FreeAgent refresh tokens rotate — always store the new one
-  await supabaseAdmin
+  const { error: dbError } = await supabaseAdmin
     .from('bookkeeping_connections')
     .update({
       access_token: tokens.access_token,
@@ -64,6 +64,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     })
     .eq('user_id', user_id)
     .eq('platform', 'freeagent');
+
+  if (dbError) {
+    console.error('Failed to update FreeAgent tokens:', dbError);
+    return res.status(500).json({ error: 'db_write_failed' });
+  }
 
   res.json({ access_token: tokens.access_token, expires_at: expiresAt });
 }
