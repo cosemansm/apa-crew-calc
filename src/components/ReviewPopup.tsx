@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -15,8 +15,27 @@ export function ReviewPopup({ type, onClose }: ReviewPopupProps) {
   const navigate = useNavigate();
   const [phase, setPhase] = useState<'prompt' | 'confirm' | 'success'>('prompt');
   const [loading, setLoading] = useState(false);
+  const [claimReady, setClaimReady] = useState(false);
+  const [countdown, setCountdown] = useState(5);
 
-  const reviewUrl = 'https://crewdock.app'; // replace with Trustpilot/Google URL when confirmed
+  const reviewUrl = 'https://uk.trustpilot.com/evaluate/crewdock.app';
+
+  useEffect(() => {
+    if (phase !== 'confirm') return;
+    setClaimReady(false);
+    setCountdown(5);
+    const interval = setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) {
+          clearInterval(interval);
+          setClaimReady(true);
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [phase]);
 
   const handleLeaveReview = () => {
     window.open(reviewUrl, '_blank', 'noopener,noreferrer');
@@ -123,10 +142,14 @@ export function ReviewPopup({ type, onClose }: ReviewPopupProps) {
             </p>
             <button
               onClick={handleClaimExtension}
-              disabled={loading}
+              disabled={loading || !claimReady}
               className="w-full bg-[#FFD528] text-[#1F1F21] font-bold py-2.5 rounded-xl text-sm hover:bg-[#FFD528]/90 transition-colors disabled:opacity-50 mb-2"
             >
-              {loading ? 'Activating...' : "I've left my review → Unlock 14 days"}
+              {loading
+                ? 'Activating...'
+                : !claimReady
+                ? `Please wait ${countdown}s…`
+                : "I've left my review → Unlock 14 days"}
             </button>
             <button onClick={onClose} className="text-xs text-white/25 hover:text-white/40 transition-colors">
               Cancel

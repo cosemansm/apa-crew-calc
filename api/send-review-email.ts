@@ -34,11 +34,11 @@ export default async function handler(req: any, res: any) {
             <table cellpadding="0" cellspacing="0" style="margin:0 0 24px 0">
               <tr>
                 <td style="background:#FFD528;border-radius:8px;padding:12px 24px">
-                  <a href="https://crewdock.app" style="color:#1F1F21;font-weight:700;font-size:14px;text-decoration:none">Leave a Review → Get 14 Days Free</a>
+                  <a href="https://uk.trustpilot.com/evaluate/crewdock.app" style="color:#1F1F21;font-weight:700;font-size:14px;text-decoration:none">Leave a Review on Trustpilot → Get 14 Days Free</a>
                 </td>
               </tr>
             </table>
-            <p style="margin:0;font-size:13px;color:#888">After leaving your review, log in to Crew Dock and click "I've left my review" to unlock your extension.</p>
+            <p style="margin:0;font-size:13px;color:#888">After submitting your Trustpilot review, log back in to Crew Dock and click "I've left my review" to unlock your extension.</p>
           </td>
         </tr>
         <tr>
