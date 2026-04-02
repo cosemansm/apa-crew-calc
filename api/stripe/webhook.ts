@@ -75,19 +75,24 @@ export default async function handler(req: any, res: any) {
   const object = event.data.object as any;
   const customerId: string = object.customer;
 
+  // API version 2026-03-25.dahlia moved current_period_end into items.data[0]
+  const periodEndTs: number | undefined =
+    object.current_period_end ?? object.items?.data?.[0]?.current_period_end;
+  const periodEndIso = periodEndTs ? new Date(periodEndTs * 1000).toISOString() : null;
+
   switch (event.type) {
     case 'customer.subscription.created':
       await updateSubscription(customerId, {
         stripe_subscription_id: object.id,
         status: 'active',
-        current_period_end: new Date(object.current_period_end * 1000).toISOString(),
+        current_period_end: periodEndIso,
       });
       break;
 
     case 'customer.subscription.updated':
       await updateSubscription(customerId, {
         status: object.status === 'trialing' ? 'active' : object.status,
-        current_period_end: new Date(object.current_period_end * 1000).toISOString(),
+        current_period_end: periodEndIso,
       });
       break;
 
