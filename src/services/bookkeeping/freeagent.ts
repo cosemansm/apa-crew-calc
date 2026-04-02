@@ -46,11 +46,14 @@ async function getValidToken(userId: string): Promise<string> {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refresh_token: data.refresh_token, user_id: userId }),
+    signal: AbortSignal.timeout(10_000),
   });
 
   if (!res.ok) throw new Error('FreeAgent session expired. Please reconnect in Settings.');
 
-  const newTokens = await res.json();
+  interface RefreshResponse { access_token: string; expires_at: string; }
+  const newTokens = await res.json() as RefreshResponse;
+  if (!newTokens.access_token) throw new Error('FreeAgent token refresh returned no access token.');
   return newTokens.access_token;
 }
 
@@ -60,20 +63,26 @@ async function findOrCreateContact(
   accessToken: string,
   organisationName: string
 ): Promise<string> {
-  const res = await fetch(`${BASE_URL}/contacts?view=all`, {
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Accept': 'application/json',
-    },
-  });
-
-  if (!res.ok) throw new Error('Failed to fetch FreeAgent contacts.');
-
-  const { contacts } = await res.json();
-  const match = (contacts ?? []).find(
-    (c: { organisation_name?: string; url: string }) =>
-      c.organisation_name?.toLowerCase() === organisationName.toLowerCase()
-  );
+  type Contact = { organisation_name?: string; url: string };
+  let page = 1;
+  let match: Contact | undefined;
+  while (!match) {
+    const res = await fetch(`${BASE_URL}/contacts?view=all&per_page=100&page=${page}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json',
+      },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) throw new Error('Failed to fetch FreeAgent contacts.');
+    const { contacts } = await res.json() as { contacts: Contact[] };
+    const page_contacts: Contact[] = contacts ?? [];
+    if (page_contacts.length === 0) break;
+    match = page_contacts.find(
+      (c) => c.organisation_name?.toLowerCase() === organisationName.toLowerCase()
+    );
+    page++;
+  }
   if (match) return match.url;
 
   const createRes = await fetch(`${BASE_URL}/contacts`, {
@@ -84,6 +93,7 @@ async function findOrCreateContact(
       'Accept': 'application/json',
     },
     body: JSON.stringify({ contact: { organisation_name: organisationName } }),
+    signal: AbortSignal.timeout(10_000),
   });
 
   if (!createRes.ok) throw new Error('Failed to create FreeAgent contact.');
@@ -140,6 +150,7 @@ async function createInvoice(
       'Accept': 'application/json',
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(10_000),
   });
 
   if (!res.ok) {
@@ -147,7 +158,9 @@ async function createInvoice(
     throw new Error(`Failed to create FreeAgent invoice: ${err}`);
   }
 
-  return res.headers.get('Location') ?? '';
+  const invoiceUrl = res.headers.get('Location');
+  if (!invoiceUrl) throw new Error('Invoice created but FreeAgent returned no URL.');
+  return invoiceUrl;
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -173,9 +186,10 @@ export async function isFreeAgentConnected(userId: string): Promise<boolean> {
 }
 
 export async function disconnectFreeAgent(userId: string): Promise<void> {
-  await supabase
+  const { error } = await supabase
     .from('bookkeeping_connections')
     .delete()
     .eq('user_id', userId)
     .eq('platform', 'freeagent');
+  if (error) throw new Error('Failed to disconnect FreeAgent.');
 }
