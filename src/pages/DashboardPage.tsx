@@ -56,7 +56,7 @@ function dayTotal(d: ProjectDay): number {
 export function DashboardPage() {
   usePageTitle('Dashboard');
   const { user } = useAuth();
-  const { subscription, isPremium, isTrialing, trialDaysLeft } = useSubscription();
+  const { subscription, isPremium, isTrialing, trialDaysLeft, loading: subLoading } = useSubscription();
   const isLifetime = subscription?.status === 'lifetime';
   const navigate = useNavigate();
   const location = useLocation();
@@ -290,22 +290,22 @@ export function DashboardPage() {
           </h1>
           <div className="flex items-center gap-2 mt-1">
             <p className="text-muted-foreground">Let's manage your crew bookings</p>
-            {isTrialing && (
+            {!subLoading && isTrialing && (
               <span className="text-[10px] font-bold text-[#FFD528] bg-[#1F1F21] border border-[#FFD528]/40 rounded-full px-2.5 py-0.5">
                 ✦ Trial — {trialDaysLeft}d left
               </span>
             )}
-            {!isPremium && !isTrialing && (
+            {!subLoading && !isPremium && !isTrialing && (
               <span className="text-[10px] font-bold text-white/60 bg-[#1F1F21] border border-white/15 rounded-full px-2.5 py-0.5">
                 Free Plan
               </span>
             )}
-            {isLifetime && (
+            {!subLoading && isLifetime && (
               <span className="text-[10px] font-bold text-[#c084fc] bg-[#1F1F21] border border-purple-500/40 rounded-full px-2.5 py-0.5">
                 ✦ Lifetime
               </span>
             )}
-            {isPremium && !isTrialing && !isLifetime && (
+            {!subLoading && isPremium && !isTrialing && !isLifetime && (
               <span className="text-[10px] font-bold text-[#4ade80] bg-[#1F1F21] border border-[#4ade80]/40 rounded-full px-2.5 py-0.5">
                 ✦ Pro Plan
               </span>
