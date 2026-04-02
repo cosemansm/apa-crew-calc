@@ -85,7 +85,7 @@ export function AppLayout() {
         {sidebarExpanded && isTrialing && (
           <div className="px-3 py-1">
             <span className="text-[10px] font-bold text-[#FFD528] bg-[#FFD528]/10 border border-[#FFD528]/25 rounded-full px-2.5 py-0.5">
-              ✦ Trial — {trialDaysLeft}d left
+              Trial — {trialDaysLeft}d left
             </span>
           </div>
         )}
@@ -99,14 +99,14 @@ export function AppLayout() {
         {sidebarExpanded && isLifetime && (
           <div className="px-3 py-1">
             <span className="text-[10px] font-bold text-[#c084fc] bg-purple-500/10 border border-purple-500/25 rounded-full px-2.5 py-0.5">
-              ✦ Lifetime
+              Lifetime
             </span>
           </div>
         )}
         {sidebarExpanded && isPremium && !isTrialing && !isLifetime && (
           <div className="px-3 py-1">
             <span className="text-[10px] font-bold text-[#4ade80] bg-[#4ade80]/10 border border-[#4ade80]/25 rounded-full px-2.5 py-0.5">
-              ✦ Pro Plan
+              Pro Plan
             </span>
           </div>
         )}
@@ -231,7 +231,7 @@ export function AppLayout() {
               <div className="px-3 py-2">
                 {isTrialing && (
                   <span className="text-[10px] font-bold text-[#FFD528] bg-[#FFD528]/10 border border-[#FFD528]/25 rounded-full px-2.5 py-0.5">
-                    ✦ Trial — {trialDaysLeft}d left
+                    Trial — {trialDaysLeft}d left
                   </span>
                 )}
                 {!isPremium && !isTrialing && (
@@ -241,12 +241,12 @@ export function AppLayout() {
                 )}
                 {isLifetime && (
                   <span className="text-[10px] font-bold text-[#c084fc] bg-purple-500/10 border border-purple-500/25 rounded-full px-2.5 py-0.5">
-                    ✦ Lifetime
+                    Lifetime
                   </span>
                 )}
                 {isPremium && !isTrialing && !isLifetime && (
                   <span className="text-[10px] font-bold text-[#4ade80] bg-[#4ade80]/10 border border-[#4ade80]/25 rounded-full px-2.5 py-0.5">
-                    ✦ Pro Plan
+                    Pro Plan
                   </span>
                 )}
               </div>
