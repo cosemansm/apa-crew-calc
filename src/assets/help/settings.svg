@@ -32,7 +32,7 @@
   <line x1="342" y1="108" x2="782" y2="108" stroke="#E5E5E5" stroke-width="1"/>
   <text x="362" y="128" fill="#555" font-size="9" font-weight="600">EMAIL</text>
   <rect x="362" y="134" width="400" height="26" rx="8" fill="#FAF8F4" stroke="#E5E5E5" stroke-width="1"/>
-  <text x="378" y="151" fill="#9A9A9A" font-size="9">enquire@orbitinnovations.co</text>
+  <text x="378" y="151" fill="#9A9A9A" font-size="9">support@crewdock.app</text>
   <text x="362" y="178" fill="#555" font-size="9" font-weight="600">DISPLAY NAME</text>
   <rect x="362" y="184" width="400" height="26" rx="8" fill="#FAF8F4" stroke="#E5E5E5" stroke-width="1"/>
   <text x="378" y="201" fill="#9A9A9A" font-size="9">Your full name</text>
