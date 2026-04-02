@@ -21,6 +21,8 @@ ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 -- Grant table-level access (required in addition to RLS policies)
 GRANT SELECT ON public.subscriptions TO authenticated;
 GRANT SELECT ON public.subscriptions TO anon;
+-- Service role needs explicit grants even though it bypasses RLS
+GRANT ALL ON public.subscriptions TO service_role;
 
 -- Users may only read their own row. All mutations go through service-role API routes.
 CREATE POLICY "users_select_own_subscription"
