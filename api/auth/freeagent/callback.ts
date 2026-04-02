@@ -20,15 +20,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { code, state, error } = req.query;
+  // Normalise string | string[] — take the first value if an array is passed
+  const codeStr = Array.isArray(code) ? code[0] : code;
+  const stateStr = Array.isArray(state) ? state[0] : state;
 
   if (error) return res.redirect(`/settings?error=freeagent_denied`);
-  if (!code || !state) return res.redirect(`/settings?error=invalid_callback`);
+  if (!codeStr || !stateStr) return res.redirect(`/settings?error=invalid_callback`);
 
   // Decode base64url JSON state and validate CSRF nonce
   let nonce: string;
   let userId: string;
   try {
-    const parsed = JSON.parse(Buffer.from(state as string, 'base64url').toString('utf-8'));
+    const parsed = JSON.parse(Buffer.from(stateStr, 'base64url').toString('utf-8'));
     nonce = parsed.nonce;
     userId = parsed.userId;
   } catch {
@@ -36,7 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const cookieNonce = req.cookies?.fa_oauth_nonce;
-  if (!nonce || !userId || nonce !== cookieNonce) {
+  if (!nonce || !userId || !cookieNonce || nonce !== cookieNonce) {
     return res.redirect(`/settings?error=invalid_state`);
   }
 
@@ -52,9 +55,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     },
     body: new URLSearchParams({
       grant_type: 'authorization_code',
-      code: code as string,
+      code: codeStr,
       redirect_uri: redirectUri,
     }),
+    signal: AbortSignal.timeout(10_000),
   });
 
   if (!tokenRes.ok) {
@@ -63,6 +67,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const tokens = await tokenRes.json();
+  if (!tokens.access_token) {
+    console.error('FreeAgent token response missing access_token:', tokens);
+    return res.redirect(`/settings?error=freeagent_token_failed`);
+  }
+
   const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
 
   const { error: dbError } = await supabaseAdmin
@@ -72,7 +81,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         user_id: userId,
         platform: 'freeagent',
         access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token,
+        refresh_token: tokens.refresh_token ?? null,
         expires_at: expiresAt,
         updated_at: new Date().toISOString(),
       },
