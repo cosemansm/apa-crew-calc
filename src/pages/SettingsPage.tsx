@@ -298,7 +298,7 @@ export function SettingsPage() {
       setActiveSection('integrations');
       navigate('/settings', { replace: true });
     }
-  }, [location.search]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [location.search, navigate]);
 
   // ── Save helpers ──────────────────────────────────────────────────────────
 
@@ -317,7 +317,8 @@ export function SettingsPage() {
       await disconnectFreeAgent(user.id);
       setFaConnected(false);
     } catch {
-      // ignore — connection check will still reflect real state
+      // Roll back — disconnect failed, connection still exists
+      setFaConnected(true);
     } finally {
       setDisconnectingFa(false);
     }
@@ -325,7 +326,11 @@ export function SettingsPage() {
 
   const handleVatToggle = async (checked: boolean) => {
     setVatRegistered(checked);
-    await upsertSettings({ vat_registered: checked });
+    try {
+      await upsertSettings({ vat_registered: checked });
+    } catch {
+      setVatRegistered(!checked);
+    }
   };
 
   const handleSaveUser = async () => {
