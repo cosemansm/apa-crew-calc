@@ -17,6 +17,7 @@ export function ReviewPopup({ type, onClose }: ReviewPopupProps) {
   const [loading, setLoading] = useState(false);
   const [claimReady, setClaimReady] = useState(false);
   const [countdown, setCountdown] = useState(5);
+  const [claimError, setClaimError] = useState<string | null>(null);
 
   const reviewUrl = 'https://uk.trustpilot.com/evaluate/crewdock.app';
 
@@ -45,6 +46,7 @@ export function ReviewPopup({ type, onClose }: ReviewPopupProps) {
   const handleClaimExtension = async () => {
     if (!user) return;
     setLoading(true);
+    setClaimError(null);
     try {
       const res = await fetch('/api/stripe/extend-trial', {
         method: 'POST',
@@ -54,7 +56,12 @@ export function ReviewPopup({ type, onClose }: ReviewPopupProps) {
       if (res.ok) {
         await refresh();
         setPhase('success');
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setClaimError(body.error ?? 'Something went wrong. Please try again.');
       }
+    } catch {
+      setClaimError('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -149,8 +156,11 @@ export function ReviewPopup({ type, onClose }: ReviewPopupProps) {
                 ? 'Activating...'
                 : !claimReady
                 ? `Please wait ${countdown}s…`
-                : "I've left my review → Unlock 14 days"}
+                : 'Unlock 14 more days'}
             </button>
+            {claimError && (
+              <p className="text-xs text-red-400 mb-2">{claimError}</p>
+            )}
             <button onClick={onClose} className="text-xs text-white/25 hover:text-white/40 transition-colors">
               Cancel
             </button>
