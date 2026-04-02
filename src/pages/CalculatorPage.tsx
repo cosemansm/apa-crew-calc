@@ -520,6 +520,8 @@ export function CalculatorPage() {
   // Miscalculation report
   const [reportOpen, setReportOpen] = useState(false);
   const [reportMessage, setReportMessage] = useState('');
+  const [reportShareData, setReportShareData] = useState(false);
+  const [reportAgreeTerms, setReportAgreeTerms] = useState(false);
   const [reportSending, setReportSending] = useState(false);
   const [reportSent, setReportSent] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
@@ -1112,9 +1114,22 @@ export function CalculatorPage() {
 
   const handleSendReport = async () => {
     if (!reportMessage.trim()) { setReportError('Please describe the issue'); return; }
+    if (!reportAgreeTerms) { setReportError('Please agree to the Terms & Conditions to continue'); return; }
     setReportSending(true);
     setReportError(null);
     try {
+      const calcSnapshot = reportShareData && result ? JSON.stringify({
+        role: selectedRole,
+        agreedRate,
+        dayType,
+        callTime,
+        wrapTime,
+        dayOfWeek,
+        result,
+      }, null, 2) : null;
+      const message = calcSnapshot
+        ? `${reportMessage.trim()}\n\n--- Calculation Data (shared with consent) ---\n${calcSnapshot}`
+        : reportMessage.trim();
       const res = await fetch('/api/send-support', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1122,13 +1137,15 @@ export function CalculatorPage() {
           name: user?.user_metadata?.full_name || user?.email || 'Unknown',
           email: user?.email || 'unknown@unknown.com',
           subject: 'Miscalculation Report',
-          message: reportMessage.trim(),
+          message,
         }),
       });
       const data = await res.json();
       if (!res.ok) { setReportError(data.error || 'Failed to send'); setReportSending(false); return; }
       setReportSent(true);
       setReportMessage('');
+      setReportShareData(false);
+      setReportAgreeTerms(false);
       setReportSending(false);
       setTimeout(() => { setReportOpen(false); setReportSent(false); }, 2500);
     } catch (err) {
@@ -2131,7 +2148,7 @@ export function CalculatorPage() {
 
                   <p className="text-center mt-3">
                     <button
-                      onClick={() => { setReportOpen(true); setReportSent(false); setReportError(null); }}
+                      onClick={() => { setReportOpen(true); setReportSent(false); setReportError(null); setReportShareData(false); setReportAgreeTerms(false); setReportMessage(''); }}
                       className="text-xs text-muted-foreground/60 hover:text-muted-foreground underline underline-offset-2 transition-colors"
                     >
                       Report a miscalculation
@@ -2159,8 +2176,36 @@ export function CalculatorPage() {
             value={reportMessage}
             onChange={e => setReportMessage(e.target.value)}
             placeholder="e.g. The overtime rate on a Sunday prep day seems too low..."
-            rows={5}
+            rows={4}
           />
+
+          <div className="space-y-3 rounded-lg border border-border/60 bg-muted/30 p-3">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <Checkbox
+                checked={reportShareData}
+                onCheckedChange={v => setReportShareData(v === true)}
+                className="mt-0.5 shrink-0"
+              />
+              <span className="text-xs text-muted-foreground leading-relaxed">
+                I consent to sharing my calculation data (role, rate, times, and result) with Crew Dock to help investigate this report. This data will only be used to resolve the issue and will not be sold or passed to third parties beyond our service providers.
+              </span>
+            </label>
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <Checkbox
+                checked={reportAgreeTerms}
+                onCheckedChange={v => setReportAgreeTerms(v === true)}
+                className="mt-0.5 shrink-0"
+              />
+              <span className="text-xs text-muted-foreground leading-relaxed">
+                I agree to the{' '}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">Terms & Conditions</a>
+                {' '}and{' '}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">Privacy Policy</a>.
+              </span>
+            </label>
+          </div>
+
           {reportError && <p className="text-sm text-destructive">{reportError}</p>}
           {reportSent
             ? <p className="text-sm text-green-600">Thanks — we'll look into it!</p>

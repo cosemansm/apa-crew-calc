@@ -26,6 +26,10 @@ const sections = [
     body: 'We share data only with trusted sub-processors necessary to operate the Service: Supabase (database hosting, EU/US); Vercel (hosting, US); Resend (transactional email, US); Stripe (payment processing, US). All processors are bound by GDPR-compliant data processing agreements.',
   },
   {
+    title: '6a. Voluntarily Submitted Calculation Data',
+    body: 'When you choose to report a miscalculation, you may optionally consent to share the relevant calculation data with Crew Dock. This data is used solely to investigate and resolve the reported issue and improve calculation accuracy. It will not be sold, passed on to third parties, or used for any purpose other than resolving your report. Submission is entirely voluntary and requires your explicit consent via a checkbox at the time of submission. The legal basis for this processing is consent (UK GDPR Art. 6(1)(a)). You may withdraw consent at any time by contacting support@crewdock.app.',
+  },
+  {
     title: '7. International Transfers',
     body: 'Some sub-processors operate outside the UK/EEA. Transfers are safeguarded by Standard Contractual Clauses (SCCs) or equivalent mechanisms approved under UK GDPR.',
   },
