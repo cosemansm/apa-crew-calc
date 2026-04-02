@@ -15,9 +15,9 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ error: 'Missing priceId, userId, or userEmail' });
   }
 
-  // Get or create Stripe customer
+  // Get or create Stripe customer — also check for existing active subscription
   const subRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/subscriptions?user_id=eq.${userId}&select=stripe_customer_id`,
+    `${SUPABASE_URL}/rest/v1/subscriptions?user_id=eq.${userId}&select=stripe_customer_id,status`,
     {
       headers: {
         apikey: SUPABASE_SERVICE_ROLE_KEY!,
@@ -26,7 +26,17 @@ export default async function handler(req: any, res: any) {
     }
   );
   const rows = await subRes.json();
-  let customerId: string = rows?.[0]?.stripe_customer_id;
+  const existingRow = rows?.[0];
+  let customerId: string = existingRow?.stripe_customer_id;
+
+  // Already active — send to portal to manage rather than creating a duplicate subscription
+  if (existingRow?.status === 'active' && customerId) {
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${APP_URL}/settings`,
+    });
+    return res.status(200).json({ url: portalSession.url });
+  }
 
   if (!customerId) {
     const customer = await stripe.customers.create({
