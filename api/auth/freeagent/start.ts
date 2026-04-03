@@ -1,6 +1,5 @@
 // Vercel Serverless Function — initiates FreeAgent OAuth flow
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import crypto from 'crypto';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -18,14 +17,8 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'missing_or_invalid_user_id' });
   }
 
-  const nonce = crypto.randomBytes(16).toString('hex');
   // Encode state as base64url JSON — keeps userId opaque in the redirect URL
-  const state = Buffer.from(JSON.stringify({ nonce, userId })).toString('base64url');
-
-  res.setHeader(
-    'Set-Cookie',
-    `fa_oauth_nonce=${nonce}; HttpOnly; Secure; SameSite=Lax; Max-Age=600; Path=/`
-  );
+  const state = Buffer.from(JSON.stringify({ userId })).toString('base64url');
 
   const params = new URLSearchParams({
     client_id: clientId,

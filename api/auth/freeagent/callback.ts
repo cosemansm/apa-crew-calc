@@ -27,19 +27,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (error) return res.redirect(`/settings?error=freeagent_denied`);
   if (!codeStr || !stateStr) return res.redirect(`/settings?error=invalid_callback`);
 
-  // Decode base64url JSON state and validate CSRF nonce
-  let nonce: string;
+  // Decode base64url JSON state to extract userId
   let userId: string;
   try {
     const parsed = JSON.parse(Buffer.from(stateStr, 'base64url').toString('utf-8'));
-    nonce = parsed.nonce;
     userId = parsed.userId;
+    if (!userId) throw new Error('missing userId');
   } catch {
-    return res.redirect(`/settings?error=invalid_state`);
-  }
-
-  const cookieNonce = req.cookies?.fa_oauth_nonce;
-  if (!nonce || !userId || !cookieNonce || nonce !== cookieNonce) {
     return res.redirect(`/settings?error=invalid_state`);
   }
 
@@ -93,7 +87,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.redirect(`/settings?error=freeagent_db_failed`);
   }
 
-  // Clear nonce cookie and redirect to settings with success signal
-  res.setHeader('Set-Cookie', `fa_oauth_nonce=; HttpOnly; Max-Age=0; Path=/`);
   res.redirect(`/settings?connected=freeagent`);
 }
