@@ -14,6 +14,17 @@ export interface InvoiceDay {
   call_time: string;
   wrap_time: string;
   grand_total: number;
+  result_json?: {
+    lineItems?: { description: string; hours?: number; rate?: number; total: number; timeFrom?: string; timeTo?: string }[];
+    penalties?: { description: string; hours?: number; rate?: number; total: number }[];
+    travelPay?: number;
+    mileage?: number;
+    mileageMiles?: number;
+    equipmentTotal?: number;
+    equipmentDiscount?: number;
+  };
+  expenses_amount?: number;
+  expenses_notes?: string;
 }
 
 export interface FreeAgentExportPayload {
@@ -23,6 +34,7 @@ export interface FreeAgentExportPayload {
   invoiceNumber: string;
   days: InvoiceDay[];
   vatRegistered: boolean;
+  detailed: boolean;
 }
 
 // ── Token helpers ─────────────────────────────────────────────────────────────
@@ -107,6 +119,109 @@ async function findOrCreateContact(
   return contactUrl;
 }
 
+// ── Invoice item builder ───────────────────────────────────────────────────────
+
+type InvoiceItem = {
+  description: string;
+  item_type: string;
+  quantity: string;
+  price: string;
+  sales_tax_rate: string;
+};
+
+function buildDayItems(day: InvoiceDay, taxRate: string, detailed: boolean): InvoiceItem[] {
+  const items: InvoiceItem[] = [];
+  const rj = day.result_json ?? {};
+  const equipmentNet = (rj.equipmentTotal ?? 0) - (rj.equipmentDiscount ?? 0);
+  const expensesAmount = day.expenses_amount ?? 0;
+
+  const hasDetailedData = (rj.lineItems?.length ?? 0) > 0;
+
+  if (detailed && hasDetailedData) {
+    // Individual hourly line items
+    for (const li of rj.lineItems ?? []) {
+      const timeStr = li.timeFrom && li.timeTo ? ` | ${li.timeFrom}–${li.timeTo}` : '';
+      const hasHoursAndRate = li.hours != null && li.rate != null;
+      items.push({
+        description: `${li.description}${timeStr} | ${day.work_date}`,
+        item_type: 'Hours',
+        quantity: hasHoursAndRate ? li.hours!.toFixed(2) : '1.0',
+        price: hasHoursAndRate ? li.rate!.toFixed(2) : li.total.toFixed(2),
+        sales_tax_rate: taxRate,
+      });
+    }
+    // Grace / penalty items
+    for (const p of rj.penalties ?? []) {
+      const hasHoursAndRate = p.hours != null && p.rate != null;
+      items.push({
+        description: `${p.description} | ${day.work_date}`,
+        item_type: hasHoursAndRate ? 'Hours' : 'Days',
+        quantity: hasHoursAndRate ? p.hours!.toFixed(2) : '1.0',
+        price: hasHoursAndRate ? p.rate!.toFixed(2) : p.total.toFixed(2),
+        sales_tax_rate: taxRate,
+      });
+    }
+    // Travel pay
+    if ((rj.travelPay ?? 0) > 0) {
+      items.push({
+        description: `Travel Pay | ${day.work_date}`,
+        item_type: 'Days',
+        quantity: '1.0',
+        price: rj.travelPay!.toFixed(2),
+        sales_tax_rate: taxRate,
+      });
+    }
+    // Mileage
+    if ((rj.mileage ?? 0) > 0) {
+      const milesStr = rj.mileageMiles ? ` (${rj.mileageMiles} miles)` : '';
+      items.push({
+        description: `Mileage${milesStr} | ${day.work_date}`,
+        item_type: 'Days',
+        quantity: '1.0',
+        price: rj.mileage!.toFixed(2),
+        sales_tax_rate: taxRate,
+      });
+    }
+  } else {
+    // Basic: one item per day (day total minus equipment and expenses which are itemised below)
+    const dayTotal = day.grand_total - equipmentNet - expensesAmount;
+    items.push({
+      description: `${day.role_name} — ${day.day_type.replace(/_/g, ' ')} | ${day.work_date} | Call: ${day.call_time} Wrap: ${day.wrap_time}`,
+      item_type: 'Days',
+      quantity: '1.0',
+      price: dayTotal.toFixed(2),
+      sales_tax_rate: taxRate,
+    });
+  }
+
+  // Equipment — always a separate line item
+  if (equipmentNet > 0) {
+    items.push({
+      description: `Equipment | ${day.work_date}`,
+      item_type: 'Days',
+      quantity: '1.0',
+      price: equipmentNet.toFixed(2),
+      sales_tax_rate: taxRate,
+    });
+  }
+
+  // Expenses — always a separate line item
+  if (expensesAmount > 0) {
+    const expDesc = day.expenses_notes
+      ? `Expenses — ${day.expenses_notes} | ${day.work_date}`
+      : `Expenses | ${day.work_date}`;
+    items.push({
+      description: expDesc,
+      item_type: 'Days',
+      quantity: '1.0',
+      price: expensesAmount.toFixed(2),
+      sales_tax_rate: taxRate,
+    });
+  }
+
+  return items;
+}
+
 // ── Invoice creation ──────────────────────────────────────────────────────────
 
 async function createInvoice(
@@ -123,13 +238,7 @@ async function createInvoice(
     ? `${payload.projectName} | ${payload.jobReference}`
     : payload.projectName;
 
-  const invoiceItems = payload.days.map(day => ({
-    description: `${day.role_name} — ${day.day_type.replace(/_/g, ' ')} | ${day.work_date} | Call: ${day.call_time} Wrap: ${day.wrap_time}`,
-    item_type: 'Days',
-    quantity: '1.0',
-    price: day.grand_total.toFixed(2),
-    sales_tax_rate: taxRate,
-  }));
+  const invoiceItems = payload.days.flatMap(day => buildDayItems(day, taxRate, payload.detailed));
 
   const body = {
     invoice: {

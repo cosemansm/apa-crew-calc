@@ -82,6 +82,7 @@ export function InvoicePage() {
   const [vatRegistered, setVatRegistered] = useState(false);
 
   const [faConnected, setFaConnected] = useState<boolean | null>(null);
+  const [faDetailed, setFaDetailed] = useState(false);
   const [exportingFa, setExportingFa] = useState(false);
   const [faExportUrl, setFaExportUrl] = useState<string | null>(null);
   const [faExportError, setFaExportError] = useState<string | null>(null);
@@ -188,6 +189,7 @@ export function InvoicePage() {
         invoiceNumber,
         days: selectedDays,
         vatRegistered,
+        detailed: faDetailed,
       });
       setFaExportUrl(invoiceUrl);
       window.open(invoiceUrl, '_blank', 'noopener,noreferrer');
@@ -537,19 +539,46 @@ export function InvoicePage() {
             </Button>
           </div>
 
-          {/* FreeAgent export button — only shown when connected and Pro */}
+          {/* FreeAgent export — only shown when connected and Pro */}
           {isPremium && faConnected && (
-            <Button
-              variant="outline"
-              className="w-full gap-2"
-              onClick={handleExportToFreeAgent}
-              disabled={exportingFa || selectedDays.length === 0}
-            >
-              {exportingFa
-                ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending to FreeAgent…</>
-                : 'Send to FreeAgent'
-              }
-            </Button>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Line items</span>
+                <div className="flex rounded-md border border-border overflow-hidden text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setFaDetailed(false)}
+                    className={cn(
+                      'px-3 py-1 transition-colors',
+                      !faDetailed ? 'bg-[#FFD528] text-[#1F1F21] font-medium' : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    Basic
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFaDetailed(true)}
+                    className={cn(
+                      'px-3 py-1 transition-colors',
+                      faDetailed ? 'bg-[#FFD528] text-[#1F1F21] font-medium' : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    Detailed
+                  </button>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                onClick={handleExportToFreeAgent}
+                disabled={exportingFa || selectedDays.length === 0}
+              >
+                {exportingFa
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending to FreeAgent…</>
+                  : 'Send to FreeAgent'
+                }
+              </Button>
+            </div>
           )}
 
           {/* FreeAgent export result */}
