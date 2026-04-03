@@ -134,7 +134,7 @@ async function createInvoice(
   const body = {
     invoice: {
       contact: contactUrl,
-      reference: payload.invoiceNumber,
+      // No reference — let FreeAgent use its own numbering sequence
       status: 'Draft',
       dated_on: new Date().toISOString().split('T')[0],
       due_on: dueDate.toISOString().split('T')[0],

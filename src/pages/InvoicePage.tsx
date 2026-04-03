@@ -446,7 +446,15 @@ export function InvoicePage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Invoice Number</Label>
-                <Input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} />
+                <Input
+                  value={invoiceNumber}
+                  onChange={e => setInvoiceNumber(e.target.value)}
+                  disabled={!!faConnected}
+                  title={faConnected ? 'FreeAgent will assign its own invoice number' : undefined}
+                />
+                {faConnected && (
+                  <p className="text-xs text-muted-foreground">FreeAgent assigns its own number</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Date</Label>
