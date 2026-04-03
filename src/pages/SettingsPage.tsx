@@ -301,11 +301,19 @@ export function SettingsPage() {
     isFreeAgentConnected(user.id).then(setFaConnected).catch(() => setFaConnected(false));
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [faConnectError, setFaConnectError] = useState<string | null>(null);
+
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('connected') === 'freeagent') {
       faConnectedFromUrl.current = true;
       setFaConnected(true);
+      setActiveSection('integrations');
+      navigate('/settings', { replace: true });
+    }
+    const err = params.get('error');
+    if (err) {
+      setFaConnectError(err);
       setActiveSection('integrations');
       navigate('/settings', { replace: true });
     }
@@ -1008,7 +1016,10 @@ export function SettingsPage() {
                         <p className="text-xs text-muted-foreground">Send invoices and log expenses in FreeAgent</p>
                       </div>
                     </div>
-                    <div className="shrink-0">
+                    <div className="shrink-0 flex flex-col items-end gap-1">
+                      {faConnectError && (
+                        <p className="text-xs text-red-500">Connection failed: {faConnectError}</p>
+                      )}
                       {faConnected === null ? (
                         <Badge variant="secondary">Checking…</Badge>
                       ) : faConnected ? (
