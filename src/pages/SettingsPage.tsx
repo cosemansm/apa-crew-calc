@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import xeroLogo from '@/assets/integrations/xero.svg';
 import quickbooksLogo from '@/assets/integrations/quickbooks.svg';
@@ -250,6 +250,8 @@ export function SettingsPage() {
   const [faConnected, setFaConnected] = useState<boolean | null>(null);
   const [vatRegistered, setVatRegistered] = useState(false);
   const [disconnectingFa, setDisconnectingFa] = useState(false);
+  // Track if faConnected was set from the ?connected=freeagent URL param — skip async check
+  const faConnectedFromUrl = useRef(false);
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
@@ -267,7 +269,15 @@ export function SettingsPage() {
         setBankAccountName(data.bank_account_name ?? '');
         setBankSortCode(data.bank_sort_code ?? '');
         setBankAccountNumber(data.bank_account_number ?? '');
-        setVatRegistered(data.vat_registered ?? false);
+        // Auto-enable VAT registered if user has a VAT number set
+        const vatReg = data.vat_registered ?? (!!data.vat_number || false);
+        setVatRegistered(vatReg);
+        if (!!data.vat_number && !data.vat_registered) {
+          supabase.from('user_settings').upsert(
+            { user_id: user.id, vat_registered: true, updated_at: new Date().toISOString() },
+            { onConflict: 'user_id' }
+          );
+        }
       }
     });
     loadCustomRoles();
@@ -287,13 +297,14 @@ export function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || faConnectedFromUrl.current) return;
     isFreeAgentConnected(user.id).then(setFaConnected).catch(() => setFaConnected(false));
-  }, [user?.id]);
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('connected') === 'freeagent') {
+      faConnectedFromUrl.current = true;
       setFaConnected(true);
       setActiveSection('integrations');
       navigate('/settings', { replace: true });
