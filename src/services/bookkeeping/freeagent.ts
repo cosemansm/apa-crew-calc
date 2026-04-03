@@ -37,6 +37,14 @@ export interface FreeAgentExportPayload {
   detailed: boolean;
 }
 
+// Thrown when FreeAgent rejects the token — signals the UI to prompt reconnect
+export class FreeAgentAuthError extends Error {
+  constructor() {
+    super('FREEAGENT_AUTH_ERROR');
+    this.name = 'FreeAgentAuthError';
+  }
+}
+
 // ── Token helpers ─────────────────────────────────────────────────────────────
 
 async function getValidToken(userId: string): Promise<string> {
@@ -61,7 +69,7 @@ async function getValidToken(userId: string): Promise<string> {
     signal: AbortSignal.timeout(10_000),
   });
 
-  if (!res.ok) throw new Error('FreeAgent session expired. Please reconnect in Settings.');
+  if (!res.ok) throw new FreeAgentAuthError();
 
   interface RefreshResponse { access_token: string; expires_at: string; }
   const newTokens = await res.json() as RefreshResponse;
@@ -87,6 +95,7 @@ async function findOrCreateContact(
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) {
+      if (res.status === 401) throw new FreeAgentAuthError();
       const body = await res.text().catch(() => '');
       throw new Error(`Failed to fetch FreeAgent contacts (${res.status}): ${body}`);
     }
@@ -111,7 +120,10 @@ async function findOrCreateContact(
     signal: AbortSignal.timeout(10_000),
   });
 
-  if (!createRes.ok) throw new Error('Failed to create FreeAgent contact.');
+  if (!createRes.ok) {
+    if (createRes.status === 401) throw new FreeAgentAuthError();
+    throw new Error('Failed to create FreeAgent contact.');
+  }
 
   const contactUrl = createRes.headers.get('Location');
   if (contactUrl) return contactUrl;
@@ -282,6 +294,7 @@ async function createInvoice(
   });
 
   if (!res.ok) {
+    if (res.status === 401) throw new FreeAgentAuthError();
     const err = await res.text();
     throw new Error(`Failed to create FreeAgent invoice: ${err}`);
   }

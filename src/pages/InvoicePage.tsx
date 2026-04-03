@@ -17,7 +17,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { exportToFreeAgent, isFreeAgentConnected } from '@/services/bookkeeping/freeagent';
+import { exportToFreeAgent, isFreeAgentConnected, FreeAgentAuthError } from '@/services/bookkeeping/freeagent';
 import { BookkeepingCTA } from '@/components/BookkeepingCTA';
 
 interface Project {
@@ -194,7 +194,12 @@ export function InvoicePage() {
       setFaExportUrl(invoiceUrl);
       window.open(invoiceUrl, '_blank', 'noopener,noreferrer');
     } catch (err) {
-      setFaExportError(err instanceof Error ? err.message : 'Failed to export to FreeAgent');
+      if (err instanceof FreeAgentAuthError) {
+        setFaConnected(false);
+        setFaExportError('reconnect');
+      } else {
+        setFaExportError(err instanceof Error ? err.message : 'Failed to export to FreeAgent');
+      }
     } finally {
       setExportingFa(false);
     }
@@ -590,7 +595,16 @@ export function InvoicePage() {
             </p>
           )}
           {faExportError && (
-            <p className="text-xs text-red-500 text-center">{faExportError}</p>
+            faExportError === 'reconnect' ? (
+              <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-center">
+                <p className="text-xs text-red-400 font-medium">Please reconnect FreeAgent</p>
+                <a href="/settings#bookkeeping" className="text-xs text-[#FFD528] underline">
+                  Go to Settings →
+                </a>
+              </div>
+            ) : (
+              <p className="text-xs text-red-500 text-center">{faExportError}</p>
+            )
           )}
 
           {selectedDays.length === 0 && (
