@@ -114,9 +114,16 @@ async function findOrCreateContact(
   if (!createRes.ok) throw new Error('Failed to create FreeAgent contact.');
 
   const contactUrl = createRes.headers.get('Location');
-  if (!contactUrl) throw new Error('FreeAgent contact created but no URL returned.');
+  if (contactUrl) return contactUrl;
 
-  return contactUrl;
+  // Fallback: FreeAgent sometimes returns the URL in the response body
+  try {
+    const data = await createRes.json() as { contact?: { url?: string } };
+    const bodyUrl = data?.contact?.url;
+    if (bodyUrl) return bodyUrl;
+  } catch { /* ignore parse errors */ }
+
+  throw new Error('FreeAgent contact created but no URL returned.');
 }
 
 // ── Invoice item builder ───────────────────────────────────────────────────────
