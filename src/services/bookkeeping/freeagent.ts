@@ -74,7 +74,10 @@ async function findOrCreateContact(
       },
       signal: AbortSignal.timeout(10_000),
     });
-    if (!res.ok) throw new Error('Failed to fetch FreeAgent contacts.');
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      throw new Error(`Failed to fetch FreeAgent contacts (${res.status}): ${body}`);
+    }
     const { contacts } = await res.json() as { contacts: Contact[] };
     const page_contacts: Contact[] = contacts ?? [];
     if (page_contacts.length === 0) break;
