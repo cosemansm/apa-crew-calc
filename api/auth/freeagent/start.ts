@@ -34,5 +34,8 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
     state,
   });
 
-  res.redirect(`https://api.freeagent.com/v2/approve_app?${params}`);
+  const approveBase = process.env.FREEAGENT_SANDBOX === 'true'
+    ? 'https://api.sandbox.freeagent.com/v2'
+    : 'https://api.freeagent.com/v2';
+  res.redirect(`${approveBase}/approve_app?${params}`);
 }
