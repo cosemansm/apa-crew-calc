@@ -324,7 +324,8 @@ export function SettingsPage() {
       navigate('/settings', { replace: true });
     }
     const err = params.get('error');
-    if (err) {
+    const FA_ERRORS = new Set(['freeagent_denied', 'freeagent_token_failed', 'freeagent_not_configured', 'freeagent_db_failed', 'invalid_state', 'invalid_callback']);
+    if (err && FA_ERRORS.has(err)) {
       setFaConnectError(err);
       setActiveSection('integrations');
       navigate('/settings', { replace: true });
