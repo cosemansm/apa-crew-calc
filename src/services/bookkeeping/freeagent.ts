@@ -138,26 +138,34 @@ function buildDayItems(day: InvoiceDay, taxRate: string, detailed: boolean): Inv
   const hasDetailedData = (rj.lineItems?.length ?? 0) > 0;
 
   if (detailed && hasDetailedData) {
-    // Individual hourly line items
+    // Individual line items — distinguish flat day-rate items from genuinely hourly ones.
+    // If hours × rate ≈ total the rate is per-hour; otherwise it's a flat day rate and we
+    // must send quantity=1, price=total to avoid FreeAgent multiplying hours × rate.
     for (const li of rj.lineItems ?? []) {
       const timeStr = li.timeFrom && li.timeTo ? ` | ${li.timeFrom}–${li.timeTo}` : '';
-      const hasHoursAndRate = li.hours != null && li.rate != null;
+      const isHourly =
+        li.hours != null &&
+        li.rate != null &&
+        Math.abs(li.hours * li.rate - li.total) < 0.02;
       items.push({
         description: `${li.description}${timeStr} | ${day.work_date}`,
-        item_type: 'Hours',
-        quantity: hasHoursAndRate ? li.hours!.toFixed(2) : '1.0',
-        price: hasHoursAndRate ? li.rate!.toFixed(2) : li.total.toFixed(2),
+        item_type: isHourly ? 'Hours' : 'Days',
+        quantity: isHourly ? li.hours!.toFixed(2) : '1.0',
+        price: isHourly ? li.rate!.toFixed(2) : li.total.toFixed(2),
         sales_tax_rate: taxRate,
       });
     }
-    // Grace / penalty items
+    // Grace / penalty items — same logic
     for (const p of rj.penalties ?? []) {
-      const hasHoursAndRate = p.hours != null && p.rate != null;
+      const isHourly =
+        p.hours != null &&
+        p.rate != null &&
+        Math.abs(p.hours * p.rate - p.total) < 0.02;
       items.push({
         description: `${p.description} | ${day.work_date}`,
-        item_type: hasHoursAndRate ? 'Hours' : 'Days',
-        quantity: hasHoursAndRate ? p.hours!.toFixed(2) : '1.0',
-        price: hasHoursAndRate ? p.rate!.toFixed(2) : p.total.toFixed(2),
+        item_type: isHourly ? 'Hours' : 'Days',
+        quantity: isHourly ? p.hours!.toFixed(2) : '1.0',
+        price: isHourly ? p.rate!.toFixed(2) : p.total.toFixed(2),
         sales_tax_rate: taxRate,
       });
     }
