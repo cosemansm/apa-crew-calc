@@ -1050,7 +1050,7 @@ export function SettingsPage() {
                       {faConnected === null ? (
                         <Badge variant="secondary">Checking…</Badge>
                       ) : faConnected ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col items-end gap-1.5">
                           <Badge className="bg-green-100 text-green-700 border-green-200">Connected</Badge>
                           <Button
                             variant="outline"
