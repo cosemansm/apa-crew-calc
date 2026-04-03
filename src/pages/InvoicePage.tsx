@@ -82,7 +82,7 @@ export function InvoicePage() {
   const [vatRegistered, setVatRegistered] = useState(false);
 
   const [faConnected, setFaConnected] = useState<boolean | null>(null);
-  const [faDetailed, setFaDetailed] = useState(false);
+  const [faDetailed, setFaDetailed] = useState(true);
   const [exportingFa, setExportingFa] = useState(false);
   const [faExportUrl, setFaExportUrl] = useState<string | null>(null);
   const [faExportError, setFaExportError] = useState<string | null>(null);
