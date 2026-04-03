@@ -508,10 +508,37 @@ export function SettingsPage() {
         <h1 className="text-2xl font-bold">Settings</h1>
       </div>
 
+      {/* ── Mobile horizontal nav ── */}
+      <div className="md:hidden w-full overflow-x-auto pb-1 mb-2">
+        <div className="flex gap-1 min-w-max">
+          {NAV_ITEMS.map(item => (
+            <button
+              key={item.id}
+              onClick={() => !item.badge && setActiveSection(item.id)}
+              disabled={!!item.badge}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-colors whitespace-nowrap shrink-0',
+                activeSection === item.id
+                  ? item.danger ? 'bg-red-600 text-white' : 'bg-[#1F1F21] text-white'
+                  : item.badge
+                    ? 'text-muted-foreground/40 cursor-not-allowed bg-muted/50'
+                    : item.danger
+                      ? 'text-red-500 bg-red-50'
+                      : 'text-muted-foreground bg-muted hover:text-foreground'
+              )}
+            >
+              <item.icon className="h-3.5 w-3.5 shrink-0" />
+              {item.label}
+              {item.badge && <Badge variant="secondary" className="text-[9px] px-1 py-0">{item.badge}</Badge>}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="flex gap-6 items-start">
 
-        {/* ── Left sidebar nav ── */}
-        <div className="w-52 shrink-0">
+        {/* ── Left sidebar nav (desktop only) ── */}
+        <div className="hidden md:block w-52 shrink-0">
           <nav className="space-y-0.5">
             {NAV_ITEMS.map(item => (
               <button
@@ -543,7 +570,7 @@ export function SettingsPage() {
         </div>
 
         {/* ── Right content panel ── */}
-        <div className="flex-1 min-w-0 space-y-4">
+        <div className="flex-1 min-w-0 space-y-4 w-full">
 
           {/* USER DETAILS */}
           {activeSection === 'user-details' && (

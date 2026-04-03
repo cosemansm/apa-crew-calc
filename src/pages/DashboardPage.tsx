@@ -296,13 +296,13 @@ export function DashboardPage() {
     <div className="space-y-6">
       <TrialBanner />
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-2">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
             Hi, {displayName || user?.email?.split('@')[0] || 'there'}!
           </h1>
           <div className="flex items-center gap-2 mt-1">
-            <p className="text-muted-foreground">Let's manage your crew bookings</p>
+            <p className="text-muted-foreground hidden sm:block">Let's manage your crew bookings</p>
             {!subLoading && isTrialing && (
               <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-0.5">
                 Trial — {trialDaysLeft}d left
@@ -325,9 +325,9 @@ export function DashboardPage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0 mt-1">
           <Button variant="outline" onClick={() => navigate('/ai-input')} className="gap-2">
-            <Sparkles className="h-4 w-4" /> AI Input
+            <Sparkles className="h-4 w-4" /><span className="hidden sm:inline"> AI Input</span>
           </Button>
           <Button onClick={() => setShowNewProject(true)} className="gap-2">
             <Plus className="h-4 w-4" /> New Job
