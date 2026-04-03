@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { exportToFreeAgent, isFreeAgentConnected, FreeAgentAuthError } from '@/services/bookkeeping/freeagent';
+import { exportToXero, isXeroConnected, XeroAuthError } from '@/services/bookkeeping/xero';
 import { BookkeepingCTA } from '@/components/BookkeepingCTA';
 
 interface Project {
@@ -86,6 +87,12 @@ export function InvoicePage() {
   const [exportingFa, setExportingFa] = useState(false);
   const [faExportUrl, setFaExportUrl] = useState<string | null>(null);
   const [faExportError, setFaExportError] = useState<string | null>(null);
+
+  const [xeroConnected, setXeroConnected] = useState<boolean | null>(null);
+  const [xeroDetailed, setXeroDetailed] = useState(true);
+  const [exportingXero, setExportingXero] = useState(false);
+  const [xeroExportUrl, setXeroExportUrl] = useState<string | null>(null);
+  const [xeroExportError, setXeroExportError] = useState<string | null>(null);
 
   const { isPremium } = useSubscription();
 
@@ -176,6 +183,11 @@ export function InvoicePage() {
     isFreeAgentConnected(user.id).then(setFaConnected).catch(() => setFaConnected(false));
   }, [user?.id]);
 
+  useEffect(() => {
+    if (!user) return;
+    isXeroConnected(user.id).then(setXeroConnected).catch(() => setXeroConnected(false));
+  }, [user?.id]);
+
   const handleExportToFreeAgent = async () => {
     if (!user || selectedDays.length === 0) return;
     setExportingFa(true);
@@ -205,6 +217,35 @@ export function InvoicePage() {
     }
   };
 
+  const handleExportToXero = async () => {
+    if (!user || selectedDays.length === 0) return;
+    setExportingXero(true);
+    setXeroExportUrl(null);
+    setXeroExportError(null);
+    try {
+      const { invoiceUrl } = await exportToXero(user.id, {
+        clientName,
+        projectName: selectedProject?.name ?? '',
+        jobReference: jobReference.trim() || null,
+        invoiceNumber,
+        days: selectedDays,
+        vatRegistered,
+        detailed: xeroDetailed,
+      });
+      setXeroExportUrl(invoiceUrl);
+      window.open(invoiceUrl, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      if (err instanceof XeroAuthError) {
+        setXeroConnected(false);
+        setXeroExportError('reconnect');
+      } else {
+        setXeroExportError(err instanceof Error ? err.message : 'Failed to export to Xero');
+      }
+    } finally {
+      setExportingXero(false);
+    }
+  };
+
   const handleSelectProject = (proj: Project) => {
     setSelectedProjectId(proj.id);
     setShowProjectPicker(false);
@@ -213,6 +254,8 @@ export function InvoicePage() {
     setJobReference(proj.job_reference ?? '');
     setFaExportUrl(null);
     setFaExportError(null);
+    setXeroExportUrl(null);
+    setXeroExportError(null);
   };
 
   const selectedProject = projects.find(p => p.id === selectedProjectId);
@@ -456,11 +499,13 @@ export function InvoicePage() {
                 <Input
                   value={invoiceNumber}
                   onChange={e => setInvoiceNumber(e.target.value)}
-                  disabled={!!faConnected}
-                  title={faConnected ? 'FreeAgent will assign its own invoice number' : undefined}
+                  disabled={!!faConnected || !!xeroConnected}
+                  title={faConnected ? 'FreeAgent will assign its own invoice number' : xeroConnected ? 'Xero will assign its own invoice number' : undefined}
                 />
-                {faConnected && (
-                  <p className="text-xs text-muted-foreground">FreeAgent assigns its own number</p>
+                {(faConnected || xeroConnected) && (
+                  <p className="text-xs text-muted-foreground">
+                    {faConnected ? 'FreeAgent' : 'Xero'} assigns its own number
+                  </p>
                 )}
               </div>
               <div className="space-y-2">
@@ -614,8 +659,71 @@ export function InvoicePage() {
             <p className="text-xs text-muted-foreground text-center">Add a client email address to enable sending</p>
           )}
 
-          {/* BookkeepingCTA — shown when FreeAgent not connected */}
-          {user && faConnected === false && (
+          {/* Xero export — only shown when connected and Pro */}
+          {isPremium && xeroConnected && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Line items</span>
+                <div className="flex rounded-md border border-border overflow-hidden text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setXeroDetailed(false)}
+                    className={cn(
+                      'px-3 py-1 transition-colors',
+                      !xeroDetailed ? 'bg-[#FFD528] text-[#1F1F21] font-medium' : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    Basic
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setXeroDetailed(true)}
+                    className={cn(
+                      'px-3 py-1 transition-colors',
+                      xeroDetailed ? 'bg-[#FFD528] text-[#1F1F21] font-medium' : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    Detailed
+                  </button>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                onClick={handleExportToXero}
+                disabled={exportingXero || selectedDays.length === 0}
+              >
+                {exportingXero
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending to Xero…</>
+                  : 'Send to Xero'
+                }
+              </Button>
+            </div>
+          )}
+
+          {/* Xero export result */}
+          {xeroExportUrl && (
+            <p className="text-xs text-center">
+              <a href={xeroExportUrl} target="_blank" rel="noopener noreferrer" className="text-[#FFD528] underline">
+                View draft invoice in Xero →
+              </a>
+            </p>
+          )}
+          {xeroExportError && (
+            xeroExportError === 'reconnect' ? (
+              <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-center">
+                <p className="text-xs text-red-400 font-medium">Please reconnect Xero</p>
+                <a href="/settings#bookkeeping" className="text-xs text-[#FFD528] underline">
+                  Go to Settings →
+                </a>
+              </div>
+            ) : (
+              <p className="text-xs text-red-500 text-center">{xeroExportError}</p>
+            )
+          )}
+
+          {/* BookkeepingCTA — shown when neither FreeAgent nor Xero is connected */}
+          {user && faConnected === false && xeroConnected === false && (
             <BookkeepingCTA userId={user.id} />
           )}
 
