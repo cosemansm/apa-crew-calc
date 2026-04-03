@@ -161,14 +161,17 @@ async function createInvoice(
     throw new Error(`Failed to create FreeAgent invoice: ${err}`);
   }
 
+  const toWebUrl = (apiUrl: string) =>
+    apiUrl.replace('https://api.freeagent.com/v2/', 'https://app.freeagent.com/');
+
   const locationHeader = res.headers.get('Location');
-  if (locationHeader) return locationHeader;
+  if (locationHeader) return toWebUrl(locationHeader);
 
   // Fallback: FreeAgent sometimes returns the URL in the response body
   try {
     const data = await res.json() as { invoice?: { url?: string } };
     const bodyUrl = data?.invoice?.url;
-    if (bodyUrl) return bodyUrl;
+    if (bodyUrl) return toWebUrl(bodyUrl);
   } catch { /* ignore parse errors */ }
 
   throw new Error('Invoice created but FreeAgent returned no URL.');

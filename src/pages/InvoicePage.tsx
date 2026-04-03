@@ -190,6 +190,7 @@ export function InvoicePage() {
         vatRegistered,
       });
       setFaExportUrl(invoiceUrl);
+      window.open(invoiceUrl, '_blank', 'noopener,noreferrer');
     } catch (err) {
       setFaExportError(err instanceof Error ? err.message : 'Failed to export to FreeAgent');
     } finally {
