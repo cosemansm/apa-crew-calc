@@ -12,6 +12,8 @@ import {
 import { format, parseISO } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { APA_CREW_ROLES } from '@/data/apa-rates';
+import { calculateCrewCost, type DayType, type DayOfWeek } from '@/data/calculation-engine';
 
 // ── History types ─────────────────────────────────────────────────────────────
 interface HistoryDay {
@@ -269,10 +271,51 @@ export function ProjectsPage() {
       .order('work_date', { ascending: true });
 
     if (days && days.length > 0) {
-      const copies = days.map(({ id: _id, project_id: _pid, created_at: _ca, ...rest }) => ({
-        ...rest,
-        project_id: newProject.id,
-      }));
+      // Fetch user's custom roles so we can re-run the calculation engine
+      const { data: customRoles } = await supabase
+        .from('custom_roles')
+        .select('*')
+        .eq('user_id', user!.id);
+
+      const copies = days.map(({ id: _id, project_id: _pid, created_at: _ca, ...day }) => {
+        const role = (customRoles ?? []).find((r: { role: string }) => r.role === day.role_name)
+          ?? APA_CREW_ROLES.find(r => r.role === day.role_name);
+
+        // Re-run calculation engine so the copy gets precise (unrounded) totals
+        if (role) {
+          const result = calculateCrewCost({
+            role,
+            agreedDailyRate: day.agreed_rate,
+            dayType: day.day_type as DayType,
+            dayOfWeek: day.day_of_week as DayOfWeek,
+            callTime: day.call_time,
+            wrapTime: day.wrap_time,
+            firstBreakGiven: day.first_break_given ?? false,
+            firstBreakTime: day.first_break_time ?? undefined,
+            firstBreakDurationMins: day.first_break_duration ?? 60,
+            secondBreakGiven: day.second_break_given ?? false,
+            secondBreakTime: day.second_break_time ?? undefined,
+            secondBreakDurationMins: day.second_break_duration ?? 30,
+            continuousFirstBreakGiven: day.continuous_first_break_given ?? false,
+            continuousAdditionalBreakGiven: day.continuous_additional_break_given ?? false,
+            travelHours: day.travel_hours ?? 0,
+            mileageOutsideM25: day.mileage ?? 0,
+            previousWrapTime: day.previous_wrap ?? undefined,
+            equipmentValue: day.equipment_value ?? 0,
+            equipmentDiscount: day.equipment_discount ?? 0,
+          });
+          return {
+            ...day,
+            project_id: newProject.id,
+            result_json: result,
+            grand_total: result.grandTotal + (day.expenses_amount ?? 0),
+          };
+        }
+
+        // Fallback: role not found, copy as-is
+        return { ...day, project_id: newProject.id };
+      });
+
       await supabase.from('project_days').insert(copies);
     }
 
