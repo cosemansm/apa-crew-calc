@@ -139,33 +139,34 @@ function buildDayItems(day: InvoiceDay, taxRate: string, detailed: boolean): Inv
 
   if (detailed && hasDetailedData) {
     // Individual line items — distinguish flat day-rate items from genuinely hourly ones.
-    // If hours × rate ≈ total the rate is per-hour; otherwise it's a flat day rate and we
-    // must send quantity=1, price=total to avoid FreeAgent multiplying hours × rate.
+    // Use a 5% relative tolerance to handle rounding in the calculator (e.g. 4.5h × £67
+    // stored as £302 rather than £301.50). Day-rate items fail by hundreds of percent so
+    // the 5% band correctly separates them.
+    const isHourlyItem = (hours: number | undefined, rate: number | undefined, total: number) =>
+      hours != null &&
+      rate != null &&
+      total > 0 &&
+      Math.abs(hours * rate - total) / total < 0.05;
+
     for (const li of rj.lineItems ?? []) {
       const timeStr = li.timeFrom && li.timeTo ? ` | ${li.timeFrom}–${li.timeTo}` : '';
-      const isHourly =
-        li.hours != null &&
-        li.rate != null &&
-        Math.abs(li.hours * li.rate - li.total) < 0.02;
+      const hourly = isHourlyItem(li.hours, li.rate, li.total);
       items.push({
         description: `${li.description}${timeStr} | ${day.work_date}`,
-        item_type: isHourly ? 'Hours' : 'Days',
-        quantity: isHourly ? li.hours!.toFixed(2) : '1.0',
-        price: isHourly ? li.rate!.toFixed(2) : li.total.toFixed(2),
+        item_type: hourly ? 'Hours' : 'Days',
+        quantity: hourly ? li.hours!.toFixed(2) : '1.0',
+        price: hourly ? li.rate!.toFixed(2) : li.total.toFixed(2),
         sales_tax_rate: taxRate,
       });
     }
     // Grace / penalty items — same logic
     for (const p of rj.penalties ?? []) {
-      const isHourly =
-        p.hours != null &&
-        p.rate != null &&
-        Math.abs(p.hours * p.rate - p.total) < 0.02;
+      const hourly = isHourlyItem(p.hours, p.rate, p.total);
       items.push({
         description: `${p.description} | ${day.work_date}`,
-        item_type: isHourly ? 'Hours' : 'Days',
-        quantity: isHourly ? p.hours!.toFixed(2) : '1.0',
-        price: isHourly ? p.rate!.toFixed(2) : p.total.toFixed(2),
+        item_type: hourly ? 'Hours' : 'Days',
+        quantity: hourly ? p.hours!.toFixed(2) : '1.0',
+        price: hourly ? p.rate!.toFixed(2) : p.total.toFixed(2),
         sales_tax_rate: taxRate,
       });
     }
@@ -213,14 +214,14 @@ function buildDayItems(day: InvoiceDay, taxRate: string, detailed: boolean): Inv
     });
   }
 
-  // Expenses — always a separate line item
+  // Expenses — always a separate line item, quantity=1 with no day/hour unit
   if (expensesAmount > 0) {
     const expDesc = day.expenses_notes
       ? `Expenses — ${day.expenses_notes} | ${day.work_date}`
       : `Expenses | ${day.work_date}`;
     items.push({
       description: expDesc,
-      item_type: 'Days',
+      item_type: 'Expenses',
       quantity: '1.0',
       price: expensesAmount.toFixed(2),
       sales_tax_rate: taxRate,
