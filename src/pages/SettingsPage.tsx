@@ -18,6 +18,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { isFreeAgentConnected, disconnectFreeAgent } from '@/services/bookkeeping/freeagent';
+import { isXeroConnected, disconnectXero } from '@/services/bookkeeping/xero';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -253,6 +254,12 @@ export function SettingsPage() {
   // Track if faConnected was set from the ?connected=freeagent URL param — skip async check
   const faConnectedFromUrl = useRef(false);
 
+  const [xeroConnected, setXeroConnected] = useState<boolean | null>(null);
+  const [disconnectingXero, setDisconnectingXero] = useState(false);
+  const [xeroConnectError, setXeroConnectError] = useState<string | null>(null);
+  // Track if xeroConnected was set from the ?connected=xero URL param — skip async check
+  const xeroConnectedFromUrl = useRef(false);
+
   // ── Load ──────────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -301,6 +308,11 @@ export function SettingsPage() {
     isFreeAgentConnected(user.id).then(setFaConnected).catch(() => setFaConnected(false));
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!user || xeroConnectedFromUrl.current) return;
+    isXeroConnected(user.id).then(setXeroConnected).catch(() => setXeroConnected(false));
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [faConnectError, setFaConnectError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -317,6 +329,17 @@ export function SettingsPage() {
       setActiveSection('integrations');
       navigate('/settings', { replace: true });
     }
+    if (params.get('connected') === 'xero') {
+      xeroConnectedFromUrl.current = true;
+      setXeroConnected(true);
+      setActiveSection('integrations');
+      navigate('/settings', { replace: true });
+    }
+    const urlError = params.get('error');
+    if (urlError === 'xero_denied') setXeroConnectError('Connection cancelled.');
+    if (urlError === 'xero_token_failed') setXeroConnectError('Token exchange failed — try again.');
+    if (urlError === 'xero_not_configured') setXeroConnectError('Xero is not configured on this server.');
+    if (urlError === 'xero_db_failed') setXeroConnectError('Failed to save connection — try again.');
   }, [location.search, navigate]);
 
   // ── Save helpers ──────────────────────────────────────────────────────────
@@ -340,6 +363,19 @@ export function SettingsPage() {
       setFaConnected(true);
     } finally {
       setDisconnectingFa(false);
+    }
+  };
+
+  const handleDisconnectXero = async () => {
+    if (!user) return;
+    setDisconnectingXero(true);
+    try {
+      await disconnectXero(user.id);
+      setXeroConnected(false);
+    } catch {
+      setXeroConnected(true);
+    } finally {
+      setDisconnectingXero(false);
     }
   };
 
@@ -1075,8 +1111,8 @@ export function SettingsPage() {
                     </div>
                   </div>
 
-                  {/* Xero — coming soon */}
-                  <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-border opacity-60">
+                  {/* Xero — live */}
+                  <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-border">
                     <div className="flex items-center gap-4">
                       <div className="h-10 w-10 rounded-lg border border-border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
                         <img src={xeroLogo} alt="Xero" className="h-7 w-7 object-contain" />
@@ -1086,7 +1122,37 @@ export function SettingsPage() {
                         <p className="text-xs text-muted-foreground">Sync invoices and expenses directly to Xero</p>
                       </div>
                     </div>
-                    <Badge variant="secondary" className="shrink-0">Coming Soon</Badge>
+                    <div className="shrink-0 flex flex-col items-end gap-1">
+                      {xeroConnectError && (
+                        <p className="text-xs text-red-500">Connection failed: {xeroConnectError}</p>
+                      )}
+                      {xeroConnected === null ? (
+                        <Badge variant="secondary">Checking…</Badge>
+                      ) : xeroConnected ? (
+                        <div className="flex flex-col items-end gap-1.5">
+                          <Badge className="bg-green-100 text-green-700 border-green-200">Connected</Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={disconnectingXero}
+                            onClick={handleDisconnectXero}
+                          >
+                            {disconnectingXero ? 'Disconnecting…' : 'Disconnect'}
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={!isPremium}
+                          onClick={() => {
+                            if (user) window.location.href = `/api/auth/xero/start?userId=${user.id}`;
+                          }}
+                        >
+                          Connect
+                        </Button>
+                      )}
+                    </div>
                   </div>
 
                   {/* QuickBooks — coming soon */}
