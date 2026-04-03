@@ -304,22 +304,22 @@ export function DashboardPage() {
           <div className="flex items-center gap-2 mt-1">
             <p className="text-muted-foreground hidden sm:block">Let's manage your crew bookings</p>
             {!subLoading && isTrialing && (
-              <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-0.5">
+              <span className="hidden sm:inline text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-0.5">
                 Trial — {trialDaysLeft}d left
               </span>
             )}
             {!subLoading && !isPremium && !isTrialing && (
-              <span className="text-[10px] font-bold text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-2.5 py-0.5">
+              <span className="hidden sm:inline text-[10px] font-bold text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-2.5 py-0.5">
                 Free Plan
               </span>
             )}
             {!subLoading && isLifetime && (
-              <span className="text-[10px] font-bold text-purple-600 bg-purple-50 border border-purple-200 rounded-full px-2.5 py-0.5">
+              <span className="hidden sm:inline text-[10px] font-bold text-purple-600 bg-purple-50 border border-purple-200 rounded-full px-2.5 py-0.5">
                 Lifetime
               </span>
             )}
             {!subLoading && isPremium && !isTrialing && !isLifetime && (
-              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5">
+              <span className="hidden sm:inline text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5">
                 Pro Plan
               </span>
             )}
