@@ -46,7 +46,7 @@ function handleStart(req: VercelRequest, res: VercelResponse) {
     response_type: 'code',
     client_id: clientId,
     redirect_uri: redirectUri,
-    scope: 'openid profile email accounting.transactions accounting.contacts offline_access',
+    scope: 'openid profile email accounting.invoices accounting.contacts offline_access',
     state,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
