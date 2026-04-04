@@ -1145,7 +1145,6 @@ export function SettingsPage() {
                         </div>
                       ) : (
                         <Button
-                          variant="outline"
                           size="sm"
                           disabled={!isPremium}
                           onClick={() => {
