@@ -4,6 +4,7 @@ import { BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { isFreeAgentConnected } from '@/services/bookkeeping/freeagent';
+import { isXeroConnected } from '@/services/bookkeeping/xero';
 
 const PLATFORMS = ['FreeAgent', 'Xero', 'QuickBooks'] as const;
 const STORAGE_KEY = 'bookkeeping_cta_index';
@@ -16,12 +17,11 @@ export function BookkeepingCTA({ userId }: BookkeepingCTAProps) {
   const { isPremium } = useSubscription();
   const navigate = useNavigate();
 
-  // null = still resolving, true/false = resolved
-  const [connected, setConnected] = useState<boolean | null>(null);
+  // null = still resolving, true = any platform connected, false = none connected
+  const [anyConnected, setAnyConnected] = useState<boolean | null>(null);
   const [platform, setPlatform] = useState<string>('FreeAgent');
 
   useEffect(() => {
-    // Determine which platform label to show this render
     const raw = localStorage.getItem(STORAGE_KEY);
     const parsed = parseInt(raw ?? '0', 10);
     const current = Number.isFinite(parsed) && parsed >= 0 && parsed < PLATFORMS.length ? parsed : 0;
@@ -30,13 +30,14 @@ export function BookkeepingCTA({ userId }: BookkeepingCTAProps) {
   }, []);
 
   useEffect(() => {
-    isFreeAgentConnected(userId)
-      .then((result) => setConnected(result))
-      .catch(() => setConnected(false));
+    Promise.all([
+      isFreeAgentConnected(userId).catch(() => false),
+      isXeroConnected(userId).catch(() => false),
+    ]).then(([fa, xero]) => setAnyConnected(fa || xero));
   }, [userId]);
 
-  // Still loading or already connected — render nothing
-  if (connected === null || connected === true) return null;
+  // Still loading or any platform connected — render nothing
+  if (anyConnected === null || anyConnected === true) return null;
 
   const handleClick = () => {
     if (isPremium) {
