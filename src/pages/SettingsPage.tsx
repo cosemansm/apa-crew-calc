@@ -341,6 +341,8 @@ export function SettingsPage() {
     if (urlError === 'xero_token_failed') setXeroConnectError('Token exchange failed — try again.');
     if (urlError === 'xero_not_configured') setXeroConnectError('Xero is not configured on this server.');
     if (urlError === 'xero_db_failed') setXeroConnectError('Failed to save connection — try again.');
+    if (urlError === 'invalid_callback') setXeroConnectError('Invalid callback — please try connecting again.');
+    if (urlError === 'invalid_state') setXeroConnectError('Connection expired — please try connecting again.');
   }, [location.search, navigate]);
 
   // ── Save helpers ──────────────────────────────────────────────────────────

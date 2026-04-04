@@ -53,7 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
 
-  // Xero refresh tokens do NOT rotate (unlike FreeAgent) but we store the new one anyway
+  // Xero issues a new refresh token on each refresh — always store the latest one
   const { error: dbError } = await supabaseAdmin
     .from('bookkeeping_connections')
     .update({
