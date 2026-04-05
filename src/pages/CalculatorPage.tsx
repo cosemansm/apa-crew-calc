@@ -1130,7 +1130,7 @@ export function CalculatorPage() {
       const message = calcSnapshot
         ? `${reportMessage.trim()}\n\n--- Calculation Data (shared with consent) ---\n${calcSnapshot}`
         : reportMessage.trim();
-      const res = await fetch('/api/send-support', {
+      const res = await fetch('/api/email/support', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

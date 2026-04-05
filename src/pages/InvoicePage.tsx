@@ -360,7 +360,7 @@ export function InvoicePage() {
       uint8Array.forEach(byte => { binary += String.fromCharCode(byte); });
       const pdfBase64 = btoa(binary);
 
-      const response = await fetch('/api/send-invoice', {
+      const response = await fetch('/api/email/send-invoice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

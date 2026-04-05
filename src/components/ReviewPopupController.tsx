@@ -41,7 +41,7 @@ export function ReviewPopupController() {
     ) {
       markPopupShown(user.id, 'day10_popup_shown', session.access_token);
       // Send review email
-      fetch('/api/send-review-email', {
+      fetch('/api/email/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ to: user.email, trialDaysLeft }),
