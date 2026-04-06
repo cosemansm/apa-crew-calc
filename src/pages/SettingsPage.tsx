@@ -358,6 +358,8 @@ export function SettingsPage() {
     if (params.get('connected') === 'quickbooks') {
       qboConnectedFromUrl.current = true;
       setQboConnected(true);
+      setActiveSection('integrations');
+      navigate('/settings', { replace: true });
     }
     if (urlError === 'qbo_denied') setQboConnectError('Connection cancelled.');
     if (urlError === 'qbo_token_failed') setQboConnectError('Token exchange failed — try again.');
