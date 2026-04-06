@@ -12,6 +12,8 @@ import {
 import { format, parseISO } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { toast } from 'sonner';
 import { APA_CREW_ROLES } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek } from '@/data/calculation-engine';
 
@@ -133,6 +135,7 @@ export function StatusBadge({ status }: { status: ProjectStatus }) {
 export function ProjectsPage() {
   usePageTitle('Jobs');
   const { user } = useAuth();
+  const { isPremium } = useSubscription();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'jobs' | 'history'>('jobs');
   const [projects, setProjects] = useState<Project[]>([]);
@@ -254,6 +257,10 @@ export function ProjectsPage() {
 
   const duplicateProject = async (project: Project, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!isPremium && projects.length >= 10) {
+      toast.error('Free plan limit reached — delete a job to free a slot, or upgrade to Pro for unlimited jobs.');
+      return;
+    }
     // Create the new project
     const { data: newProject, error } = await supabase.from('projects').insert({
       user_id: user!.id,

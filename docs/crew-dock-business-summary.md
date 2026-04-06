@@ -25,14 +25,14 @@ To get anything useful out of Rate App, you're paying. To get bookkeeping, you'r
 ## Crew Dock Subscription Tiers
 
 ### Free
-- Unlimited projects
+- Up to 10 jobs at a time (delete one to free a slot)
 - 6 months data retention
 - Custom rates
 - Custom kit packages
 - Favourite roles / your department
 - Client list
 
-*Our free tier already beats Rate App Standard — unlimited jobs, no payment required.*
+*Our free tier still beats Rate App Standard — 10 jobs vs their 2, no payment required.*
 
 ### Crew Dock Pro
 | Billing | Price |
@@ -53,7 +53,7 @@ To get anything useful out of Rate App, you're paying. To get bookkeeping, you'r
 | | Rate App Free | Rate App Standard | Rate App Pro | Crew Dock Free | Crew Dock Pro |
 |---|---|---|---|---|---|
 | Price | £0 | £4.29/mo · £34.99/yr | £4.99/mo · £49.99/yr | £0 | **£3.49/mo · £29.99/yr** |
-| Jobs/Projects | 2 only | Unlimited | Unlimited | **Unlimited** | **Unlimited** |
+| Jobs/Projects | 2 only | Unlimited | Unlimited | **Up to 10** | **Unlimited** |
 | Bookkeeping | None | None | QuickBooks only | None | **QuickBooks, Xero, FreeAgent +** |
 | AI input | No | No | No | No | **Yes** |
 | Invoice direct | No | No | No | No | **Yes** |
@@ -62,7 +62,7 @@ To get anything useful out of Rate App, you're paying. To get bookkeeping, you'r
 
 ### The headline
 
-- **Crew Dock Free beats Rate App Standard** — unlimited jobs, no payment
+- **Crew Dock Free beats Rate App Standard** — 10 jobs vs their 2, no payment
 - **Crew Dock Pro costs less than Rate App Standard** — and includes bookkeeping, AI, and invoicing that Rate App Pro doesn't offer
 - **vs Rate App Pro:** 30% cheaper monthly, 40% cheaper annually — with a materially stronger feature set
 

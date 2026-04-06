@@ -27,7 +27,7 @@ Crew Dock uses a **Stripe-powered subscription** model with a **14-day free tria
 ## Feature Tiers
 
 ### Free (core value — never locked)
-- Unlimited jobs and day tracking
+- Up to 10 jobs at a time (delete one to free a slot)
 - Calculator (full APA rate engine)
 - Custom rates, custom kit packages, favourite roles
 - Client list
@@ -278,7 +278,7 @@ Sign up
 | | Rate App Standard | Rate App Pro | Crew Dock Free | Crew Dock Pro |
 |---|---|---|---|---|
 | Price | £4.29/mo · £34.99/yr | £4.99/mo · £49.99/yr | £0 | £3.49/mo · £29.99/yr |
-| Jobs | Unlimited | Unlimited | **Unlimited** | **Unlimited** |
+| Jobs | Unlimited | Unlimited | **Up to 10** | **Unlimited** |
 | Bookkeeping | None | QuickBooks only | — | **QuickBooks, Xero, FreeAgent +** |
 | AI input | No | No | No | **Yes** |
 | Invoice direct | No | No | No | **Yes** |

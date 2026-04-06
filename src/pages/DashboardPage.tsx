@@ -159,6 +159,10 @@ export function DashboardPage() {
   const createProject = async () => {
     if (!newProjectName.trim()) return;
     setProjectError(null);
+    if (!isPremium && projects.length >= 10) {
+      setProjectError('Free plan limit reached — you can have up to 10 jobs at a time. Delete a job to free a slot, or upgrade to Pro for unlimited jobs.');
+      return;
+    }
     const { data, error } = await supabase.from('projects').insert({
       user_id: user!.id,
       name: newProjectName.trim(),
