@@ -1231,13 +1231,12 @@ export function SettingsPage() {
                       ) : (
                         <Button
                           size="sm"
-                          className="bg-[#2CA01C] hover:bg-[#2CA01C]/90 text-white"
                           disabled={!isPremium}
                           onClick={() => {
                             if (user) window.location.href = `/api/auth/quickbooks/start?userId=${user.id}`;
                           }}
                         >
-                          Connect QuickBooks
+                          Connect
                         </Button>
                       )}
                     </div>
