@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { exportToFreeAgent, isFreeAgentConnected, FreeAgentAuthError } from '@/services/bookkeeping/freeagent';
 import { exportToXero, isXeroConnected, XeroAuthError } from '@/services/bookkeeping/xero';
+import { exportToQBO, isQBOConnected, QBOAuthError } from '@/services/bookkeeping/quickbooks';
 import { BookkeepingCTA } from '@/components/BookkeepingCTA';
 
 interface Project {
@@ -93,6 +94,13 @@ export function InvoicePage() {
   const [exportingXero, setExportingXero] = useState(false);
   const [xeroExportUrl, setXeroExportUrl] = useState<string | null>(null);
   const [xeroExportError, setXeroExportError] = useState<string | null>(null);
+
+  const [qboConnected, setQboConnected] = useState<boolean | null>(null);
+  const [qboDetailed, setQboDetailed] = useState(true);
+  const [exportingQbo, setExportingQbo] = useState(false);
+  const [qboExportUrl, setQboExportUrl] = useState<string | null>(null);
+  const [qboExportError, setQboExportError] = useState<string | null>(null);
+  const [qboLoadingMessage, setQboLoadingMessage] = useState('Connecting to QuickBooks…');
 
   const { isPremium } = useSubscription();
 
@@ -188,6 +196,11 @@ export function InvoicePage() {
     isXeroConnected(user.id).then(setXeroConnected).catch(() => setXeroConnected(false));
   }, [user?.id]);
 
+  useEffect(() => {
+    if (!user) return;
+    isQBOConnected(user.id).then(setQboConnected).catch(() => setQboConnected(false));
+  }, [user?.id]);
+
   const handleExportToFreeAgent = async () => {
     if (!user || selectedDays.length === 0) return;
     setExportingFa(true);
@@ -246,6 +259,44 @@ export function InvoicePage() {
     }
   };
 
+  const QBO_MESSAGES = ['Connecting to QuickBooks…', 'Preparing export…', 'Creating invoice…'];
+
+  const handleExportToQBO = async () => {
+    if (!user || selectedDays.length === 0) return;
+    setExportingQbo(true);
+    setQboExportUrl(null);
+    setQboExportError(null);
+    setQboLoadingMessage(QBO_MESSAGES[0]);
+
+    const t1 = setTimeout(() => setQboLoadingMessage(QBO_MESSAGES[1]), 1500);
+    const t2 = setTimeout(() => setQboLoadingMessage(QBO_MESSAGES[2]), 4000);
+
+    try {
+      const { invoiceUrl } = await exportToQBO(user.id, {
+        clientName,
+        projectName: selectedProject?.name ?? '',
+        jobReference: jobReference.trim() || null,
+        invoiceNumber,
+        days: selectedDays,
+        vatRegistered,
+        detailed: qboDetailed,
+      });
+      setQboExportUrl(invoiceUrl);
+      window.open(invoiceUrl, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      if (err instanceof QBOAuthError) {
+        setQboConnected(false);
+        setQboExportError('reconnect');
+      } else {
+        setQboExportError(err instanceof Error ? err.message : 'Failed to export to QuickBooks');
+      }
+    } finally {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      setExportingQbo(false);
+    }
+  };
+
   const handleSelectProject = (proj: Project) => {
     setSelectedProjectId(proj.id);
     setShowProjectPicker(false);
@@ -256,6 +307,8 @@ export function InvoicePage() {
     setFaExportError(null);
     setXeroExportUrl(null);
     setXeroExportError(null);
+    setQboExportUrl(null);
+    setQboExportError(null);
   };
 
   const selectedProject = projects.find(p => p.id === selectedProjectId);
@@ -499,12 +552,12 @@ export function InvoicePage() {
                 <Input
                   value={invoiceNumber}
                   onChange={e => setInvoiceNumber(e.target.value)}
-                  disabled={!!faConnected || !!xeroConnected}
-                  title={faConnected ? 'FreeAgent will assign its own invoice number' : xeroConnected ? 'Xero will assign its own invoice number' : undefined}
+                  disabled={!!faConnected || !!xeroConnected || !!qboConnected}
+                  title={faConnected ? 'FreeAgent will assign its own invoice number' : xeroConnected ? 'Xero will assign its own invoice number' : qboConnected ? 'QuickBooks will assign its own invoice number' : undefined}
                 />
-                {(faConnected || xeroConnected) && (
+                {(faConnected || xeroConnected || qboConnected) && (
                   <p className="text-xs text-muted-foreground">
-                    {faConnected ? 'FreeAgent' : 'Xero'} assigns its own number
+                    {faConnected ? 'FreeAgent' : xeroConnected ? 'Xero' : 'QuickBooks'} assigns its own number
                   </p>
                 )}
               </div>
@@ -722,8 +775,71 @@ export function InvoicePage() {
             )
           )}
 
-          {/* BookkeepingCTA — shown when neither FreeAgent nor Xero is connected */}
-          {user && faConnected === false && xeroConnected === false && (
+          {/* QBO export — only shown when connected and Pro */}
+          {isPremium && qboConnected && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Line items</span>
+                <div className="flex rounded-md border border-border overflow-hidden text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setQboDetailed(false)}
+                    className={cn(
+                      'px-3 py-1 transition-colors',
+                      !qboDetailed ? 'bg-[#FFD528] text-[#1F1F21] font-medium' : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    Basic
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQboDetailed(true)}
+                    className={cn(
+                      'px-3 py-1 transition-colors',
+                      qboDetailed ? 'bg-[#FFD528] text-[#1F1F21] font-medium' : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    Detailed
+                  </button>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                onClick={handleExportToQBO}
+                disabled={exportingQbo || selectedDays.length === 0}
+              >
+                {exportingQbo
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> {qboLoadingMessage}</>
+                  : 'Send to QuickBooks'
+                }
+              </Button>
+            </div>
+          )}
+
+          {/* QBO export result */}
+          {qboExportUrl && (
+            <p className="text-xs text-center">
+              <a href={qboExportUrl} target="_blank" rel="noopener noreferrer" className="text-[#FFD528] underline">
+                View invoice in QuickBooks →
+              </a>
+            </p>
+          )}
+          {qboExportError && (
+            qboExportError === 'reconnect' ? (
+              <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-center">
+                <p className="text-xs text-red-400 font-medium">Please reconnect QuickBooks</p>
+                <a href="/settings#bookkeeping" className="text-xs text-[#FFD528] underline">
+                  Go to Settings →
+                </a>
+              </div>
+            ) : (
+              <p className="text-xs text-red-500 text-center">{qboExportError}</p>
+            )
+          )}
+
+          {/* BookkeepingCTA — shown when no bookkeeping platform is connected */}
+          {user && faConnected === false && xeroConnected === false && qboConnected === false && (
             <BookkeepingCTA userId={user.id} />
           )}
 
