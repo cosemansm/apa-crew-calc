@@ -16,6 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { isFreeAgentConnected, disconnectFreeAgent } from '@/services/bookkeeping/freeagent';
 import { isXeroConnected, disconnectXero } from '@/services/bookkeeping/xero';
@@ -266,6 +267,7 @@ export function SettingsPage() {
   const [qboConnectError, setQboConnectError] = useState<string | null>(null);
   // Track if qboConnected was set from the ?connected=quickbooks URL param — skip async check
   const qboConnectedFromUrl = useRef(false);
+  const [disconnectPending, setDisconnectPending] = useState<'freeagent' | 'xero' | 'quickbooks' | null>(null);
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
@@ -1137,7 +1139,7 @@ export function SettingsPage() {
                             variant="outline"
                             size="sm"
                             disabled={disconnectingFa}
-                            onClick={handleDisconnectFreeAgent}
+                            onClick={() => setDisconnectPending('freeagent')}
                           >
                             {disconnectingFa ? 'Disconnecting…' : 'Disconnect'}
                           </Button>
@@ -1180,7 +1182,7 @@ export function SettingsPage() {
                             variant="outline"
                             size="sm"
                             disabled={disconnectingXero}
-                            onClick={handleDisconnectXero}
+                            onClick={() => setDisconnectPending('xero')}
                           >
                             {disconnectingXero ? 'Disconnecting…' : 'Disconnect'}
                           </Button>
@@ -1223,7 +1225,7 @@ export function SettingsPage() {
                             variant="outline"
                             size="sm"
                             disabled={disconnectingQbo}
-                            onClick={handleDisconnectQbo}
+                            onClick={() => setDisconnectPending('quickbooks')}
                           >
                             {disconnectingQbo ? 'Disconnecting…' : 'Disconnect'}
                           </Button>
@@ -1371,6 +1373,36 @@ export function SettingsPage() {
 
         </div>
       </div>
+
+      {/* Disconnect confirmation dialog */}
+      <Dialog open={disconnectPending !== null} onOpenChange={open => { if (!open) setDisconnectPending(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Disconnect {disconnectPending === 'freeagent' ? 'FreeAgent' : disconnectPending === 'xero' ? 'Xero' : 'QuickBooks'}?</DialogTitle>
+            <DialogDescription>
+              You'll need to reconnect if you want to keep pushing invoices to{' '}
+              {disconnectPending === 'freeagent' ? 'FreeAgent' : disconnectPending === 'xero' ? 'Xero' : 'QuickBooks'}.
+              Your existing invoices won't be affected.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDisconnectPending(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setDisconnectPending(null);
+                if (disconnectPending === 'freeagent') handleDisconnectFreeAgent();
+                else if (disconnectPending === 'xero') handleDisconnectXero();
+                else if (disconnectPending === 'quickbooks') handleDisconnectQbo();
+              }}
+            >
+              Disconnect
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
