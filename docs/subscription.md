@@ -9,7 +9,7 @@
 
 Crew Dock uses a **Stripe-powered subscription** model with a **14-day free trial** (no credit card required). After the trial, users either subscribe to Crew Dock Pro or remain on the free tier with core functionality.
 
-**Competitor context:** Rate App charges £4.99/month or £49.99/year, caps free users at 2 jobs, and only integrates with QuickBooks. Crew Dock Pro is 30% cheaper monthly and 40% cheaper annually, with unlimited jobs on the free tier and a materially stronger feature set.
+**Competitor context:** Rate App has three tiers — Free (2 jobs only), Standard (£4.29/mo · £34.99/yr, unlimited jobs, no bookkeeping), and Pro (£4.99/mo · £49.99/yr, unlimited jobs + QuickBooks only). Crew Dock Free already beats their Standard tier. Crew Dock Pro is cheaper than Rate App Standard while including bookkeeping, AI, and invoicing that Rate App Pro doesn't offer.
 
 ---
 
@@ -275,17 +275,17 @@ Sign up
 
 ## Competitive Comparison
 
-| | Rate App | Crew Dock Free | Crew Dock Pro |
-|---|---|---|---|
-| Price | £4.99/mo · £49.99/yr | £0 | £3.45/mo · £29.95/yr |
-| Jobs | 2 free, unlimited paid | Unlimited | Unlimited |
-| Bookkeeping | QuickBooks only | — | QuickBooks, Xero, FreeAgent + |
-| AI input | No | No | Yes |
-| Invoice direct | No | No | Yes |
-| Data retention | Unknown | 6 months | 3 years |
-| Platform | iOS + Android | Web | Web |
+| | Rate App Standard | Rate App Pro | Crew Dock Free | Crew Dock Pro |
+|---|---|---|---|---|
+| Price | £4.29/mo · £34.99/yr | £4.99/mo · £49.99/yr | £0 | £3.49/mo · £29.99/yr |
+| Jobs | Unlimited | Unlimited | **Unlimited** | **Unlimited** |
+| Bookkeeping | None | QuickBooks only | — | **QuickBooks, Xero, FreeAgent +** |
+| AI input | No | No | No | **Yes** |
+| Invoice direct | No | No | No | **Yes** |
+| Data retention | Unknown | Unknown | 6 months | **3 years** |
+| Platform | iOS + Android | iOS + Android | Web | Web |
 
-*Crew Dock Pro is 30% cheaper monthly and 40% cheaper annually than Rate App, with a materially stronger feature set.*
+*Crew Dock Pro costs less than Rate App's basic paid tier, and includes features Rate App Pro doesn't even offer.*
 
 ---
 
