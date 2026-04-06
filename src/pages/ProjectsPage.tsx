@@ -163,6 +163,7 @@ export function ProjectsPage() {
   } | null>(null);
   const [shareDialogLoading, setShareDialogLoading] = useState(false);
   const [shareLinkCopied, setShareLinkCopied] = useState(false);
+  const [shareDialogError, setShareDialogError] = useState<string | null>(null);
 
   // History state
   const [historyDays, setHistoryDays] = useState<HistoryDay[]>([]);
@@ -371,10 +372,11 @@ export function ProjectsPage() {
     setShareDialogProjectId(projectId);
     setShareDialogLoading(true);
     setShareRecord(null);
+    setShareDialogError(null);
     setShareLinkCopied(false);
 
     // Look for an existing active share record
-    const { data } = await supabase
+    const { data, error: fetchError } = await supabase
       .from('shared_jobs')
       .select('*')
       .eq('project_id', projectId)
@@ -388,11 +390,13 @@ export function ProjectsPage() {
         includeExpenses: data.include_expenses,
         includeEquipment: data.include_equipment,
       });
+    } else if (fetchError) {
+      setShareDialogError(fetchError.message);
     } else {
       // Create a new share record
-      const { data: newRecord } = await supabase
+      const { data: newRecord, error: insertError } = await supabase
         .from('shared_jobs')
-        .insert({ project_id: projectId, owner_id: user!.id })
+        .insert({ project_id: projectId, user_id: user!.id })
         .select()
         .single();
       if (newRecord) {
@@ -403,6 +407,8 @@ export function ProjectsPage() {
           includeEquipment: false,
         });
         setSharedProjectIds(prev => new Set([...prev, projectId]));
+      } else if (insertError) {
+        setShareDialogError(insertError.message);
       }
     }
     setShareDialogLoading(false);
@@ -971,6 +977,11 @@ export function ProjectsPage() {
 
           {shareDialogLoading ? (
             <div className="py-8 text-center text-sm text-muted-foreground">Loading…</div>
+          ) : shareDialogError ? (
+            <div className="py-6 text-center space-y-2">
+              <p className="text-sm font-medium text-destructive">Failed to create share link</p>
+              <p className="text-xs text-muted-foreground font-mono">{shareDialogError}</p>
+            </div>
           ) : shareRecord ? (
             <div className="space-y-5 py-2">
               {/* Toggles */}
