@@ -17,9 +17,34 @@ function getQBOBaseUrl(): string {
     : 'https://quickbooks.api.intuit.com';
 }
 
+// ── Item IDs map ───────────────────────────────────────────────────────────────
+// Stored as JSON in the qbo_item_id column, e.g.:
+// {"days":"1","hours":"2","expenses":"3","equipment":"4","penalty":"5"}
+
+type ItemIds = {
+  days: string;
+  hours: string;
+  expenses: string;
+  equipment: string;
+  penalty: string;
+};
+
+function parseItemIds(raw: string | null): ItemIds | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<ItemIds>;
+    if (parsed.days && parsed.hours && parsed.expenses && parsed.equipment && parsed.penalty) {
+      return parsed as ItemIds;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // ── Token helpers ─────────────────────────────────────────────────────────────
 
-async function getValidToken(userId: string): Promise<{ accessToken: string; realmId: string; qboItemId: string | null }> {
+async function getValidToken(userId: string): Promise<{ accessToken: string; realmId: string; itemIds: ItemIds | null }> {
   const { data, error } = await supabaseAdmin
     .from('bookkeeping_connections')
     .select('access_token, refresh_token, expires_at, realm_id, qbo_item_id')
@@ -32,7 +57,7 @@ async function getValidToken(userId: string): Promise<{ accessToken: string; rea
 
   const isExpired = Date.now() > new Date(data.expires_at).getTime() - 60_000;
   if (!isExpired) {
-    return { accessToken: data.access_token, realmId: data.realm_id, qboItemId: data.qbo_item_id ?? null };
+    return { accessToken: data.access_token, realmId: data.realm_id, itemIds: parseItemIds(data.qbo_item_id) };
   }
 
   // Refresh the token directly here — no extra HTTP round-trip needed
@@ -68,14 +93,23 @@ async function getValidToken(userId: string): Promise<{ accessToken: string; rea
     .eq('user_id', userId)
     .eq('platform', 'quickbooks');
 
-  return { accessToken: tokens.access_token, realmId: data.realm_id, qboItemId: data.qbo_item_id ?? null };
+  return { accessToken: tokens.access_token, realmId: data.realm_id, itemIds: parseItemIds(data.qbo_item_id) };
 }
 
-// ── Item setup (Film Crew Services) ───────────────────────────────────────────
-// QBO requires every priced line item to reference an Item entity.
-// We look up "Film Crew Services" once, create it if missing, then cache the ID.
+// ── Item setup ────────────────────────────────────────────────────────────────
+// QBO requires every line item to reference an Item entity.
+// We maintain 5 service items: Days, Hours, Expenses, Equipment Hire, Penalty.
+// All are looked up (or created) on first export and cached as JSON in qbo_item_id.
 
-async function ensureServiceItem(accessToken: string, realmId: string, userId: string): Promise<string> {
+const ITEM_NAMES: Record<keyof ItemIds, string> = {
+  days: 'Days',
+  hours: 'Hours',
+  expenses: 'Expenses',
+  equipment: 'Equipment Hire',
+  penalty: 'Penalty',
+};
+
+async function ensureServiceItems(accessToken: string, realmId: string, userId: string): Promise<ItemIds> {
   const base = getQBOBaseUrl();
   const headers = {
     'Authorization': `Bearer ${accessToken}`,
@@ -83,10 +117,11 @@ async function ensureServiceItem(accessToken: string, realmId: string, userId: s
     'Content-Type': 'application/json',
   };
 
-  // Search for existing item by name
-  const query = `SELECT * FROM Item WHERE Name = 'Film Crew Services'`;
+  // Fetch all 5 items in one query
+  const names = Object.values(ITEM_NAMES).map(n => `'${n}'`).join(', ');
+  const searchQuery = `SELECT * FROM Item WHERE Name IN (${names})`;
   const searchRes = await fetch(
-    `${base}/v3/company/${realmId}/query?query=${encodeURIComponent(query)}&minorversion=75`,
+    `${base}/v3/company/${realmId}/query?query=${encodeURIComponent(searchQuery)}&minorversion=75`,
     { headers, signal: AbortSignal.timeout(10_000) }
   );
 
@@ -95,68 +130,75 @@ async function ensureServiceItem(accessToken: string, realmId: string, userId: s
     throw new Error(`Item search failed (${searchRes.status})`);
   }
 
-  const searchData = await searchRes.json() as { QueryResponse?: { Item?: { Id: string }[] } };
-  const existingItem = searchData.QueryResponse?.Item?.[0];
-  if (existingItem?.Id) {
-    // Cache it for future exports
-    await supabaseAdmin
-      .from('bookkeeping_connections')
-      .update({ qbo_item_id: existingItem.Id, updated_at: new Date().toISOString() })
-      .eq('user_id', userId)
-      .eq('platform', 'quickbooks');
-    return existingItem.Id;
-  }
+  const searchData = await searchRes.json() as { QueryResponse?: { Item?: { Id: string; Name: string }[] } };
+  const existingItems = searchData.QueryResponse?.Item ?? [];
+  const existingByName = Object.fromEntries(existingItems.map(i => [i.Name, i.Id]));
 
-  // Item not found — find the first active income account to attach it to
-  const acctQuery = `SELECT * FROM Account WHERE AccountType = 'Income' MAXRESULTS 1`;
-  const acctRes = await fetch(
-    `${base}/v3/company/${realmId}/query?query=${encodeURIComponent(acctQuery)}&minorversion=75`,
-    { headers, signal: AbortSignal.timeout(10_000) }
+  // Find income account once (only needed if any items are missing)
+  const missingKeys = (Object.keys(ITEM_NAMES) as (keyof ItemIds)[]).filter(
+    k => !existingByName[ITEM_NAMES[k]]
   );
 
-  if (!acctRes.ok) {
-    if (acctRes.status === 401) throw new Error('QBO_AUTH_ERROR');
-    const acctErrBody = await acctRes.text().catch(() => '');
-    console.error('QBO account lookup failed:', acctRes.status, acctErrBody);
-    throw new Error(`Account lookup failed (${acctRes.status})`);
-  }
-
-  const acctData = await acctRes.json() as { QueryResponse?: { Account?: { Id: string; Name: string }[] } };
-  const incomeAccount = acctData.QueryResponse?.Account?.[0];
-  if (!incomeAccount) throw new Error('No income account found in QuickBooks company.');
-
-  // Create the "Film Crew Services" item
-  const createRes = await fetch(
-    `${base}/v3/company/${realmId}/item?minorversion=75`,
-    {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        Name: 'Film Crew Services',
-        Type: 'Service',
-        IncomeAccountRef: { value: incomeAccount.Id, name: incomeAccount.Name },
-      }),
-      signal: AbortSignal.timeout(10_000),
+  let incomeAccountRef: { Id: string; Name: string } | null = null;
+  if (missingKeys.length > 0) {
+    const acctQuery = `SELECT * FROM Account WHERE AccountType = 'Income' MAXRESULTS 1`;
+    const acctRes = await fetch(
+      `${base}/v3/company/${realmId}/query?query=${encodeURIComponent(acctQuery)}&minorversion=75`,
+      { headers, signal: AbortSignal.timeout(10_000) }
+    );
+    if (!acctRes.ok) {
+      if (acctRes.status === 401) throw new Error('QBO_AUTH_ERROR');
+      const body = await acctRes.text().catch(() => '');
+      console.error('QBO account lookup failed:', acctRes.status, body);
+      throw new Error(`Account lookup failed (${acctRes.status})`);
     }
-  );
-
-  if (!createRes.ok) {
-    if (createRes.status === 401) throw new Error('QBO_AUTH_ERROR');
-    throw new Error(`Item creation failed (${createRes.status})`);
+    const acctData = await acctRes.json() as { QueryResponse?: { Account?: { Id: string; Name: string }[] } };
+    const acct = acctData.QueryResponse?.Account?.[0];
+    if (!acct) throw new Error('No income account found in QuickBooks company.');
+    incomeAccountRef = acct;
   }
 
-  const createData = await createRes.json() as { Item?: { Id: string } };
-  const newItemId = createData.Item?.Id;
-  if (!newItemId) throw new Error('Item created but no Id returned.');
+  // Create any missing items
+  const resolvedIds: Partial<ItemIds> = {};
+  for (const key of Object.keys(ITEM_NAMES) as (keyof ItemIds)[]) {
+    const name = ITEM_NAMES[key];
+    if (existingByName[name]) {
+      resolvedIds[key] = existingByName[name];
+      continue;
+    }
+    const createRes = await fetch(
+      `${base}/v3/company/${realmId}/item?minorversion=75`,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          Name: name,
+          Type: 'Service',
+          IncomeAccountRef: { value: incomeAccountRef!.Id, name: incomeAccountRef!.Name },
+        }),
+        signal: AbortSignal.timeout(10_000),
+      }
+    );
+    if (!createRes.ok) {
+      if (createRes.status === 401) throw new Error('QBO_AUTH_ERROR');
+      throw new Error(`Item creation failed for "${name}" (${createRes.status})`);
+    }
+    const createData = await createRes.json() as { Item?: { Id: string } };
+    const newId = createData.Item?.Id;
+    if (!newId) throw new Error(`Item "${name}" created but no Id returned.`);
+    resolvedIds[key] = newId;
+  }
 
-  // Cache the new item ID
+  const itemIds = resolvedIds as ItemIds;
+
+  // Cache all IDs as JSON
   await supabaseAdmin
     .from('bookkeeping_connections')
-    .update({ qbo_item_id: newItemId, updated_at: new Date().toISOString() })
+    .update({ qbo_item_id: JSON.stringify(itemIds), updated_at: new Date().toISOString() })
     .eq('user_id', userId)
     .eq('platform', 'quickbooks');
 
-  return newItemId;
+  return itemIds;
 }
 
 // ── Contact lookup / creation ─────────────────────────────────────────────────
@@ -263,7 +305,7 @@ function makeLine(description: string, qty: number, unitPrice: number, itemId: s
   };
 }
 
-function buildDayLines(day: InvoiceDay, itemId: string, taxCode: string | null, detailed: boolean): QBOLine[] {
+function buildDayLines(day: InvoiceDay, items: ItemIds, taxCode: string | null, detailed: boolean): QBOLine[] {
   const lines: QBOLine[] = [];
   const rj = day.result_json ?? {};
   const equipmentNet = (rj.equipmentTotal ?? 0) - (rj.equipmentDiscount ?? 0);
@@ -278,7 +320,7 @@ function buildDayLines(day: InvoiceDay, itemId: string, taxCode: string | null, 
         `${li.description}${timeStr} | ${day.work_date}`,
         hourly ? li.hours! : 1,
         hourly ? li.rate! : li.total,
-        itemId,
+        hourly ? items.hours : items.days,
         taxCode,
       ));
     }
@@ -288,16 +330,16 @@ function buildDayLines(day: InvoiceDay, itemId: string, taxCode: string | null, 
         `${p.description} | ${day.work_date}`,
         hourly ? p.hours! : 1,
         hourly ? p.rate! : p.total,
-        itemId,
+        items.penalty,
         taxCode,
       ));
     }
     if ((rj.travelPay ?? 0) > 0) {
-      lines.push(makeLine(`Travel Pay | ${day.work_date}`, 1, rj.travelPay!, itemId, taxCode));
+      lines.push(makeLine(`Travel Pay | ${day.work_date}`, 1, rj.travelPay!, items.days, taxCode));
     }
     if ((rj.mileage ?? 0) > 0) {
       const milesStr = rj.mileageMiles ? ` (${rj.mileageMiles} miles)` : '';
-      lines.push(makeLine(`Mileage${milesStr} | ${day.work_date}`, 1, rj.mileage!, itemId, taxCode));
+      lines.push(makeLine(`Mileage${milesStr} | ${day.work_date}`, 1, rj.mileage!, items.expenses, taxCode));
     }
   } else {
     const dayTotal = day.grand_total - equipmentNet - expensesAmount;
@@ -305,19 +347,19 @@ function buildDayLines(day: InvoiceDay, itemId: string, taxCode: string | null, 
       `${day.role_name} — ${day.day_type.replace(/_/g, ' ')} | ${day.work_date} | Call: ${day.call_time} Wrap: ${day.wrap_time}`,
       1,
       dayTotal,
-      itemId,
+      items.days,
       taxCode,
     ));
   }
 
   if (equipmentNet > 0) {
-    lines.push(makeLine(`Equipment | ${day.work_date}`, 1, equipmentNet, itemId, taxCode));
+    lines.push(makeLine(`Equipment | ${day.work_date}`, 1, equipmentNet, items.equipment, taxCode));
   }
   if (expensesAmount > 0) {
     const expDesc = day.expenses_notes
       ? `Expenses — ${day.expenses_notes} | ${day.work_date}`
       : `Expenses | ${day.work_date}`;
-    lines.push(makeLine(expDesc, 1, expensesAmount, itemId, taxCode));
+    lines.push(makeLine(expDesc, 1, expensesAmount, items.expenses, taxCode));
   }
 
   return lines;
@@ -329,7 +371,7 @@ async function createInvoice(
   accessToken: string,
   realmId: string,
   customerId: string,
-  itemId: string,
+  items: ItemIds,
   payload: {
     invoiceNumber: string;
     projectName: string;
@@ -346,7 +388,7 @@ async function createInvoice(
     .filter(Boolean)
     .join(' | ');
 
-  const lines = payload.days.flatMap(day => buildDayLines(day, itemId, taxCode, payload.detailed));
+  const lines = payload.days.flatMap(day => buildDayLines(day, items, taxCode, payload.detailed));
 
   const res = await fetch(
     `${base}/v3/company/${realmId}/invoice?minorversion=75`,
@@ -395,13 +437,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { accessToken, realmId, qboItemId } = await getValidToken(userId);
+    const { accessToken, realmId, itemIds } = await getValidToken(userId);
 
-    // ensureServiceItem handles both the lookup and caching — pass cached ID if we have it
-    const itemId = qboItemId ?? await ensureServiceItem(accessToken, realmId, userId);
+    // ensureServiceItems handles lookup + creation of all 5 items, then caches them
+    const items = itemIds ?? await ensureServiceItems(accessToken, realmId, userId);
 
     const customerId = await findOrCreateCustomer(accessToken, realmId, clientName);
-    const invoiceUrl = await createInvoice(accessToken, realmId, customerId, itemId, {
+    const invoiceUrl = await createInvoice(accessToken, realmId, customerId, items, {
       invoiceNumber, projectName, jobReference, days, vatRegistered, detailed,
     });
 
