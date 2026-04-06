@@ -685,7 +685,11 @@ export function ProjectsPage() {
                       <div className="flex items-center gap-1 shrink-0">
                         <button
                           onClick={(e) => openShareDialog(project.id, e)}
-                          className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            sharedProjectIds.has(project.id)
+                              ? 'text-green-600 hover:bg-green-50'
+                              : 'text-muted-foreground/40 hover:text-blue-500 hover:bg-blue-50'
+                          }`}
                           title="Share job"
                         >
                           <Send className="h-3.5 w-3.5" />
