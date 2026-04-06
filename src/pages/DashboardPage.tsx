@@ -22,6 +22,7 @@ import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from
 import { STATUS_CONFIG, StatusBadge, type ProjectStatus } from './ProjectsPage';
 import { TrialBanner } from '@/components/TrialBanner';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { JobLimitDialog } from '@/components/JobLimitDialog';
 
 interface Project {
   id: string;
@@ -65,6 +66,7 @@ export function DashboardPage() {
   const [favourites, setFavourites] = useState<FavouriteRole[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showNewProject, setShowNewProject] = useState(false);
+  const [jobLimitOpen, setJobLimitOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [newClientName, setNewClientName] = useState('');
   const [loading, setLoading] = useState(true);
@@ -159,10 +161,6 @@ export function DashboardPage() {
   const createProject = async () => {
     if (!newProjectName.trim()) return;
     setProjectError(null);
-    if (!isPremium && projects.length >= 10) {
-      setProjectError('Free plan limit reached — you can have up to 10 jobs at a time. Delete a job to free a slot, or upgrade to Pro for unlimited jobs.');
-      return;
-    }
     const { data, error } = await supabase.from('projects').insert({
       user_id: user!.id,
       name: newProjectName.trim(),
@@ -333,7 +331,13 @@ export function DashboardPage() {
           <Button variant="outline" onClick={() => navigate('/ai-input')} className="gap-2">
             <Sparkles className="h-4 w-4" /><span className="hidden sm:inline"> AI Input</span>
           </Button>
-          <Button onClick={() => setShowNewProject(true)} className="gap-2">
+          <Button
+            onClick={() => {
+              if (!isPremium && projects.length >= 10) { setJobLimitOpen(true); return; }
+              setShowNewProject(true);
+            }}
+            className="gap-2"
+          >
             <Plus className="h-4 w-4" /> New Job
           </Button>
         </div>
@@ -812,6 +816,13 @@ export function DashboardPage() {
         )}
       </div>
 
+      <JobLimitDialog
+        open={jobLimitOpen}
+        onOpenChange={setJobLimitOpen}
+        projects={projects}
+        onDeleted={id => setProjects(prev => prev.filter(p => p.id !== id))}
+        onProceed={() => setShowNewProject(true)}
+      />
     </div>
   );
 }

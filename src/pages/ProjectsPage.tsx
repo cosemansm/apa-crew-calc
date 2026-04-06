@@ -13,7 +13,7 @@ import { format, parseISO } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
-import { toast } from 'sonner';
+import { JobLimitDialog } from '@/components/JobLimitDialog';
 import { APA_CREW_ROLES } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek } from '@/data/calculation-engine';
 
@@ -147,6 +147,8 @@ export function ProjectsPage() {
   const [deletingDayId, setDeletingDayId] = useState<string | null>(null);
   const [jobSearch, setJobSearch] = useState('');
 
+  const [jobLimitOpen, setJobLimitOpen] = useState(false);
+
   // History state
   const [historyDays, setHistoryDays] = useState<HistoryDay[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -231,6 +233,14 @@ export function ProjectsPage() {
     setProjectDays([]);
   };
 
+  const handleNewJob = () => {
+    if (!isPremium && projects.length >= 10) {
+      setJobLimitOpen(true);
+      return;
+    }
+    navigate('/calculator');
+  };
+
   const updateStatus = async (status: ProjectStatus) => {
     if (!selectedProject) return;
     setStatusUpdating(true);
@@ -258,7 +268,7 @@ export function ProjectsPage() {
   const duplicateProject = async (project: Project, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!isPremium && projects.length >= 10) {
-      toast.error('Free plan limit reached — delete a job to free a slot, or upgrade to Pro for unlimited jobs.');
+      setJobLimitOpen(true);
       return;
     }
     // Create the new project
@@ -368,7 +378,7 @@ export function ProjectsPage() {
           <Button variant="outline" onClick={() => navigate('/ai-input')} className="gap-2">
             <Sparkles className="h-4 w-4" /> AI Input
           </Button>
-          <Button onClick={() => navigate('/calculator')} className="gap-2">
+          <Button onClick={handleNewJob} className="gap-2">
             <Plus className="h-4 w-4" /> New Job
           </Button>
         </div>
@@ -501,7 +511,7 @@ export function ProjectsPage() {
             <FolderOpen className="h-14 w-14 mx-auto text-muted-foreground/30 mb-4" />
             <p className="text-muted-foreground font-medium">No jobs yet</p>
             <p className="text-sm text-muted-foreground mt-1 mb-4">Create your first job to get started</p>
-            <Button onClick={() => navigate('/calculator')}>
+            <Button onClick={handleNewJob}>
               <Plus className="h-4 w-4 mr-1" /> Create Job
             </Button>
           </CardContent>
@@ -811,6 +821,13 @@ export function ProjectsPage() {
           )}
         </div>
       ))}
+      <JobLimitDialog
+        open={jobLimitOpen}
+        onOpenChange={setJobLimitOpen}
+        projects={projects}
+        onDeleted={id => setProjects(prev => prev.filter(p => p.id !== id))}
+        onProceed={() => navigate('/calculator')}
+      />
     </div>
   );
 }
