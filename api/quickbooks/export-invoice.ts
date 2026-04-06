@@ -116,6 +116,8 @@ async function ensureServiceItem(accessToken: string, realmId: string, userId: s
 
   if (!acctRes.ok) {
     if (acctRes.status === 401) throw new Error('QBO_AUTH_ERROR');
+    const acctErrBody = await acctRes.text().catch(() => '');
+    console.error('QBO account lookup failed:', acctRes.status, acctErrBody);
     throw new Error(`Account lookup failed (${acctRes.status})`);
   }
 
