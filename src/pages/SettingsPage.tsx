@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { isFreeAgentConnected, disconnectFreeAgent } from '@/services/bookkeeping/freeagent';
 import { isXeroConnected, disconnectXero } from '@/services/bookkeeping/xero';
+import { isQBOConnected, disconnectQBO } from '@/services/bookkeeping/quickbooks';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -260,6 +261,12 @@ export function SettingsPage() {
   // Track if xeroConnected was set from the ?connected=xero URL param — skip async check
   const xeroConnectedFromUrl = useRef(false);
 
+  const [qboConnected, setQboConnected] = useState<boolean | null>(null);
+  const [disconnectingQbo, setDisconnectingQbo] = useState(false);
+  const [qboConnectError, setQboConnectError] = useState<string | null>(null);
+  // Track if qboConnected was set from the ?connected=quickbooks URL param — skip async check
+  const qboConnectedFromUrl = useRef(false);
+
   // ── Load ──────────────────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -313,6 +320,11 @@ export function SettingsPage() {
     isXeroConnected(user.id).then(setXeroConnected).catch(() => setXeroConnected(false));
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!user || qboConnectedFromUrl.current) return;
+    isQBOConnected(user.id).then(setQboConnected).catch(() => setQboConnected(false));
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const [faConnectError, setFaConnectError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -343,6 +355,16 @@ export function SettingsPage() {
     if (urlError === 'xero_db_failed') setXeroConnectError('Failed to save connection — try again.');
     if (urlError === 'invalid_callback') setXeroConnectError('Invalid callback — please try connecting again.');
     if (urlError === 'invalid_state') setXeroConnectError('Connection expired — please try connecting again.');
+    if (params.get('connected') === 'quickbooks') {
+      qboConnectedFromUrl.current = true;
+      setQboConnected(true);
+    }
+    if (urlError === 'qbo_denied') setQboConnectError('Connection cancelled.');
+    if (urlError === 'qbo_token_failed') setQboConnectError('Token exchange failed — try again.');
+    if (urlError === 'qbo_not_configured') setQboConnectError('QuickBooks is not configured on this server.');
+    if (urlError === 'qbo_db_failed') setQboConnectError('Failed to save connection — try again.');
+    if (urlError === 'invalid_callback') setQboConnectError('Invalid callback — please try connecting again.');
+    if (urlError === 'invalid_state') setQboConnectError('Connection expired — please try connecting again.');
   }, [location.search, navigate]);
 
   // ── Save helpers ──────────────────────────────────────────────────────────
@@ -379,6 +401,19 @@ export function SettingsPage() {
       setXeroConnected(true);
     } finally {
       setDisconnectingXero(false);
+    }
+  };
+
+  const handleDisconnectQbo = async () => {
+    if (!user) return;
+    setDisconnectingQbo(true);
+    try {
+      await disconnectQBO(user.id);
+      setQboConnected(false);
+    } catch {
+      setQboConnected(true);
+    } finally {
+      setDisconnectingQbo(false);
     }
   };
 
@@ -1157,8 +1192,8 @@ export function SettingsPage() {
                     </div>
                   </div>
 
-                  {/* QuickBooks — coming soon */}
-                  <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-border opacity-60">
+                  {/* QuickBooks — live */}
+                  <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-border">
                     <div className="flex items-center gap-4">
                       <div className="h-10 w-10 rounded-lg border border-border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
                         <img src={quickbooksLogo} alt="QuickBooks" className="h-7 w-7 object-contain" />
@@ -1168,7 +1203,36 @@ export function SettingsPage() {
                         <p className="text-xs text-muted-foreground">Push invoices and track income in QuickBooks</p>
                       </div>
                     </div>
-                    <Badge variant="secondary" className="shrink-0">Coming Soon</Badge>
+                    <div className="flex flex-col items-end gap-2">
+                      {qboConnectError && (
+                        <p className="text-xs text-red-500">Connection failed: {qboConnectError}</p>
+                      )}
+                      {qboConnected === null ? (
+                        <div className="h-9 w-24 rounded-md bg-muted animate-pulse" />
+                      ) : qboConnected ? (
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary" className="text-green-500 border-green-500/30">Connected</Badge>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={disconnectingQbo}
+                            onClick={handleDisconnectQbo}
+                          >
+                            {disconnectingQbo ? 'Disconnecting…' : 'Disconnect'}
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          className="bg-[#2CA01C] hover:bg-[#2CA01C]/90 text-white"
+                          onClick={() => {
+                            if (user) window.location.href = `/api/auth/quickbooks/start?userId=${user.id}`;
+                          }}
+                        >
+                          Connect QuickBooks
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
