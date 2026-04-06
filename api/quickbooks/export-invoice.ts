@@ -375,7 +375,10 @@ async function createInvoice(
   const invoiceId = data?.Invoice?.Id;
   if (!invoiceId) throw new Error('Invoice created but QuickBooks returned no Id.');
 
-  return `https://app.qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
+  const baseAppUrl = process.env.QBO_SANDBOX === 'true'
+    ? 'https://app.sandbox.qbo.intuit.com'
+    : 'https://app.qbo.intuit.com';
+  return `${baseAppUrl}/app/invoice?txnId=${invoiceId}`;
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
