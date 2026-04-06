@@ -16,7 +16,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { isFreeAgentConnected, disconnectFreeAgent } from '@/services/bookkeeping/freeagent';
 import { isXeroConnected, disconnectXero } from '@/services/bookkeeping/xero';
@@ -1385,7 +1385,7 @@ export function SettingsPage() {
               Your existing invoices won't be affected.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <div className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={() => setDisconnectPending(null)}>
               Cancel
             </Button>
@@ -1400,7 +1400,7 @@ export function SettingsPage() {
             >
               Disconnect
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
