@@ -29,6 +29,7 @@ export default async function handler(req: any, res: any) {
       { headers }
     );
     const shareRows = await shareRes.json();
+    console.log('[share] token:', token, 'status:', shareRes.status, 'rows:', JSON.stringify(shareRows));
     if (!Array.isArray(shareRows) || shareRows.length === 0) {
       return res.status(404).json({ error: 'not_found' });
     }
