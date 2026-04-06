@@ -22,6 +22,8 @@ import { exportToXero, isXeroConnected, XeroAuthError } from '@/services/bookkee
 import { exportToQBO, isQBOConnected, QBOAuthError } from '@/services/bookkeeping/quickbooks';
 import { BookkeepingCTA } from '@/components/BookkeepingCTA';
 
+const QBO_MESSAGES = ['Connecting to QuickBooks…', 'Preparing export…', 'Creating invoice…'];
+
 interface Project {
   id: string;
   name: string;
@@ -100,7 +102,7 @@ export function InvoicePage() {
   const [exportingQbo, setExportingQbo] = useState(false);
   const [qboExportUrl, setQboExportUrl] = useState<string | null>(null);
   const [qboExportError, setQboExportError] = useState<string | null>(null);
-  const [qboLoadingMessage, setQboLoadingMessage] = useState('Connecting to QuickBooks…');
+  const [qboLoadingMessage, setQboLoadingMessage] = useState(QBO_MESSAGES[0]);
 
   const { isPremium } = useSubscription();
 
@@ -258,8 +260,6 @@ export function InvoicePage() {
       setExportingXero(false);
     }
   };
-
-  const QBO_MESSAGES = ['Connecting to QuickBooks…', 'Preparing export…', 'Creating invoice…'];
 
   const handleExportToQBO = async () => {
     if (!user || selectedDays.length === 0) return;
