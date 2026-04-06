@@ -106,7 +106,7 @@ async function handleCallback(req: VercelRequest, res: VercelResponse) {
     return res.redirect(`/settings?error=qbo_token_failed`);
   }
 
-  const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + (tokens.expires_in ?? 3600) * 1000).toISOString();
 
   const { error: dbError } = await supabaseAdmin
     .from('bookkeeping_connections')
@@ -143,7 +143,7 @@ async function handleRefresh(req: VercelRequest, res: VercelResponse) {
   }
 
   const { refresh_token, user_id } = req.body as { refresh_token?: string; user_id?: string };
-  if (!refresh_token || !user_id) {
+  if (!refresh_token || !user_id || !UUID_RE.test(user_id)) {
     return res.status(400).json({ error: 'missing_params' });
   }
 
@@ -175,7 +175,7 @@ async function handleRefresh(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: 'refresh_failed' });
   }
 
-  const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + (tokens.expires_in ?? 3600) * 1000).toISOString();
 
   // QBO issues a new refresh token on each refresh — always store the latest one
   const { error: dbError } = await supabaseAdmin
