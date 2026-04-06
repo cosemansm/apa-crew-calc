@@ -361,12 +361,17 @@ export function SettingsPage() {
       setActiveSection('integrations');
       navigate('/settings', { replace: true });
     }
+    const QBO_ERRORS = new Set(['qbo_denied', 'qbo_token_failed', 'qbo_not_configured', 'qbo_db_failed', 'invalid_callback', 'invalid_state']);
     if (urlError === 'qbo_denied') setQboConnectError('Connection cancelled.');
     if (urlError === 'qbo_token_failed') setQboConnectError('Token exchange failed — try again.');
     if (urlError === 'qbo_not_configured') setQboConnectError('QuickBooks is not configured on this server.');
     if (urlError === 'qbo_db_failed') setQboConnectError('Failed to save connection — try again.');
     if (urlError === 'invalid_callback') setQboConnectError('Invalid callback — please try connecting again.');
     if (urlError === 'invalid_state') setQboConnectError('Connection expired — please try connecting again.');
+    if (urlError && QBO_ERRORS.has(urlError)) {
+      setActiveSection('integrations');
+      navigate('/settings', { replace: true });
+    }
   }, [location.search, navigate]);
 
   // ── Save helpers ──────────────────────────────────────────────────────────
