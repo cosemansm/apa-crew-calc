@@ -7,13 +7,17 @@ import { Badge } from '@/components/ui/badge';
 import {
   FolderOpen, Plus, Clock, PoundSterling, ChevronRight,
   Calendar, User, Edit3, X, Sparkles, Trash2, Copy,
-  History, ChevronDown, ChevronUp, Search, FileText,
+  History, ChevronDown, ChevronUp, Search, FileText, Send, Check,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { JobLimitDialog } from '@/components/JobLimitDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { APA_CREW_ROLES } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek } from '@/data/calculation-engine';
 
@@ -149,6 +153,17 @@ export function ProjectsPage() {
 
   const [jobLimitOpen, setJobLimitOpen] = useState(false);
 
+  const [sharedProjectIds, setSharedProjectIds] = useState<Set<string>>(new Set());
+  const [shareDialogProjectId, setShareDialogProjectId] = useState<string | null>(null);
+  const [shareRecord, setShareRecord] = useState<{
+    id: string;
+    token: string;
+    includeExpenses: boolean;
+    includeEquipment: boolean;
+  } | null>(null);
+  const [shareDialogLoading, setShareDialogLoading] = useState(false);
+  const [shareLinkCopied, setShareLinkCopied] = useState(false);
+
   // History state
   const [historyDays, setHistoryDays] = useState<HistoryDay[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -213,6 +228,18 @@ export function ProjectsPage() {
     }
 
     setProjects(projects);
+
+    // Load which projects have active share links
+    const projectIds = projects.map(p => p.id);
+    if (projectIds.length > 0) {
+      const { data: shareRows } = await supabase
+        .from('shared_jobs')
+        .select('project_id')
+        .in('project_id', projectIds)
+        .eq('is_active', true);
+      if (shareRows) setSharedProjectIds(new Set(shareRows.map((r: any) => r.project_id)));
+    }
+
     setLoading(false);
   };
 
@@ -337,6 +364,92 @@ export function ProjectsPage() {
     }
 
     setProjects(prev => [newProject as Project, ...prev]);
+  };
+
+  const openShareDialog = async (projectId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShareDialogProjectId(projectId);
+    setShareDialogLoading(true);
+    setShareRecord(null);
+    setShareLinkCopied(false);
+
+    // Look for an existing active share record
+    const { data } = await supabase
+      .from('shared_jobs')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (data) {
+      setShareRecord({
+        id: data.id,
+        token: data.token,
+        includeExpenses: data.include_expenses,
+        includeEquipment: data.include_equipment,
+      });
+    } else {
+      // Create a new share record
+      const { data: newRecord } = await supabase
+        .from('shared_jobs')
+        .insert({ project_id: projectId, owner_id: user!.id })
+        .select()
+        .single();
+      if (newRecord) {
+        setShareRecord({
+          id: newRecord.id,
+          token: newRecord.token,
+          includeExpenses: false,
+          includeEquipment: false,
+        });
+        setSharedProjectIds(prev => new Set([...prev, projectId]));
+      }
+    }
+    setShareDialogLoading(false);
+  };
+
+  const updateShareToggle = async (
+    field: 'include_expenses' | 'include_equipment',
+    value: boolean,
+  ) => {
+    if (!shareRecord) return;
+    await supabase
+      .from('shared_jobs')
+      .update({ [field]: value })
+      .eq('id', shareRecord.id);
+    setShareRecord(prev =>
+      prev
+        ? {
+            ...prev,
+            includeExpenses: field === 'include_expenses' ? value : prev.includeExpenses,
+            includeEquipment: field === 'include_equipment' ? value : prev.includeEquipment,
+          }
+        : prev,
+    );
+  };
+
+  const stopSharing = async () => {
+    if (!shareRecord || !shareDialogProjectId) return;
+    await supabase
+      .from('shared_jobs')
+      .update({ is_active: false })
+      .eq('id', shareRecord.id);
+    setSharedProjectIds(prev => {
+      const next = new Set(prev);
+      next.delete(shareDialogProjectId);
+      return next;
+    });
+    setShareDialogProjectId(null);
+    setShareRecord(null);
+  };
+
+  const copyShareLink = () => {
+    if (!shareRecord) return;
+    navigator.clipboard.writeText(
+      `https://app.crewdock.app/share/${shareRecord.token}`,
+    );
+    setShareLinkCopied(true);
+    setTimeout(() => setShareLinkCopied(false), 2000);
   };
 
   const removeDay = async (dayId: string) => {
@@ -548,7 +661,14 @@ export function ProjectsPage() {
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold truncate">{project.name}</p>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <p className="font-semibold truncate">{project.name}</p>
+                          {sharedProjectIds.has(project.id) && (
+                            <span className="shrink-0 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
+                              Shared
+                            </span>
+                          )}
+                        </div>
                         {project.client_name && (
                           <p className="text-sm text-muted-foreground truncate flex items-center gap-1 mt-0.5">
                             <User className="h-3 w-3 shrink-0" />
@@ -557,6 +677,13 @@ export function ProjectsPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={(e) => openShareDialog(project.id, e)}
+                          className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                          title="Share job"
+                        >
+                          <Send className="h-3.5 w-3.5" />
+                        </button>
                         <button
                           onClick={(e) => duplicateProject(project, e)}
                           className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-blue-500 hover:bg-blue-50 transition-colors"
@@ -828,6 +955,76 @@ export function ProjectsPage() {
         onDeleted={id => setProjects(prev => prev.filter(p => p.id !== id))}
         onProceed={() => navigate('/calculator')}
       />
+
+      {/* ── Share dialog ──────────────────────────────────────────────────── */}
+      <Dialog
+        open={!!shareDialogProjectId}
+        onOpenChange={open => { if (!open) { setShareDialogProjectId(null); setShareRecord(null); } }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Share job</DialogTitle>
+            <DialogDescription>
+              Share this job's schedule with your crew. They'll set their own role and rate.
+            </DialogDescription>
+          </DialogHeader>
+
+          {shareDialogLoading ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">Loading…</div>
+          ) : shareRecord ? (
+            <div className="space-y-5 py-2">
+              {/* Toggles */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Include mileage expenses</Label>
+                  <Switch
+                    checked={shareRecord.includeExpenses}
+                    onCheckedChange={v => updateShareToggle('include_expenses', v)}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label>Include equipment hire</Label>
+                  <Switch
+                    checked={shareRecord.includeEquipment}
+                    onCheckedChange={v => updateShareToggle('include_equipment', v)}
+                  />
+                </div>
+              </div>
+
+              {/* Copy link */}
+              <div className="space-y-2">
+                <Label>Share link</Label>
+                <div className="flex gap-2">
+                  <Input
+                    readOnly
+                    value={`https://app.crewdock.app/share/${shareRecord.token}`}
+                    className="font-mono text-xs"
+                    onFocus={e => e.target.select()}
+                  />
+                  <Button variant="outline" onClick={copyShareLink} className="shrink-0 gap-1.5">
+                    {shareLinkCopied ? (
+                      <><Check className="h-4 w-4" /> Copied</>
+                    ) : (
+                      <><Copy className="h-4 w-4" /> Copy</>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Stop sharing */}
+              <div className="pt-1 border-t">
+                <Button
+                  variant="outline"
+                  className="w-full text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/5"
+                  onClick={stopSharing}
+                >
+                  Stop sharing
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

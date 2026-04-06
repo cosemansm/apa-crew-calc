@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
@@ -11,6 +12,7 @@ import { InvoicePage } from '@/pages/InvoicePage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { ProjectsPage } from '@/pages/ProjectsPage';
 import { SupportPage } from '@/pages/SupportPage';
+import { SharePage } from '@/pages/SharePage';
 import { ReviewPopupController } from '@/components/ReviewPopupController';
 import { TermsPage } from '@/pages/TermsPage';
 import { PrivacyPage } from '@/pages/PrivacyPage';
@@ -30,15 +32,35 @@ function PublicRoute({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+// After login (email or Google OAuth), redirect to any pending share link.
+function PendingShareRedirect() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      const pending = sessionStorage.getItem('pendingShareRedirect');
+      if (pending) {
+        sessionStorage.removeItem('pendingShareRedirect');
+        navigate(pending, { replace: true });
+      }
+    }
+  }, [user, navigate]);
+
+  return null;
+}
+
 export default function App() {
   return (
     <>
       <BrowserRouter>
         <AuthProvider>
           <SubscriptionProvider>
+            <PendingShareRedirect />
             <Routes>
               <Route path="/terms" element={<TermsPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/share/:token" element={<SharePage />} />
               <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
               <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                 <Route path="/dashboard" element={<DashboardPage />} />
