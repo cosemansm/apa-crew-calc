@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { isFreeAgentConnected } from '@/services/bookkeeping/freeagent';
 import { isXeroConnected } from '@/services/bookkeeping/xero';
+import { isQBOConnected } from '@/services/bookkeeping/quickbooks';
 
 const PLATFORMS = ['FreeAgent', 'Xero', 'QuickBooks'] as const;
 const STORAGE_KEY = 'bookkeeping_cta_index';
@@ -33,7 +34,8 @@ export function BookkeepingCTA({ userId }: BookkeepingCTAProps) {
     Promise.all([
       isFreeAgentConnected(userId).catch(() => false),
       isXeroConnected(userId).catch(() => false),
-    ]).then(([fa, xero]) => setAnyConnected(fa || xero));
+      isQBOConnected(userId).catch(() => false),
+    ]).then(([fa, xero, qbo]) => setAnyConnected(fa || xero || qbo));
   }, [userId]);
 
   // Still loading or any platform connected — render nothing
