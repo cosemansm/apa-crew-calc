@@ -108,7 +108,7 @@ async function ensureServiceItem(accessToken: string, realmId: string, userId: s
   }
 
   // Item not found — find the first active income account to attach it to
-  const acctQuery = `SELECT * FROM Account WHERE AccountType = 'Income' AND Active = true LIMIT 1`;
+  const acctQuery = `SELECT * FROM Account WHERE AccountType = 'Income' MAXRESULTS 1`;
   const acctRes = await fetch(
     `${base}/v3/company/${realmId}/query?query=${encodeURIComponent(acctQuery)}&minorversion=75`,
     { headers, signal: AbortSignal.timeout(10_000) }
