@@ -2136,14 +2136,20 @@ export function CalculatorPage() {
                     <span className="font-mono">£{projectTotal.toFixed(2)}</span>
                   </div>
 
-                  {saveSuccess && (
-                    <Button
-                      variant="outline"
-                      className="w-full mt-1"
-                      onClick={() => navigate('/invoices', { state: { dayId: currentDayId } })}
-                    >
-                      <InvoiceIcon className="h-4 w-4 mr-2" /> Convert to Invoice
-                    </Button>
+                  {currentDayId && (
+                    <>
+                      <Button
+                        variant="outline"
+                        className="w-full mt-1"
+                        disabled={isDirty}
+                        onClick={() => navigate('/invoices', { state: { dayId: currentDayId } })}
+                      >
+                        <InvoiceIcon className="h-4 w-4 mr-2" /> Convert to Invoice
+                      </Button>
+                      {isDirty && (
+                        <p className="text-xs text-center text-muted-foreground mt-1">Unsaved changes, please save first</p>
+                      )}
+                    </>
                   )}
 
                   <p className="text-center mt-3">
