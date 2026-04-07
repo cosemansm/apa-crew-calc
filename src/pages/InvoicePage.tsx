@@ -1,9 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
 import logoImg from '@/assets/logo.png';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { format, parseISO } from 'date-fns';
-import { FileText, FolderOpen, Download, Mail, Loader2, X, Send, AlertCircle } from 'lucide-react';
+import { FileText, FolderOpen, Download, Mail, Loader2, X, Send, AlertCircle, Lock } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -105,6 +105,7 @@ export function InvoicePage() {
   const [qboLoadingMessage, setQboLoadingMessage] = useState(QBO_MESSAGES[0]);
 
   const { isPremium } = useSubscription();
+  const navigate = useNavigate();
 
   const [downloading, setDownloading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -381,6 +382,10 @@ export function InvoicePage() {
   };
 
   const openEmailModal = () => {
+    if (!isPremium) {
+      navigate('/#pricing');
+      return;
+    }
     setEmailTo(clientEmail);
     setEmailSubject(`Invoice ${invoiceNumber} – ${selectedProject?.name || 'Services Rendered'}`);
     setEmailMessage(
@@ -635,10 +640,10 @@ export function InvoicePage() {
               variant="outline"
               className="flex-1 gap-2"
               onClick={openEmailModal}
-              disabled={downloading || emailSending || selectedDays.length === 0 || !clientEmail.trim()}
-              title={!clientEmail.trim() ? 'Add a client email address in the form to enable sending' : undefined}
+              disabled={downloading || emailSending || selectedDays.length === 0 || (!isPremium ? false : !clientEmail.trim())}
+              title={!isPremium ? 'Upgrade to Pro to send invoices by email' : (!clientEmail.trim() ? 'Add a client email address in the form to enable sending' : undefined)}
             >
-              <Mail className="h-4 w-4" /> Send to Client
+              {isPremium ? <Mail className="h-4 w-4" /> : <Lock className="h-4 w-4" />} Send to Client
             </Button>
           </div>
 
