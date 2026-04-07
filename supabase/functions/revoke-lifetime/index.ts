@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
 
     const { error } = await db
       .from('subscriptions')
-      .update({ status: 'canceled' })
+      .update({ status: 'trialing', trial_ends_at: new Date().toISOString() })
       .eq('user_id', user_id)
 
     if (error) throw error

@@ -217,7 +217,7 @@ export function AdminPage() {
       });
       const json = await resp.json();
       if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
-      setUserList(prev => prev ? prev.map(u => u.user_id === userId ? { ...u, status: 'canceled' } : u) : prev);
+      setUserList(prev => prev ? prev.map(u => u.user_id === userId ? { ...u, status: 'trialing', trial_ends_at: new Date().toISOString() } : u) : prev);
     } catch (e) {
       alert((e as Error).message);
     } finally {
