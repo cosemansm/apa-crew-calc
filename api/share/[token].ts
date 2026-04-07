@@ -13,6 +13,7 @@ export default async function handler(req: any, res: any) {
   }
 
   const { token } = req.query;
+  console.log('[share] raw query:', JSON.stringify(req.query));
   if (!token || typeof token !== 'string') {
     return res.status(400).json({ error: 'Missing token' });
   }
@@ -29,6 +30,7 @@ export default async function handler(req: any, res: any) {
       { headers }
     );
     const shareRows = await shareRes.json();
+    console.log('[share] supabase status:', shareRes.status, 'body:', JSON.stringify(shareRows).slice(0, 300));
     if (!Array.isArray(shareRows) || shareRows.length === 0) {
       return res.status(404).json({ error: 'not_found' });
     }
