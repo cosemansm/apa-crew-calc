@@ -43,6 +43,7 @@ interface SharedDay {
 
 interface ShareData {
   projectName: string;
+  ownerName: string;
   includeExpenses: boolean;
   includeEquipment: boolean;
   days: SharedDay[];
@@ -118,6 +119,14 @@ export function SharePage() {
       .catch(() => setLoadError('Failed to load shared job.'))
       .finally(() => setDataLoading(false));
   }, [token]);
+
+  // Set page title to job name for share previews (e.g. WhatsApp/iMessage)
+  useEffect(() => {
+    if (shareData) {
+      document.title = `Crew Dock — ${shareData.projectName}`;
+    }
+    return () => { document.title = 'Crew Dock — APA Crew Rate Calculator'; };
+  }, [shareData]);
 
   // Once auth + shareData are both ready, check owner/import status
   useEffect(() => {
@@ -314,10 +323,24 @@ export function SharePage() {
             )}
           </CardHeader>
           <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{shareData.ownerName}</span> wants to share this job with you
+            </p>
+
+            <Button
+              className="w-full bg-[#FFD528] hover:bg-[#FFD528]/90 text-[#1F1F21] font-semibold"
+              onClick={() => {
+                sessionStorage.setItem('pendingShareRedirect', `/share/${token}`);
+                navigate('/login');
+              }}
+            >
+              Create a free account or sign in
+            </Button>
+
             {/* Blurred preview */}
             <div className="relative select-none pointer-events-none rounded-xl overflow-hidden">
               <div className="space-y-2 blur-sm opacity-60 px-1">
-                {shareData.days.slice(0, 2).map((d, i) => (
+                {shareData.days.slice(0, 3).map((d, i) => (
                   <div key={i} className="p-3 rounded-lg bg-muted text-sm">
                     <p className="font-medium">
                       {format(parseISO(d.workDate), 'EEE dd MMM')} — {DAY_TYPE_LABELS[d.dayType] ?? d.dayType}
@@ -331,16 +354,6 @@ export function SharePage() {
                 <p className="text-sm font-medium text-center px-6">Sign in to view this job and add it to your schedule</p>
               </div>
             </div>
-
-            <Button
-              className="w-full bg-[#FFD528] hover:bg-[#FFD528]/90 text-[#1F1F21] font-semibold"
-              onClick={() => {
-                sessionStorage.setItem('pendingShareRedirect', `/share/${token}`);
-                navigate('/login');
-              }}
-            >
-              Create a free account or sign in
-            </Button>
           </CardContent>
         </Card>
       </div>

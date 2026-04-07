@@ -48,6 +48,24 @@ export default async function handler(req: any, res: any) {
       return res.status(404).json({ error: 'not_found' });
     }
 
+    // 2b. Fetch owner's display name from auth admin
+    let ownerName = 'Someone';
+    try {
+      const ownerRes = await fetch(
+        `${SUPABASE_URL}/auth/v1/admin/users/${share.owner_id}`,
+        { headers }
+      );
+      const ownerData = await ownerRes.json();
+      const fullName = ownerData?.user_metadata?.full_name ?? ownerData?.raw_user_meta_data?.full_name;
+      if (fullName) {
+        ownerName = fullName.split(' ')[0]; // First name only
+      } else if (ownerData?.email) {
+        ownerName = ownerData.email.split('@')[0];
+      }
+    } catch {
+      // Non-critical — fall back to 'Someone'
+    }
+
     // 3. Fetch all project days ordered by date
     const daysRes = await fetch(
       `${SUPABASE_URL}/rest/v1/project_days?project_id=eq.${share.project_id}&order=work_date.asc&select=*`,
@@ -86,6 +104,7 @@ export default async function handler(req: any, res: any) {
 
     return res.status(200).json({
       projectName: projects[0].name,
+      ownerName,
       includeExpenses: share.include_expenses,
       includeEquipment: share.include_equipment,
       days: sharedDays,
