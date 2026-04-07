@@ -40,7 +40,17 @@ function formatGBP(n: number): string {
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 }).format(n);
 }
 
+interface UserListEntry {
+  user_id: string;
+  email: string;
+  name: string;
+  status: string;
+  trial_ends_at: string | null;
+  created_at: string;
+}
+
 interface AdminStats {
+  userList: UserListEntry[];
   users: {
     total: number;
     last7Days: number;
@@ -121,6 +131,8 @@ export function AdminPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [grantingLifetime, setGrantingLifetime] = useState<string | null>(null);
+  const [userSearch, setUserSearch] = useState('');
 
   // Gate — redirect non-admins immediately
   useEffect(() => {
@@ -159,6 +171,35 @@ export function AdminPage() {
       fetchStats();
     }
   }, [user, session]);
+
+  async function grantLifetime(userId: string) {
+    if (!session?.access_token) return;
+    setGrantingLifetime(userId);
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+      const resp = await fetch(`${supabaseUrl}/functions/v1/grant-lifetime`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'apikey': anonKey,
+        },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
+      // Optimistically update local state
+      setStats(prev => prev ? {
+        ...prev,
+        userList: prev.userList.map(u => u.user_id === userId ? { ...u, status: 'lifetime' } : u),
+      } : prev);
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setGrantingLifetime(null);
+    }
+  }
 
   if (!user || user.email !== ADMIN_EMAIL) return null;
 
@@ -429,6 +470,71 @@ export function AdminPage() {
               </div>
             </>
           )}
+
+          {/* ── Users table ─────────────────────────────────────────────── */}
+          <SectionTitle>All Users</SectionTitle>
+          <div className="bg-[#2a2a2c] rounded-2xl border border-white/5 overflow-hidden">
+            <div className="p-3 border-b border-white/5">
+              <input
+                type="text"
+                placeholder="Search by name or email…"
+                value={userSearch}
+                onChange={e => setUserSearch(e.target.value)}
+                className="w-full bg-[#1F1F21] text-white text-sm font-mono rounded-xl px-3 py-2 border border-white/10 placeholder:text-white/25 focus:outline-none focus:border-[#FFD528]/40"
+              />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs font-mono">
+                <thead>
+                  <tr className="border-b border-white/5">
+                    <th className="text-left text-white/30 px-4 py-2 font-normal">Name</th>
+                    <th className="text-left text-white/30 px-4 py-2 font-normal">Email</th>
+                    <th className="text-left text-white/30 px-4 py-2 font-normal">Status</th>
+                    <th className="text-left text-white/30 px-4 py-2 font-normal">Joined</th>
+                    <th className="px-4 py-2" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.userList
+                    .filter(u => {
+                      const q = userSearch.toLowerCase();
+                      return !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+                    })
+                    .map(u => (
+                      <tr key={u.user_id} className="border-b border-white/5 last:border-0 hover:bg-white/3">
+                        <td className="px-4 py-2.5 text-white/80">{u.name || <span className="text-white/25">—</span>}</td>
+                        <td className="px-4 py-2.5 text-white/50">{u.email}</td>
+                        <td className="px-4 py-2.5">
+                          <span
+                            className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase"
+                            style={{
+                              background: `${PIE_COLORS[u.status] ?? '#6b7280'}20`,
+                              color: PIE_COLORS[u.status] ?? '#6b7280',
+                            }}
+                          >
+                            {u.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-white/30">
+                          {new Date(u.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          {u.status !== 'lifetime' && (
+                            <button
+                              onClick={() => grantLifetime(u.user_id)}
+                              disabled={grantingLifetime === u.user_id}
+                              className="px-2.5 py-1 rounded-lg bg-[#c084fc]/10 hover:bg-[#c084fc]/20 text-[#c084fc] text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
+                            >
+                              {grantingLifetime === u.user_id ? '…' : 'Grant Lifetime'}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </>
       )}
     </div>

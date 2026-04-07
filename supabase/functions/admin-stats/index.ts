@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
       sharedJobsResult,
     ] = await Promise.allSettled([
       db.auth.admin.listUsers({ perPage: 1000, page: 1 }),
-      db.from('subscriptions').select('user_id, status, trial_ends_at, trial_extended, created_at'),
+      db.from('subscriptions').select('user_id, status, trial_ends_at, trial_extended, current_period_end, created_at'),
       db.from('projects').select('id, user_id, status, created_at'),
       db.from('project_days').select('id, project_id, grand_total, role_name, day_type, work_date'),
       db.from('user_settings').select('user_id, department'),
@@ -208,8 +208,20 @@ Deno.serve(async (req) => {
       .map(([category, count]) => ({ category, count }))
       .sort((a, b) => b.count - a.count)
 
+    // ── User list (for admin management table) ──────────────────────────────
+    const subByUserId = new Map(subscriptions.map(s => [s.user_id, s]))
+    const userList = users.map(u => ({
+      user_id: u.id,
+      email: u.email ?? '',
+      name: (u.user_metadata?.full_name as string | undefined) ?? '',
+      status: subByUserId.get(u.id)?.status ?? 'trialing',
+      trial_ends_at: subByUserId.get(u.id)?.trial_ends_at ?? null,
+      created_at: u.created_at,
+    })).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+
     // ── Build response ──────────────────────────────────────────────────────
     const stats = {
+      userList,
       users: {
         total: users.length,
         last7Days: countSince(userCreatedDates, 7),
