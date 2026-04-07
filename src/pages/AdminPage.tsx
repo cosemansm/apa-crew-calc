@@ -117,7 +117,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 export function AdminPage() {
   usePageTitle('Admin');
-  const { user, session } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -131,13 +131,10 @@ export function AdminPage() {
   }, [user, navigate]);
 
   async function fetchStats() {
-    if (!session) return;
     setLoading(true);
     setError(null);
     try {
-      const { data, error: fnError } = await supabase.functions.invoke('admin-stats', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
+      const { data, error: fnError } = await supabase.functions.invoke('admin-stats');
       if (fnError) throw new Error(fnError.message);
       setStats(data as AdminStats);
     } catch (e) {
@@ -148,10 +145,10 @@ export function AdminPage() {
   }
 
   useEffect(() => {
-    if (session && user?.email === ADMIN_EMAIL) {
+    if (user?.email === ADMIN_EMAIL) {
       fetchStats();
     }
-  }, [session]);
+  }, [user]);
 
   if (!user || user.email !== ADMIN_EMAIL) return null;
 

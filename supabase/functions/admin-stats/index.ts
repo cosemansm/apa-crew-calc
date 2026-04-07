@@ -19,7 +19,6 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
 
     // Verify the caller is the admin
     const authHeader = req.headers.get('Authorization')
@@ -29,19 +28,17 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Use anon client to verify the JWT
-    const anonClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } }
-    })
-    const { data: { user: callerUser }, error: authError } = await anonClient.auth.getUser()
+    // Service role client — bypasses RLS
+    const db = createClient(supabaseUrl, serviceRoleKey)
+
+    // Verify JWT by passing the token explicitly (recommended edge function pattern)
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user: callerUser }, error: authError } = await db.auth.getUser(token)
     if (authError || !callerUser || callerUser.email !== ADMIN_EMAIL) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
-
-    // Service role client — bypasses RLS
-    const db = createClient(supabaseUrl, serviceRoleKey)
 
     // ── Fetch all data in parallel ──────────────────────────────────────────
     const [
@@ -56,7 +53,7 @@ Deno.serve(async (req) => {
       featureRequestsResult,
       favouriteRolesResult,
       sharedJobsResult,
-    ] = await Promise.all([
+    ] = await Promise.allSettled([
       db.auth.admin.listUsers({ perPage: 1000, page: 1 }),
       db.from('subscriptions').select('user_id, status, trial_ends_at, trial_extended, created_at'),
       db.from('projects').select('id, user_id, status, created_at'),
@@ -70,17 +67,17 @@ Deno.serve(async (req) => {
       db.from('shared_jobs').select('id'),
     ])
 
-    const users = usersResult.data?.users ?? []
-    const subscriptions = subscriptionsResult.data ?? []
-    const projects = projectsResult.data ?? []
-    const projectDays = projectDaysResult.data ?? []
-    const userSettings = userSettingsResult.data ?? []
-    const bookkeepingConns = bookkeepingResult.data ?? []
-    const customRoles = customRolesResult.data ?? []
-    const equipmentPkgs = equipmentResult.data ?? []
-    const featureRequests = featureRequestsResult.data ?? []
-    const favouriteRoles = favouriteRolesResult.data ?? []
-    const sharedJobs = sharedJobsResult.data ?? []
+    const users = usersResult.status === 'fulfilled' ? (usersResult.value.data?.users ?? []) : []
+    const subscriptions = subscriptionsResult.status === 'fulfilled' ? (subscriptionsResult.value.data ?? []) : []
+    const projects = projectsResult.status === 'fulfilled' ? (projectsResult.value.data ?? []) : []
+    const projectDays = projectDaysResult.status === 'fulfilled' ? (projectDaysResult.value.data ?? []) : []
+    const userSettings = userSettingsResult.status === 'fulfilled' ? (userSettingsResult.value.data ?? []) : []
+    const bookkeepingConns = bookkeepingResult.status === 'fulfilled' ? (bookkeepingResult.value.data ?? []) : []
+    const customRoles = customRolesResult.status === 'fulfilled' ? (customRolesResult.value.data ?? []) : []
+    const equipmentPkgs = equipmentResult.status === 'fulfilled' ? (equipmentResult.value.data ?? []) : []
+    const featureRequests = featureRequestsResult.status === 'fulfilled' ? (featureRequestsResult.value.data ?? []) : []
+    const favouriteRoles = favouriteRolesResult.status === 'fulfilled' ? (favouriteRolesResult.value.data ?? []) : []
+    const sharedJobs = sharedJobsResult.status === 'fulfilled' ? (sharedJobsResult.value.data ?? []) : []
 
     const now = new Date()
 
@@ -269,8 +266,9 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   } catch (err) {
-    console.error('[admin-stats] error:', err)
-    return new Response(JSON.stringify({ error: 'Internal error' }), {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[admin-stats] error:', msg)
+    return new Response(JSON.stringify({ error: msg }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
