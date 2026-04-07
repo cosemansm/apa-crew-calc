@@ -396,7 +396,7 @@ export function ProjectsPage() {
       // Create a new share record
       const { data: newRecord, error: insertError } = await supabase
         .from('shared_jobs')
-        .insert({ project_id: projectId, owner_id: user!.id })
+        .insert({ project_id: projectId, owner_id: user!.id, is_active: true })
         .select()
         .single();
       if (newRecord) {
