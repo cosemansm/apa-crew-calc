@@ -511,6 +511,7 @@ export function CalculatorPage() {
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set(['__current__']));
   const formTopRef = useRef<HTMLDivElement>(null);
   const suppressDirtyRef = useRef(true); // Suppress initial dirty flag on mount
+  const autoSaveNewDayRef = useRef(false);
 
   // Unsaved changes tracking
   const [isDirty, setIsDirty] = useState(false); // Never restore from session — always clean on load/refresh
@@ -1110,6 +1111,12 @@ export function CalculatorPage() {
     // Only proceed to a fresh form if the save succeeded
     if (!savedId) return;
     handleAddNewDay(nextAvailableDate(workDate));
+    // After all state updates from handleAddNewDay settle, mark the new day dirty
+    // so the "Unsaved changes" banner appears and the day won't be silently lost.
+    setTimeout(() => {
+      suppressDirtyRef.current = false;
+      setIsDirty(true);
+    }, 0);
   };
 
   const handleSendReport = async () => {
@@ -1859,6 +1866,19 @@ export function CalculatorPage() {
                 </div>
               )}
             </div>
+
+            {/* Add New Day — bottom of form */}
+            {projectId && currentDayId && (
+              <div className="pt-2">
+                <Button
+                  className="w-full bg-[#FFD528] text-[#1F1F21] hover:bg-[#FFD528]/90 font-semibold gap-1.5"
+                  onClick={handleAddDay}
+                  disabled={saving}
+                >
+                  <Plus className="h-4 w-4" /> Add New Day
+                </Button>
+              </div>
+            )}
 
             {/* Mobile sticky save bar */}
             {result && (

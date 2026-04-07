@@ -7,7 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
+import { DEPARTMENTS } from '@/data/apa-rates';
+import { supabase } from '@/lib/supabase';
 
 function GoogleIcon() {
   return (
@@ -32,11 +35,16 @@ export function LoginPage() {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
+  // Forgot password
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+
   // Register form
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regConfirm, setRegConfirm] = useState('');
+  const [regDepartment, setRegDepartment] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +55,21 @@ export function LoginPage() {
       setError(error.message);
     } else {
       navigate('/dashboard');
+    }
+    setLoading(false);
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+      redirectTo: 'https://app.crewdock.app/update-password',
+    });
+    if (error) {
+      setError(error.message);
+    } else {
+      setSuccess('Password reset email sent — check your inbox');
     }
     setLoading(false);
   };
@@ -64,7 +87,7 @@ export function LoginPage() {
       return;
     }
     setLoading(true);
-    const { error } = await signUp(regEmail, regPassword, regName);
+    const { error } = await signUp(regEmail, regPassword, regName, regDepartment);
     if (error) {
       setError(error.message);
     } else {
@@ -94,42 +117,82 @@ export function LoginPage() {
 
           <TabsContent value="login">
             <Card>
-              <form onSubmit={handleLogin}>
-                <CardHeader>
-                  <CardTitle>Sign In</CardTitle>
-                  <CardDescription>Enter your credentials to access your account</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {error && <div role="alert" className="p-3 text-sm text-red-600 bg-red-50 rounded-md">{error}</div>}
-                  <div className="space-y-2">
-                    <Label htmlFor="login-email">Email</Label>
-                    <Input id="login-email" type="email" placeholder="you@company.com" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="login-password">Password</Label>
-                    <Input id="login-password" type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} required />
-                  </div>
-                </CardContent>
-                <CardFooter className="flex flex-col gap-3">
-                  <Button className="w-full" type="submit" disabled={loading}>
-                    {loading ? 'Signing in...' : 'Sign In'}
-                  </Button>
-                  <div className="relative w-full">
-                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">or</span></div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={signInWithGoogle}
-                    disabled={loading}
-                    aria-label="Continue with Google"
-                    className="w-full flex items-center justify-center gap-3 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-medium text-[#1F1F21] hover:bg-gray-50 transition-colors disabled:opacity-50"
-                  >
-                    <GoogleIcon aria-hidden="true" />
-                    Continue with Google
-                  </button>
-                </CardFooter>
-              </form>
+              {showForgotPassword ? (
+                <form onSubmit={handleForgotPassword}>
+                  <CardHeader>
+                    <CardTitle>Reset Password</CardTitle>
+                    <CardDescription>Enter your email and we'll send you a reset link</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {error && <div role="alert" className="p-3 text-sm text-red-600 bg-red-50 rounded-md">{error}</div>}
+                    {success && <div role="status" className="p-3 text-sm text-green-600 bg-green-50 rounded-md">{success}</div>}
+                    {!success && (
+                      <div className="space-y-2">
+                        <Label htmlFor="forgot-email">Email</Label>
+                        <Input id="forgot-email" type="email" placeholder="you@company.com" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} required />
+                      </div>
+                    )}
+                  </CardContent>
+                  <CardFooter className="flex flex-col gap-3">
+                    {!success && (
+                      <Button className="w-full" type="submit" disabled={loading}>
+                        {loading ? 'Sending...' : 'Send Reset Email'}
+                      </Button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => { setShowForgotPassword(false); setError(null); setSuccess(null); }}
+                      className="text-sm text-muted-foreground hover:underline"
+                    >
+                      Back to Sign In
+                    </button>
+                  </CardFooter>
+                </form>
+              ) : (
+                <form onSubmit={handleLogin}>
+                  <CardHeader>
+                    <CardTitle>Sign In</CardTitle>
+                    <CardDescription>Enter your credentials to access your account</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {error && <div role="alert" className="p-3 text-sm text-red-600 bg-red-50 rounded-md">{error}</div>}
+                    <div className="space-y-2">
+                      <Label htmlFor="login-email">Email</Label>
+                      <Input id="login-email" type="email" placeholder="you@company.com" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="login-password">Password</Label>
+                      <Input id="login-password" type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} required />
+                      <button
+                        type="button"
+                        onClick={() => { setShowForgotPassword(true); setError(null); setSuccess(null); }}
+                        className="text-xs text-muted-foreground hover:underline"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex flex-col gap-3">
+                    <Button className="w-full" type="submit" disabled={loading}>
+                      {loading ? 'Signing in...' : 'Sign In'}
+                    </Button>
+                    <div className="relative w-full">
+                      <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
+                      <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">or</span></div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={signInWithGoogle}
+                      disabled={loading}
+                      aria-label="Continue with Google"
+                      className="w-full flex items-center justify-center gap-3 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-medium text-[#1F1F21] hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    >
+                      <GoogleIcon aria-hidden="true" />
+                      Continue with Google
+                    </button>
+                  </CardFooter>
+                </form>
+              )}
             </Card>
           </TabsContent>
 
@@ -146,6 +209,19 @@ export function LoginPage() {
                   <div className="space-y-2">
                     <Label htmlFor="reg-name">Full Name</Label>
                     <Input id="reg-name" placeholder="Jane Smith" value={regName} onChange={e => setRegName(e.target.value)} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="reg-department">My Department (optional)</Label>
+                    <Select value={regDepartment} onValueChange={setRegDepartment}>
+                      <SelectTrigger id="reg-department">
+                        <SelectValue placeholder="Select department (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DEPARTMENTS.map(dept => (
+                          <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="reg-email">Email</Label>

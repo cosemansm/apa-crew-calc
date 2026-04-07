@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName: string, department?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -30,16 +30,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      if (_event === 'SIGNED_IN' && session) {
+        const { full_name, department } = session.user.user_metadata ?? {};
+        if (full_name) {
+          supabase.from('user_settings').upsert(
+            { user_id: session.user.id, display_name: full_name, department: department || null },
+            { onConflict: 'user_id', ignoreDuplicates: true }
+          );
+        }
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (email: string, password: string, fullName: string, department?: string) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName } },
+      options: {
+        data: { full_name: fullName, department: department || null },
+        emailRedirectTo: 'https://app.crewdock.app/dashboard',
+      },
     });
     return { error: error as Error | null };
   };
