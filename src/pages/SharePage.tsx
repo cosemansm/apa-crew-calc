@@ -95,7 +95,7 @@ export function SharePage() {
       .then(r => r.json())
       .then((data: any) => {
         if (data.error) {
-          setLoadError('This link is no longer active.');
+          setLoadError(data.debug_body !== undefined ? `status:${data.debug_status} body:${JSON.stringify(data.debug_body)}` : 'This link is no longer active.');
         } else {
           const sd = data as ShareData;
           setShareData(sd);
