@@ -132,6 +132,7 @@ export function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [grantingLifetime, setGrantingLifetime] = useState<string | null>(null);
+  const [revokingLifetime, setRevokingLifetime] = useState<string | null>(null);
   const [userSearch, setUserSearch] = useState('');
 
   // Gate — redirect non-admins immediately
@@ -171,6 +172,34 @@ export function AdminPage() {
       fetchStats();
     }
   }, [user, session]);
+
+  async function revokeLifetime(userId: string) {
+    if (!session?.access_token) return;
+    setRevokingLifetime(userId);
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+      const resp = await fetch(`${supabaseUrl}/functions/v1/revoke-lifetime`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'apikey': anonKey,
+        },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
+      setStats(prev => prev ? {
+        ...prev,
+        userList: prev.userList.map(u => u.user_id === userId ? { ...u, status: 'canceled' } : u),
+      } : prev);
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setRevokingLifetime(null);
+    }
+  }
 
   async function grantLifetime(userId: string) {
     if (!session?.access_token) return;
@@ -519,7 +548,15 @@ export function AdminPage() {
                           {new Date(u.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
                         </td>
                         <td className="px-4 py-2.5 text-right">
-                          {u.status !== 'lifetime' && (
+                          {u.status === 'lifetime' ? (
+                            <button
+                              onClick={() => revokeLifetime(u.user_id)}
+                              disabled={revokingLifetime === u.user_id}
+                              className="px-2.5 py-1 rounded-lg bg-[#D45B5B]/10 hover:bg-[#D45B5B]/20 text-[#D45B5B] text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
+                            >
+                              {revokingLifetime === u.user_id ? '…' : 'Revoke Lifetime'}
+                            </button>
+                          ) : (
                             <button
                               onClick={() => grantLifetime(u.user_id)}
                               disabled={grantingLifetime === u.user_id}
