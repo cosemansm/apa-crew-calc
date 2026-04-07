@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   FolderOpen, Plus, Clock, PoundSterling, ChevronRight,
   Calendar, User, Edit3, X, Sparkles, Trash2, Copy,
-  History, ChevronDown, ChevronUp, Search, FileText, Send, Check,
+  History, ChevronDown, ChevronUp, Search, FileText, Send, Check, Lock,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { supabase } from '@/lib/supabase';
@@ -369,6 +369,10 @@ export function ProjectsPage() {
 
   const openShareDialog = async (projectId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!isPremium) {
+      navigate('/#pricing');
+      return;
+    }
     setShareDialogProjectId(projectId);
     setShareDialogLoading(true);
     setShareRecord(null);
@@ -692,9 +696,9 @@ export function ProjectsPage() {
                               ? 'text-green-600 hover:bg-green-50'
                               : 'text-muted-foreground/40 hover:text-blue-500 hover:bg-blue-50'
                           }`}
-                          title="Share job"
+                          title={isPremium ? 'Share job' : 'Upgrade to Pro to share jobs'}
                         >
-                          <Send className="h-3.5 w-3.5" />
+                          {isPremium ? <Send className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
                         </button>
                         <button
                           onClick={(e) => duplicateProject(project, e)}
