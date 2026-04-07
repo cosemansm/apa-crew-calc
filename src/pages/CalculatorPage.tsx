@@ -446,6 +446,7 @@ export function CalculatorPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const projectId = searchParams.get('project');
   const projectNameFromUrl = searchParams.get('name');
+  const dateFromUrl = searchParams.get('date');
   const navigate = useNavigate();
 
   // Try to restore from session on first mount.
@@ -463,7 +464,7 @@ export function CalculatorPage() {
   });
   const [agreedRate, setAgreedRate] = useState<string>(ss?.agreedRate ?? '');
   const [dayType, setDayType] = useState<DayType>((ss?.dayType as DayType) ?? 'basic_working');
-  const [workDate, setWorkDate] = useState(ss?.workDate ?? format(new Date(), 'yyyy-MM-dd'));
+  const [workDate, setWorkDate] = useState(ss?.workDate ?? dateFromUrl ?? format(new Date(), 'yyyy-MM-dd'));
   const [isBankHoliday, setIsBankHoliday] = useState(ss?.isBankHoliday ?? false);
   const [bankHolidays, setBankHolidays] = useState<Set<string>>(new Set());
   const [callTime, setCallTime] = useState(ss?.callTime ?? '08:00');

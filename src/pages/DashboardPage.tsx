@@ -69,6 +69,7 @@ export function DashboardPage() {
   const [jobLimitOpen, setJobLimitOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [newClientName, setNewClientName] = useState('');
+  const [calendarNewJobDate, setCalendarNewJobDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [projectError, setProjectError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
@@ -176,7 +177,9 @@ export function DashboardPage() {
       setShowNewProject(false);
       setNewProjectName('');
       setNewClientName('');
-      navigate(`/calculator?project=${data.id}&name=${encodeURIComponent(data.name)}`);
+      const dateParam = calendarNewJobDate ? `&date=${calendarNewJobDate}` : '';
+      setCalendarNewJobDate(null);
+      navigate(`/calculator?project=${data.id}&name=${encodeURIComponent(data.name)}${dateParam}`);
     }
   };
 
@@ -349,7 +352,7 @@ export function DashboardPage() {
           <CardContent className="pt-6">
             <div className="flex items-start justify-between mb-4">
               <h3 className="text-lg font-semibold">Create New Job</h3>
-              <Button variant="ghost" size="icon" onClick={() => setShowNewProject(false)}>
+              <Button variant="ghost" size="icon" onClick={() => { setShowNewProject(false); setCalendarNewJobDate(null); }}>
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -366,7 +369,7 @@ export function DashboardPage() {
             {projectError && <p className="text-sm text-red-500 mt-3">{projectError}</p>}
             <div className="flex gap-2 mt-4">
               <Button onClick={createProject} disabled={!newProjectName.trim()}>Create & Open Calculator</Button>
-              <Button variant="outline" onClick={() => setShowNewProject(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => { setShowNewProject(false); setCalendarNewJobDate(null); }}>Cancel</Button>
             </div>
           </CardContent>
         </Card>
@@ -515,7 +518,10 @@ export function DashboardPage() {
                       <PopoverTrigger asChild>{dayCell}</PopoverTrigger>
                       <PopoverContent className="w-auto p-2" side="bottom" align="start">
                         <button
-                          onClick={() => setShowNewProject(true)}
+                          onClick={() => {
+                            setCalendarNewJobDate(format(date, 'yyyy-MM-dd'));
+                            setShowNewProject(true);
+                          }}
                           className="flex items-center gap-1.5 text-xs font-medium text-[#1F1F21] hover:text-[#FFD528] transition-colors outline-none"
                         >
                           <Plus className="h-3 w-3" />
