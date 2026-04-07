@@ -110,7 +110,7 @@ function StatCard({ label, value, sub, icon: Icon, accent }: {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-sm font-bold text-[#1F1F21]/50 font-mono uppercase tracking-widest mb-3 mt-6">{children}</h2>
+    <h2 className="text-sm font-bold text-white/50 font-mono uppercase tracking-widest mb-3 mt-6">{children}</h2>
   );
 }
 
@@ -163,7 +163,7 @@ export function AdminPage() {
   if (!user || user.email !== ADMIN_EMAIL) return null;
 
   return (
-    <div className="space-y-2 pb-12">
+    <div className="space-y-2 pb-12 bg-[#1F1F21] rounded-3xl p-6 -m-2">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
