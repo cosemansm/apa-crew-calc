@@ -17,6 +17,7 @@ import { SharePage } from '@/pages/SharePage';
 import { ReviewPopupController } from '@/components/ReviewPopupController';
 import { TermsPage } from '@/pages/TermsPage';
 import { PrivacyPage } from '@/pages/PrivacyPage';
+import { UpdatePasswordPage } from '@/pages/UpdatePasswordPage';
 import type { ReactNode } from 'react';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -74,6 +75,7 @@ export default function App() {
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/admin" element={<AdminPage />} />
               </Route>
+              <Route path="/update-password" element={<UpdatePasswordPage />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
             <ReviewPopupController />
