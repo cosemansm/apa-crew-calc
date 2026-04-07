@@ -110,7 +110,7 @@ function StatCard({ label, value, sub, icon: Icon, accent }: {
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="text-sm font-bold text-white/50 font-mono uppercase tracking-widest mb-3 mt-6">{children}</h2>
+    <h2 className="text-sm font-bold text-[#1F1F21]/50 font-mono uppercase tracking-widest mb-3 mt-6">{children}</h2>
   );
 }
 
