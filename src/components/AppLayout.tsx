@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Calculator, FileText, LogOut, Sparkles, Menu, X, LayoutDashboard, Settings, User, ChevronLeft, ChevronRight, FolderOpen, LifeBuoy } from 'lucide-react';
+import { Calculator, FileText, LogOut, Sparkles, Menu, X, LayoutDashboard, Settings, User, ChevronLeft, ChevronRight, FolderOpen, LifeBuoy, BarChart2 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -111,8 +111,26 @@ export function AppLayout() {
           </div>
         )}
 
-        {/* Bottom: Settings + User */}
+        {/* Bottom: Admin (admin-only) + Settings + User */}
         <div className="px-3 py-3 space-y-1">
+          {user?.email === 'milo.cosemans@gmail.com' && (
+            <Link to="/admin">
+              <div
+                className={cn(
+                  "flex items-center h-11 rounded-2xl transition-all duration-200 cursor-pointer",
+                  sidebarExpanded ? "gap-3 px-3 justify-start" : "justify-center px-0",
+                  location.pathname === '/admin'
+                    ? "bg-[#FFD528] text-[#1F1F21]"
+                    : "text-white/60 hover:text-white hover:bg-white/10"
+                )}
+              >
+                <BarChart2 className="h-5 w-5 shrink-0" />
+                {sidebarExpanded && (
+                  <span className="text-sm font-medium whitespace-nowrap font-mono">Admin</span>
+                )}
+              </div>
+            </Link>
+          )}
           <Link to="/settings">
             <div
               className={cn(
@@ -252,6 +270,19 @@ export function AppLayout() {
               </div>
 
               <div className="border-t border-white/10 mt-1 pt-1">
+                {user?.email === 'milo.cosemans@gmail.com' && (
+                  <Link to="/admin" onClick={() => setMobileMenuOpen(false)}>
+                    <div className={cn(
+                      "flex items-center gap-3 h-11 px-3 rounded-xl transition-all",
+                      location.pathname === '/admin'
+                        ? "bg-[#FFD528] text-[#1F1F21] font-semibold"
+                        : "text-white/60 hover:text-white hover:bg-white/10"
+                    )}>
+                      <BarChart2 className="h-4 w-4" />
+                      <span className="text-sm font-medium">Admin</span>
+                    </div>
+                  </Link>
+                )}
                 <Link to="/settings" onClick={() => setMobileMenuOpen(false)}>
                   <div className={cn(
                     "flex items-center gap-3 h-11 px-3 rounded-xl transition-all",

@@ -12,6 +12,7 @@ import { InvoicePage } from '@/pages/InvoicePage';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { ProjectsPage } from '@/pages/ProjectsPage';
 import { SupportPage } from '@/pages/SupportPage';
+import { AdminPage } from '@/pages/AdminPage';
 import { SharePage } from '@/pages/SharePage';
 import { ReviewPopupController } from '@/components/ReviewPopupController';
 import { TermsPage } from '@/pages/TermsPage';
@@ -71,6 +72,7 @@ export default function App() {
                 <Route path="/invoices" element={<InvoicePage />} />
                 <Route path="/support" element={<SupportPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/admin" element={<AdminPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
