@@ -50,7 +50,6 @@ interface UserListEntry {
 }
 
 interface AdminStats {
-  userList: UserListEntry[];
   users: {
     total: number;
     last7Days: number;
@@ -134,6 +133,9 @@ export function AdminPage() {
   const [grantingLifetime, setGrantingLifetime] = useState<string | null>(null);
   const [revokingLifetime, setRevokingLifetime] = useState<string | null>(null);
   const [userSearch, setUserSearch] = useState('');
+  const [userList, setUserList] = useState<UserListEntry[] | null>(null);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
 
   // Gate — redirect non-admins immediately
   useEffect(() => {
@@ -173,6 +175,31 @@ export function AdminPage() {
     }
   }, [user, session]);
 
+  async function fetchUsers() {
+    if (!session?.access_token) return;
+    setUsersLoading(true);
+    setUsersError(null);
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+      const resp = await fetch(`${supabaseUrl}/functions/v1/admin-users`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'apikey': anonKey,
+        },
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
+      setUserList(json.userList);
+    } catch (e) {
+      setUsersError((e as Error).message);
+    } finally {
+      setUsersLoading(false);
+    }
+  }
+
   async function revokeLifetime(userId: string) {
     if (!session?.access_token) return;
     setRevokingLifetime(userId);
@@ -190,10 +217,7 @@ export function AdminPage() {
       });
       const json = await resp.json();
       if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
-      setStats(prev => prev ? {
-        ...prev,
-        userList: prev.userList.map(u => u.user_id === userId ? { ...u, status: 'canceled' } : u),
-      } : prev);
+      setUserList(prev => prev ? prev.map(u => u.user_id === userId ? { ...u, status: 'canceled' } : u) : prev);
     } catch (e) {
       alert((e as Error).message);
     } finally {
@@ -218,11 +242,7 @@ export function AdminPage() {
       });
       const json = await resp.json();
       if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
-      // Optimistically update local state
-      setStats(prev => prev ? {
-        ...prev,
-        userList: prev.userList.map(u => u.user_id === userId ? { ...u, status: 'lifetime' } : u),
-      } : prev);
+      setUserList(prev => prev ? prev.map(u => u.user_id === userId ? { ...u, status: 'lifetime' } : u) : prev);
     } catch (e) {
       alert((e as Error).message);
     } finally {
@@ -501,77 +521,106 @@ export function AdminPage() {
           )}
 
           {/* ── Users table ─────────────────────────────────────────────── */}
-          <SectionTitle>All Users</SectionTitle>
-          <div className="bg-[#2a2a2c] rounded-2xl border border-white/5 overflow-hidden">
-            <div className="p-3 border-b border-white/5">
-              <input
-                type="text"
-                placeholder="Search by name or email…"
-                value={userSearch}
-                onChange={e => setUserSearch(e.target.value)}
-                className="w-full bg-[#1F1F21] text-white text-sm font-mono rounded-xl px-3 py-2 border border-white/10 placeholder:text-white/25 focus:outline-none focus:border-[#FFD528]/40"
-              />
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs font-mono">
-                <thead>
-                  <tr className="border-b border-white/5">
-                    <th className="text-left text-white/30 px-4 py-2 font-normal">Name</th>
-                    <th className="text-left text-white/30 px-4 py-2 font-normal">Email</th>
-                    <th className="text-left text-white/30 px-4 py-2 font-normal">Status</th>
-                    <th className="text-left text-white/30 px-4 py-2 font-normal">Joined</th>
-                    <th className="px-4 py-2" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.userList
-                    .filter(u => {
-                      const q = userSearch.toLowerCase();
-                      return !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
-                    })
-                    .map(u => (
-                      <tr key={u.user_id} className="border-b border-white/5 last:border-0 hover:bg-white/3">
-                        <td className="px-4 py-2.5 text-white/80">{u.name || <span className="text-white/25">—</span>}</td>
-                        <td className="px-4 py-2.5 text-white/50">{u.email}</td>
-                        <td className="px-4 py-2.5">
-                          <span
-                            className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase"
-                            style={{
-                              background: `${PIE_COLORS[u.status] ?? '#6b7280'}20`,
-                              color: PIE_COLORS[u.status] ?? '#6b7280',
-                            }}
-                          >
-                            {u.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5 text-white/30">
-                          {new Date(u.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          {u.status === 'lifetime' ? (
-                            <button
-                              onClick={() => revokeLifetime(u.user_id)}
-                              disabled={revokingLifetime === u.user_id}
-                              className="px-2.5 py-1 rounded-lg bg-[#D45B5B]/10 hover:bg-[#D45B5B]/20 text-[#D45B5B] text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
-                            >
-                              {revokingLifetime === u.user_id ? '…' : 'Revoke Lifetime'}
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => grantLifetime(u.user_id)}
-                              disabled={grantingLifetime === u.user_id}
-                              className="px-2.5 py-1 rounded-lg bg-[#c084fc]/10 hover:bg-[#c084fc]/20 text-[#c084fc] text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
-                            >
-                              {grantingLifetime === u.user_id ? '…' : 'Grant Lifetime'}
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="flex items-center justify-between mt-6 mb-3">
+            <h2 className="text-sm font-bold text-white/50 font-mono uppercase tracking-widest">All Users</h2>
+            {!userList && (
+              <button
+                onClick={fetchUsers}
+                disabled={usersLoading}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white text-xs font-mono transition-all disabled:opacity-40"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${usersLoading ? 'animate-spin' : ''}`} />
+                {usersLoading ? 'Loading…' : 'Load users'}
+              </button>
+            )}
+            {userList && (
+              <button
+                onClick={fetchUsers}
+                disabled={usersLoading}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white text-xs font-mono transition-all disabled:opacity-40"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${usersLoading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
+            )}
           </div>
+          {usersError && (
+            <div className="bg-[#D45B5B]/10 border border-[#D45B5B]/25 rounded-2xl p-4 text-[#D45B5B] text-sm font-mono mb-3">
+              Error: {usersError}
+            </div>
+          )}
+          {userList && (
+            <div className="bg-[#2a2a2c] rounded-2xl border border-white/5 overflow-hidden">
+              <div className="p-3 border-b border-white/5">
+                <input
+                  type="text"
+                  placeholder="Search by name or email…"
+                  value={userSearch}
+                  onChange={e => setUserSearch(e.target.value)}
+                  className="w-full bg-[#1F1F21] text-white text-sm font-mono rounded-xl px-3 py-2 border border-white/10 placeholder:text-white/25 focus:outline-none focus:border-[#FFD528]/40"
+                />
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs font-mono">
+                  <thead>
+                    <tr className="border-b border-white/5">
+                      <th className="text-left text-white/30 px-4 py-2 font-normal">Name</th>
+                      <th className="text-left text-white/30 px-4 py-2 font-normal">Email</th>
+                      <th className="text-left text-white/30 px-4 py-2 font-normal">Status</th>
+                      <th className="text-left text-white/30 px-4 py-2 font-normal">Joined</th>
+                      <th className="px-4 py-2" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {userList
+                      .filter(u => {
+                        const q = userSearch.toLowerCase();
+                        return !q || u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+                      })
+                      .map(u => (
+                        <tr key={u.user_id} className="border-b border-white/5 last:border-0 hover:bg-white/3">
+                          <td className="px-4 py-2.5 text-white/80">{u.name || <span className="text-white/25">—</span>}</td>
+                          <td className="px-4 py-2.5 text-white/50">{u.email}</td>
+                          <td className="px-4 py-2.5">
+                            <span
+                              className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase"
+                              style={{
+                                background: `${PIE_COLORS[u.status] ?? '#6b7280'}20`,
+                                color: PIE_COLORS[u.status] ?? '#6b7280',
+                              }}
+                            >
+                              {u.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-white/30">
+                            {new Date(u.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
+                          </td>
+                          <td className="px-4 py-2.5 text-right">
+                            {u.status === 'lifetime' ? (
+                              <button
+                                onClick={() => revokeLifetime(u.user_id)}
+                                disabled={revokingLifetime === u.user_id}
+                                className="px-2.5 py-1 rounded-lg bg-[#D45B5B]/10 hover:bg-[#D45B5B]/20 text-[#D45B5B] text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
+                              >
+                                {revokingLifetime === u.user_id ? '…' : 'Revoke Lifetime'}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => grantLifetime(u.user_id)}
+                                disabled={grantingLifetime === u.user_id}
+                                className="px-2.5 py-1 rounded-lg bg-[#c084fc]/10 hover:bg-[#c084fc]/20 text-[#c084fc] text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
+                              >
+                                {grantingLifetime === u.user_id ? '…' : 'Grant Lifetime'}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
