@@ -9,7 +9,7 @@ export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    return res.status(500).json({ error: 'Server not configured' });
+    return res.status(500).json({ error: 'Server not configured', debug_reason: 'missing_env', debug_has_url: !!SUPABASE_URL, debug_has_key: !!SUPABASE_SERVICE_ROLE_KEY });
   }
 
   const { token } = req.query;
@@ -35,7 +35,7 @@ export default async function handler(req: any, res: any) {
     }
     const share = shareRows[0];
     if (!share.is_active) {
-      return res.status(404).json({ error: 'not_found' });
+      return res.status(404).json({ error: 'not_found', debug_reason: 'inactive', debug_is_active: share.is_active });
     }
 
     // 2. Fetch project name only (not client_name or owner info)

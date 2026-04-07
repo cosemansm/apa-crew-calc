@@ -95,7 +95,13 @@ export function SharePage() {
       .then(r => r.json())
       .then((data: any) => {
         if (data.error) {
-          setLoadError(data.debug_body !== undefined ? `status:${data.debug_status} body:${JSON.stringify(data.debug_body)}` : 'This link is no longer active.');
+          const debugParts = [data.error];
+          if (data.debug_reason) debugParts.push(`reason:${data.debug_reason}`);
+          if (data.debug_has_url !== undefined) debugParts.push(`url:${data.debug_has_url}`);
+          if (data.debug_has_key !== undefined) debugParts.push(`key:${data.debug_has_key}`);
+          if (data.debug_is_active !== undefined) debugParts.push(`is_active:${data.debug_is_active}`);
+          if (data.debug_body !== undefined) debugParts.push(`body:${JSON.stringify(data.debug_body)}`);
+          setLoadError(debugParts.length > 1 ? debugParts.join(' | ') : 'This link is no longer active.');
         } else {
           const sd = data as ShareData;
           setShareData(sd);
