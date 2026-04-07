@@ -375,13 +375,15 @@ export function ProjectsPage() {
     setShareDialogError(null);
     setShareLinkCopied(false);
 
-    // Look for an existing active share record
-    const { data, error: fetchError } = await supabase
+    // Look for an existing active share record (limit 1 to avoid .maybeSingle errors when duplicates exist)
+    const { data: shareRows, error: fetchError } = await supabase
       .from('shared_jobs')
       .select('*')
       .eq('project_id', projectId)
       .eq('is_active', true)
-      .maybeSingle();
+      .order('created_at', { ascending: false })
+      .limit(1);
+    const data = shareRows?.[0] ?? null;
 
     if (data) {
       setShareRecord({
