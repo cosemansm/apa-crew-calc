@@ -656,18 +656,18 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
   }
 
   // ============= TIME OFF THE CLOCK (Section 5) =============
-  // FIX #21: Any gap < 11hrs = 1 hour TOC penalty (capped at 1hr max)
-  // "Crew shall not be engaged to work without at least a 10 hour break...
-  // they may only be engaged to work one hour of TOC"
+  // APA S.5: minimum break between wrap and next call is 10 hours ('time off the clock').
+  // If break is less than 10 hours, crew may only be engaged to work ONE hour of TOC
+  // per any one break (cap at 1hr — per the APA T&Cs example: 9hr gap = 1hr TOC).
   if (input.previousWrapTime && !isPMPARunner) {
     const prevWrapMins = timeToMinutes(input.previousWrapTime);
     const callMins = timeToMinutes(callTime);
     let gap = callMins - prevWrapMins;
     if (gap < 0) gap += 24 * 60;
     const gapHours = gap / 60;
-    if (gapHours < 11) {
-      // APA S.5: "they may only be engaged to work one hour of TOC" — cap at 1hr
-      const shortfall = Math.min(11 - gapHours, 1);
+    if (gapHours < 10) {
+      // Cap at 1hr: "they may only be engaged to work one hour of TOC in respect of any one break"
+      const shortfall = Math.min(10 - gapHours, 1);
       const tocHours = roundOTHours(shortfall);
       const tocLabel = `TOC (${tocHours}hr)`;
       penalties.push({ description: tocLabel, hours: tocHours, rate: otRate, total: otRate * tocHours });
