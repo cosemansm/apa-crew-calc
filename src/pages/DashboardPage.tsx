@@ -23,6 +23,7 @@ import { STATUS_CONFIG, StatusBadge, type ProjectStatus } from './ProjectsPage';
 import { TrialBanner } from '@/components/TrialBanner';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { JobLimitDialog } from '@/components/JobLimitDialog';
+import { BookkeepingSection } from '@/components/BookkeepingSection';
 
 interface Project {
   id: string;
@@ -745,6 +746,11 @@ export function DashboardPage() {
           </>
         )}
       </div>
+
+      {/* Bookkeeping */}
+      {user && (
+        <BookkeepingSection userId={user.id} isPremium={isPremium} />
+      )}
 
       {/* My Department */}
       <div>
