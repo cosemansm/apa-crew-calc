@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import * as Sentry from '@sentry/react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { ReviewPopup } from '@/components/ReviewPopup';
@@ -39,13 +40,14 @@ export function ReviewPopupController() {
       !subscription.trial_extended &&
       !subscription.day10_popup_shown
     ) {
-      markPopupShown(user.id, 'day10_popup_shown', session.access_token);
+      markPopupShown(user.id, 'day10_popup_shown', session.access_token)
+        .catch(err => Sentry.captureException(err, { extra: { context: 'ReviewPopupController markPopupShown day10' } }));
       // Send review email
       fetch('/api/email/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ to: user.email, trialDaysLeft }),
-      });
+      }).catch(err => Sentry.captureException(err, { extra: { context: 'ReviewPopupController review email' } }));
       setActivePopup('day10');
       return;
     }
@@ -57,7 +59,8 @@ export function ReviewPopupController() {
       !subscription.trial_extended &&
       !subscription.expired_popup_shown
     ) {
-      markPopupShown(user.id, 'expired_popup_shown', session.access_token);
+      markPopupShown(user.id, 'expired_popup_shown', session.access_token)
+        .catch(err => Sentry.captureException(err, { extra: { context: 'ReviewPopupController markPopupShown expired' } }));
       setActivePopup('expired');
     }
   }, [loading, subscription?.id]);

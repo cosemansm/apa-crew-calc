@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import * as Sentry from '@sentry/react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -163,6 +164,7 @@ export function AdminPage() {
       if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
       setStats(json as AdminStats);
     } catch (e) {
+      Sentry.captureException(e, { extra: { context: 'AdminPage fetchStats' } });
       setError((e as Error).message);
     } finally {
       setLoading(false);
@@ -194,6 +196,7 @@ export function AdminPage() {
       if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
       setUserList(json.userList);
     } catch (e) {
+      Sentry.captureException(e, { extra: { context: 'AdminPage fetchUsers' } });
       setUsersError((e as Error).message);
     } finally {
       setUsersLoading(false);

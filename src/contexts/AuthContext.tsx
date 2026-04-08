@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import * as Sentry from '@sentry/react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
@@ -37,7 +38,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           supabase.from('user_settings').upsert(
             { user_id: session.user.id, display_name: full_name, department: department || null },
             { onConflict: 'user_id', ignoreDuplicates: true }
-          );
+          ).then(({ error }) => {
+            if (error) Sentry.captureException(error, { extra: { context: 'AuthContext user_settings upsert' } });
+          });
         }
       }
     });

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import * as Sentry from '@sentry/react';
 import { useNavigate } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { ProLockOverlay } from '@/components/ProLockOverlay';
@@ -459,7 +460,7 @@ export function AIInputPage() {
       const entry = entries[i];
       const result = results[i];
       const role = APA_CREW_ROLES.find(r => r.role === entry.role);
-      await supabase.from('project_days').insert({
+      const { error: dayErr } = await supabase.from('project_days').insert({
         project_id: project.id,
         day_number: i + 1,
         work_date: entry.workDate || new Date().toISOString().split('T')[0],
@@ -486,6 +487,7 @@ export function AIInputPage() {
         grand_total: result?.grandTotal ?? 0,
         result_json: result ?? null,
       });
+      if (dayErr) Sentry.captureException(dayErr, { extra: { context: 'AIInputPage project_days insert', dayNumber: i + 1 } });
     }
 
     setSaving(false);

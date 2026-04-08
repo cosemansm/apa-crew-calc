@@ -1,4 +1,5 @@
 import type { CrewRole } from './apa-rates';
+import * as Sentry from '@sentry/react';
 
 export type DayType =
   | 'basic_working'
@@ -65,6 +66,9 @@ export interface CalculationResult {
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number);
+  if (isNaN(h) || isNaN(m)) {
+    Sentry.captureException(new Error(`Invalid time format: "${time}"`), { extra: { context: 'calculation-engine timeToMinutes' } });
+  }
   return h * 60 + m;
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import * as Sentry from '@sentry/react';
 import logoImg from '@/assets/logo.png';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/usePageTitle';
@@ -130,13 +131,17 @@ export function InvoicePage() {
       .select('id, name, client_name, job_reference')
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
-      .then(({ data }) => { if (data) setProjects(data); });
+      .then(({ data, error }) => {
+        if (error) Sentry.captureException(error, { extra: { context: 'InvoicePage projects fetch' } });
+        if (data) setProjects(data);
+      });
 
     supabase
       .from('project_days')
       .select('id, project_id, work_date, role_name, day_type, call_time, wrap_time, grand_total, result_json, expenses_amount, expenses_notes, projects(name, client_name)')
       .order('work_date', { ascending: true })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error) Sentry.captureException(error, { extra: { context: 'InvoicePage project_days fetch' } });
         if (data) {
           const days = data as unknown as ProjectDay[];
           setAllDays(days);
@@ -167,7 +172,8 @@ export function InvoicePage() {
       .select('*')
       .eq('user_id', user.id)
       .single()
-      .then(({ data }) => {
+      .then(({ data, error }) => {
+        if (error && error.code !== 'PGRST116') Sentry.captureException(error, { extra: { context: 'InvoicePage user_settings fetch' } });
         if (!data) return;
         if (data.company_name) setCompanyName(data.company_name);
         if (data.company_address) setCompanyAddress(data.company_address);
