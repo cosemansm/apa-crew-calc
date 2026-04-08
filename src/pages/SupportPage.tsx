@@ -777,6 +777,16 @@ export function SupportPage() {
             </div>
           )}
 
+          <div className="flex justify-center pt-4">
+            <button
+              onClick={() => { throw new Error('This is your first error!'); }}
+              className="text-2xl opacity-20 hover:opacity-40 transition-opacity"
+              title="Sentry test"
+            >
+              🚢
+            </button>
+          </div>
+
         </div>
       </div>
     </div>
