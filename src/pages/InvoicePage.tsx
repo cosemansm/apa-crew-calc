@@ -212,6 +212,7 @@ export function InvoicePage() {
 
   const handleExportToFreeAgent = async () => {
     if (!user || selectedDays.length === 0) return;
+    if (!clientName.trim()) { setFaExportError('Please add a client name before sending to FreeAgent.'); return; }
     setExportingFa(true);
     setFaExportUrl(null);
     setFaExportError(null);
@@ -241,6 +242,7 @@ export function InvoicePage() {
 
   const handleExportToXero = async () => {
     if (!user || selectedDays.length === 0) return;
+    if (!clientName.trim()) { setXeroExportError('Please add a client name before sending to Xero.'); return; }
     setExportingXero(true);
     setXeroExportUrl(null);
     setXeroExportError(null);
@@ -270,6 +272,7 @@ export function InvoicePage() {
 
   const handleExportToQBO = async () => {
     if (!user || selectedDays.length === 0) return;
+    if (!clientName.trim()) { setQboExportError('Please add a client name before sending to QuickBooks.'); return; }
     setExportingQbo(true);
     setQboExportUrl(null);
     setQboExportError(null);
@@ -584,28 +587,7 @@ export function InvoicePage() {
 
             <Separator />
 
-            {/* From */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Your Name / Company</Label>
-                {!companyName && <span className="text-xs text-amber-600">Add in Settings</span>}
-              </div>
-              <Input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Your Company Ltd" />
-            </div>
-            <div className="space-y-2">
-              <Label>Your Address</Label>
-              <Input value={companyAddress} onChange={e => setCompanyAddress(e.target.value)} placeholder="123 Film Street, London" />
-            </div>
-            {vatNumber && (
-              <div className="space-y-2">
-                <Label>VAT Number</Label>
-                <Input value={vatNumber} onChange={e => setVatNumber(e.target.value)} />
-              </div>
-            )}
-
-            <Separator />
-
-            {/* To */}
+            {/* To — client details first */}
             <div className="space-y-2">
               <Label>Client / Production Company</Label>
               <Input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Production Co. Ltd" />
@@ -620,9 +602,25 @@ export function InvoicePage() {
                 type="email"
                 value={clientEmail}
                 onChange={e => setClientEmail(e.target.value)}
-                placeholder="finance@productioncо.com, producer@example.com"
+                placeholder="finance@production.com, producer@example.com"
               />
               <p className="text-xs text-muted-foreground">Separate multiple addresses with a comma</p>
+            </div>
+
+            <Separator />
+
+            {/* From — your details (read-only) */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <Label className="text-muted-foreground text-xs uppercase tracking-wide">Your Details</Label>
+                <a href="/settings" className="text-xs text-[#FFD528] underline">Edit your details →</a>
+              </div>
+              {companyName
+                ? <p className="text-sm font-medium text-foreground">{companyName}</p>
+                : <p className="text-sm text-amber-600">Company name not set — add it in Settings</p>
+              }
+              {companyAddress && <p className="text-sm text-muted-foreground">{companyAddress}</p>}
+              {vatNumber && <p className="text-sm text-muted-foreground">VAT: {vatNumber}</p>}
             </div>
 
           </CardContent>
