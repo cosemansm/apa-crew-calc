@@ -7,7 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from 'recharts';
-import { Users, Briefcase, CalendarDays, PoundSterling, TrendingUp, Zap, RefreshCw, BarChart2, Lightbulb } from 'lucide-react';
+import { Users, Briefcase, CalendarDays, PoundSterling, TrendingUp, Zap, RefreshCw, BarChart2, Lightbulb, ChevronDown } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 const ADMIN_EMAIL = 'milo.cosemans@gmail.com';
@@ -173,6 +173,7 @@ function AdminFeatureRequests({
   const [newTags, setNewTags] = useState<string[]>([]);
   const [newStatus, setNewStatus] = useState<AdminFeatureRequest['status']>('requested');
   const [creating, setCreating] = useState(false);
+  const [openStatusId, setOpenStatusId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -349,16 +350,31 @@ function AdminFeatureRequests({
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {/* Status dropdown */}
-                <select
-                  value={r.status}
-                  onChange={e => handleStatusChange(r.id, e.target.value as AdminFeatureRequest['status'])}
-                  className="bg-transparent text-[11px] font-mono rounded-lg px-2 py-1 border border-white/10 focus:outline-none cursor-pointer"
-                  style={{ color: FR_STATUS_OPTIONS.find(s => s.value === r.status)?.color ?? '#fff' }}
-                >
-                  {FR_STATUS_OPTIONS.map(s => (
-                    <option key={s.value} value={s.value} style={{ background: '#1F1F21', color: s.color }}>{s.label}</option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <button
+                    onClick={() => setOpenStatusId(openStatusId === r.id ? null : r.id)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#1F1F21] border border-white/10 hover:border-white/20 text-[11px] font-mono transition-all"
+                    style={{ color: FR_STATUS_OPTIONS.find(s => s.value === r.status)?.color ?? '#fff' }}
+                  >
+                    {FR_STATUS_OPTIONS.find(s => s.value === r.status)?.label ?? r.status}
+                    <ChevronDown className="h-3 w-3 opacity-50" />
+                  </button>
+                  {openStatusId === r.id && (
+                    <div className="absolute right-0 top-full mt-1 z-10 bg-[#2a2a2c] border border-white/10 rounded-xl overflow-hidden shadow-xl min-w-[120px]">
+                      {FR_STATUS_OPTIONS.map(s => (
+                        <button
+                          key={s.value}
+                          onClick={() => { handleStatusChange(r.id, s.value); setOpenStatusId(null); }}
+                          className="w-full text-left px-3 py-2 text-[11px] font-mono hover:bg-white/5 transition-all flex items-center gap-2"
+                          style={{ color: s.color }}
+                        >
+                          <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: s.color }} />
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {/* Edit */}
                 <button
                   onClick={() => editingId === r.id ? cancelEdit() : startEdit(r)}
