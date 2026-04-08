@@ -331,7 +331,7 @@ function AdminFeatureRequests({
 
       <div className="space-y-2">
         {requests.map(r => (
-          <div key={r.id} className="bg-[#2a2a2c] rounded-2xl border border-white/5 overflow-hidden">
+          <div key={r.id} className="bg-[#2a2a2c] rounded-2xl border border-white/5">
             {/* Row */}
             <div className="flex items-start gap-3 p-4">
               <div className="flex-1 min-w-0">
