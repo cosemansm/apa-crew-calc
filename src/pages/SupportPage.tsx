@@ -29,7 +29,7 @@ interface FeatureRequest {
   user_name: string;
   title: string;
   description: string;
-  status: 'submitted' | 'planned' | 'in_progress' | 'completed';
+  status: 'requested' | 'planned' | 'in_progress' | 'completed';
   tags: string[];
   vote_count: number;
   user_voted: boolean;
@@ -68,14 +68,14 @@ const NAV_ITEMS: { id: SectionId; label: string; icon: React.ElementType }[] = [
 // ─── Status colours ───────────────────────────────────────────────────────────
 
 const STATUS_STYLES: Record<string, string> = {
-  submitted:   'bg-gray-100 text-gray-600',
+  requested:   'bg-gray-100 text-gray-600',
   planned:     'bg-blue-50 text-blue-600',
   in_progress: 'bg-amber-50 text-amber-700',
   completed:   'bg-green-50 text-green-700',
 };
 
 const STATUS_LABELS: Record<string, string> = {
-  submitted:   'Submitted',
+  requested:   'Requested',
   planned:     'Planned',
   in_progress: 'In Progress',
   completed:   'Done',
