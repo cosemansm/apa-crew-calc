@@ -32,6 +32,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       setLoading(false);
 
+      if (session?.user) {
+        Sentry.setUser({ email: session.user.email, id: session.user.id });
+      } else {
+        Sentry.setUser(null);
+      }
+
       if (_event === 'SIGNED_IN' && session) {
         const { full_name, department } = session.user.user_metadata ?? {};
         if (full_name) {
