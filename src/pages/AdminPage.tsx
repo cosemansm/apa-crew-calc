@@ -157,6 +157,7 @@ function AdminFeatureRequests({
   reloadRef: React.MutableRefObject<(() => void) | null>;
   onLoadingChange: (v: boolean) => void;
 }) {
+  const { user } = useAuth();
   const [requests, setRequests] = useState<AdminFeatureRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -249,13 +250,15 @@ function AdminFeatureRequests({
     setCreating(true);
     const { data, error: err } = await supabase
       .from('feature_requests')
-      .insert({ title: newTitle.trim(), description: newDescription.trim(), tags: newTags, status: newStatus, user_id: 'admin', user_name: 'Admin' })
+      .insert({ title: newTitle.trim(), description: newDescription.trim(), tags: newTags, status: newStatus, user_id: user?.id, user_name: 'Admin' })
       .select()
       .single();
     if (!err && data) {
       setRequests(prev => [{ ...data, vote_count: 0 }, ...prev]);
       setNewTitle(''); setNewDescription(''); setNewTags([]); setNewStatus('requested');
       setShowCreate(false);
+    } else if (err) {
+      setError(err.message);
     }
     setCreating(false);
   };
