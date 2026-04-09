@@ -175,6 +175,8 @@ function AdminFeatureRequests({
   const [creating, setCreating] = useState(false);
   const [openStatusId, setOpenStatusId] = useState<string | null>(null);
   const [savedStatusId, setSavedStatusId] = useState<string | null>(null);
+  const [openCreateStatusMenu, setOpenCreateStatusMenu] = useState(false);
+  const [openEditStatusMenu, setOpenEditStatusMenu] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -299,15 +301,32 @@ function AdminFeatureRequests({
             ))}
           </div>
           <div className="flex items-center gap-3">
-            <select
-              value={newStatus}
-              onChange={e => setNewStatus(e.target.value as AdminFeatureRequest['status'])}
-              className="bg-[#1F1F21] text-white text-xs font-mono rounded-xl px-3 py-2 border border-white/10 focus:outline-none focus:border-[#FFD528]/40"
-            >
-              {FR_STATUS_OPTIONS.map(s => (
-                <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <button
+                onClick={() => setOpenCreateStatusMenu(v => !v)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#1F1F21] border border-white/10 text-xs font-mono transition-all hover:border-white/20 focus:outline-none"
+                style={{ color: FR_STATUS_OPTIONS.find(s => s.value === newStatus)?.color ?? '#fff' }}
+              >
+                <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: FR_STATUS_OPTIONS.find(s => s.value === newStatus)?.color }} />
+                {FR_STATUS_OPTIONS.find(s => s.value === newStatus)?.label ?? newStatus}
+                <ChevronDown className="h-3 w-3 opacity-50 ml-0.5" />
+              </button>
+              {openCreateStatusMenu && (
+                <div className="absolute left-0 top-full mt-1 z-10 bg-[#2a2a2c] border border-white/10 rounded-xl overflow-hidden shadow-xl min-w-[120px]">
+                  {FR_STATUS_OPTIONS.map(s => (
+                    <button
+                      key={s.value}
+                      onClick={() => { setNewStatus(s.value); setOpenCreateStatusMenu(false); }}
+                      className="w-full text-left px-3 py-2 text-[11px] font-mono hover:bg-white/5 transition-all flex items-center gap-2"
+                      style={{ color: s.color }}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: s.color }} />
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               onClick={handleCreate}
               disabled={creating || !newTitle.trim()}
@@ -430,15 +449,32 @@ function AdminFeatureRequests({
                   ))}
                 </div>
                 <div className="flex items-center gap-3">
-                  <select
-                    value={editStatus}
-                    onChange={e => setEditStatus(e.target.value as AdminFeatureRequest['status'])}
-                    className="bg-[#1F1F21] text-white text-xs font-mono rounded-xl px-3 py-2 border border-white/10 focus:outline-none focus:border-[#FFD528]/40"
-                  >
-                    {FR_STATUS_OPTIONS.map(s => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <button
+                      onClick={() => setOpenEditStatusMenu(v => !v)}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#1F1F21] border border-white/10 text-xs font-mono transition-all hover:border-white/20 focus:outline-none"
+                      style={{ color: FR_STATUS_OPTIONS.find(s => s.value === editStatus)?.color ?? '#fff' }}
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: FR_STATUS_OPTIONS.find(s => s.value === editStatus)?.color }} />
+                      {FR_STATUS_OPTIONS.find(s => s.value === editStatus)?.label ?? editStatus}
+                      <ChevronDown className="h-3 w-3 opacity-50 ml-0.5" />
+                    </button>
+                    {openEditStatusMenu && (
+                      <div className="absolute left-0 top-full mt-1 z-10 bg-[#2a2a2c] border border-white/10 rounded-xl overflow-hidden shadow-xl min-w-[120px]">
+                        {FR_STATUS_OPTIONS.map(s => (
+                          <button
+                            key={s.value}
+                            onClick={() => { setEditStatus(s.value); setOpenEditStatusMenu(false); }}
+                            className="w-full text-left px-3 py-2 text-[11px] font-mono hover:bg-white/5 transition-all flex items-center gap-2"
+                            style={{ color: s.color }}
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ background: s.color }} />
+                            {s.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <button
                     onClick={saveEdit}
                     disabled={saving || !editTitle.trim()}

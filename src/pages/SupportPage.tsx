@@ -74,6 +74,13 @@ const STATUS_STYLES: Record<string, string> = {
   completed:   'bg-green-50 text-green-700',
 };
 
+const STATUS_COLORS: Record<string, string> = {
+  requested:   '#FFD528',
+  planned:     '#60a5fa',
+  in_progress: '#f97316',
+  completed:   '#4ade80',
+};
+
 const STATUS_LABELS: Record<string, string> = {
   requested:   'Requested',
   planned:     'Planned',
@@ -541,12 +548,11 @@ export function SupportPage() {
                       {/* Vote button — bigger and more prominent */}
                       <button
                         onClick={() => handleVote(request.id, request.user_voted)}
-                        className={cn(
-                          'flex flex-col items-center justify-center w-16 shrink-0 rounded-xl border-2 transition-all py-3 gap-0.5',
-                          request.user_voted
-                            ? 'border-[#1F1F21] bg-[#1F1F21] text-white'
-                            : 'border-border text-muted-foreground hover:border-[#1F1F21] hover:text-[#1F1F21]'
-                        )}
+                        className="flex flex-col items-center justify-center w-16 shrink-0 rounded-xl border-2 transition-all py-3 gap-0.5"
+                        style={request.user_voted
+                          ? { borderColor: STATUS_COLORS[request.status] ?? '#1F1F21', backgroundColor: STATUS_COLORS[request.status] ?? '#1F1F21', color: '#1F1F21' }
+                          : { borderColor: (STATUS_COLORS[request.status] ?? '#e5e7eb') + '70', color: '#6b7280' }
+                        }
                       >
                         <ChevronUp className="h-5 w-5" />
                         <span className="text-base font-bold leading-none">{request.vote_count}</span>
@@ -777,15 +783,6 @@ export function SupportPage() {
             </div>
           )}
 
-          <div className="flex justify-center pt-4">
-            <button
-              onClick={() => { throw new Error('This is your first error!'); }}
-              className="text-2xl opacity-20 hover:opacity-40 transition-opacity"
-              title="Sentry test"
-            >
-              🚢
-            </button>
-          </div>
 
         </div>
       </div>
