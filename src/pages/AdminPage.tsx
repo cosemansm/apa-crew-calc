@@ -174,6 +174,7 @@ function AdminFeatureRequests({
   const [newStatus, setNewStatus] = useState<AdminFeatureRequest['status']>('requested');
   const [creating, setCreating] = useState(false);
   const [openStatusId, setOpenStatusId] = useState<string | null>(null);
+  const [savedStatusId, setSavedStatusId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -200,8 +201,12 @@ function AdminFeatureRequests({
   }, []);
 
   const handleStatusChange = async (id: string, status: AdminFeatureRequest['status']) => {
-    await supabase.from('feature_requests').update({ status }).eq('id', id);
-    setRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+    const { error } = await supabase.from('feature_requests').update({ status }).eq('id', id);
+    if (!error) {
+      setRequests(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+      setSavedStatusId(id);
+      setTimeout(() => setSavedStatusId(s => s === id ? null : s), 1500);
+    }
   };
 
   const startEdit = (r: AdminFeatureRequest) => {
@@ -353,11 +358,11 @@ function AdminFeatureRequests({
                 <div className="relative">
                   <button
                     onClick={() => setOpenStatusId(openStatusId === r.id ? null : r.id)}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#1F1F21] border border-white/10 hover:border-white/20 text-[11px] font-mono transition-all"
-                    style={{ color: FR_STATUS_OPTIONS.find(s => s.value === r.status)?.color ?? '#fff' }}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#1F1F21] border text-[11px] font-mono transition-all ${savedStatusId === r.id ? 'border-[#4ade80]/40' : 'border-white/10 hover:border-white/20'}`}
+                    style={{ color: savedStatusId === r.id ? '#4ade80' : (FR_STATUS_OPTIONS.find(s => s.value === r.status)?.color ?? '#fff') }}
                   >
-                    {FR_STATUS_OPTIONS.find(s => s.value === r.status)?.label ?? r.status}
-                    <ChevronDown className="h-3 w-3 opacity-50" />
+                    {savedStatusId === r.id ? 'Saved ✓' : (FR_STATUS_OPTIONS.find(s => s.value === r.status)?.label ?? r.status)}
+                    {savedStatusId !== r.id && <ChevronDown className="h-3 w-3 opacity-50" />}
                   </button>
                   {openStatusId === r.id && (
                     <div className="absolute right-0 top-full mt-1 z-10 bg-[#2a2a2c] border border-white/10 rounded-xl overflow-hidden shadow-xl min-w-[120px]">
