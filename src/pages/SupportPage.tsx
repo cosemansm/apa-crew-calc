@@ -340,14 +340,21 @@ export function SupportPage() {
     await loadFeatureRequests();
   };
 
-  // Filtered + sorted requests
-  const sortedRequests = [...featureRequests]
-    .filter(r => !activeTagFilter || r.tags?.includes(activeTagFilter))
-    .sort((a, b) =>
-      featureSort === 'top'
-        ? b.vote_count - a.vote_count
-        : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+  // Grouped requests — fixed status order, sorted within each group
+  const STATUS_ORDER: FeatureRequest['status'][] = ['in_progress', 'planned', 'requested', 'completed'];
+  const filteredRequests = featureRequests.filter(r => !activeTagFilter || r.tags?.includes(activeTagFilter));
+  const groupedRequests = STATUS_ORDER
+    .map(status => ({
+      status,
+      requests: filteredRequests
+        .filter(r => r.status === status)
+        .sort((a, b) =>
+          featureSort === 'top'
+            ? b.vote_count - a.vote_count
+            : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        ),
+    }))
+    .filter(g => g.requests.length > 0);
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 
@@ -535,50 +542,60 @@ export function SupportPage() {
                     ))}
                   </div>
 
-                  {/* Request list */}
-                  {sortedRequests.length === 0 && (
+                  {/* Request list — grouped by status */}
+                  {groupedRequests.length === 0 && (
                     <div className="text-center py-8 text-muted-foreground">
                       <Lightbulb className="h-8 w-8 mx-auto mb-2 opacity-30" />
                       <p className="text-sm">{activeTagFilter ? `No requests tagged "${activeTagFilter}"` : 'No feature requests yet. Be the first!'}</p>
                     </div>
                   )}
 
-                  {sortedRequests.map(request => (
-                    <div key={request.id} className="flex gap-4 p-4 rounded-xl border border-border hover:bg-muted/30 transition-colors">
-                      {/* Vote button — bigger and more prominent */}
-                      <button
-                        onClick={() => handleVote(request.id, request.user_voted)}
-                        className="flex flex-col items-center justify-center w-16 shrink-0 rounded-xl border-2 transition-all py-3 gap-0.5"
-                        style={request.user_voted
-                          ? { borderColor: STATUS_COLORS[request.status] ?? '#1F1F21', backgroundColor: STATUS_COLORS[request.status] ?? '#1F1F21', color: '#1F1F21' }
-                          : { borderColor: (STATUS_COLORS[request.status] ?? '#e5e7eb') + '70', color: '#6b7280' }
-                        }
-                      >
-                        <ChevronUp className="h-5 w-5" />
-                        <span className="text-base font-bold leading-none">{request.vote_count}</span>
-                      </button>
+                  {groupedRequests.map((group, groupIdx) => (
+                    <div key={group.status} className={groupIdx > 0 ? 'mt-6' : ''}>
+                      {/* Section header */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="h-2 w-2 rounded-full shrink-0" style={{ background: STATUS_COLORS[group.status] }} />
+                        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: STATUS_COLORS[group.status] }}>
+                          {STATUS_LABELS[group.status]}
+                        </span>
+                        <span className="text-xs text-muted-foreground/50">{group.requests.length}</span>
+                      </div>
 
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <p className="font-semibold text-sm">{request.title}</p>
-                          <Badge className={cn('text-[10px] px-1.5 py-0', STATUS_STYLES[request.status])}>
-                            {STATUS_LABELS[request.status]}
-                          </Badge>
-                        </div>
-                        {request.description && (
-                          <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{request.description}</p>
-                        )}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {request.tags?.map(tag => (
-                            <span key={tag} className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground border border-border">
-                              {tag}
-                            </span>
-                          ))}
-                          <span className="text-[11px] text-muted-foreground/50">
-                            {new Date(request.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                          </span>
-                        </div>
+                      <div className="space-y-2">
+                        {group.requests.map(request => (
+                          <div key={request.id} className="flex gap-4 p-4 rounded-xl border border-border hover:bg-muted/30 transition-colors">
+                            {/* Vote button */}
+                            <button
+                              onClick={() => handleVote(request.id, request.user_voted)}
+                              className="flex flex-col items-center justify-center w-16 shrink-0 rounded-xl border-2 transition-all py-3 gap-0.5"
+                              style={request.user_voted
+                                ? { borderColor: STATUS_COLORS[request.status] ?? '#1F1F21', backgroundColor: STATUS_COLORS[request.status] ?? '#1F1F21', color: '#1F1F21' }
+                                : { borderColor: (STATUS_COLORS[request.status] ?? '#e5e7eb') + '70', color: '#6b7280' }
+                              }
+                            >
+                              <ChevronUp className="h-5 w-5" />
+                              <span className="text-base font-bold leading-none">{request.vote_count}</span>
+                            </button>
+
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-sm mb-1">{request.title}</p>
+                              {request.description && (
+                                <p className="text-xs text-muted-foreground mb-2 line-clamp-2">{request.description}</p>
+                              )}
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {request.tags?.map(tag => (
+                                  <span key={tag} className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground border border-border">
+                                    {tag}
+                                  </span>
+                                ))}
+                                <span className="text-[11px] text-muted-foreground/50">
+                                  {new Date(request.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}
