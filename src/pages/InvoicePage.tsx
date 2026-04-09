@@ -22,6 +22,8 @@ import { exportToFreeAgent, isFreeAgentConnected, FreeAgentAuthError } from '@/s
 import { exportToXero, isXeroConnected, XeroAuthError } from '@/services/bookkeeping/xero';
 import { exportToQBO, isQBOConnected, QBOAuthError } from '@/services/bookkeeping/quickbooks';
 import { BookkeepingCTA } from '@/components/BookkeepingCTA';
+import { TimesheetDocument } from '@/components/TimesheetDocument';
+import type { TimesheetDay } from '@/components/TimesheetDocument';
 
 const QBO_MESSAGES = ['Connecting to QuickBooks…', 'Preparing export…', 'Creating invoice…'];
 
@@ -122,6 +124,8 @@ export function InvoicePage() {
 
   const projectPickerRef = useRef<HTMLDivElement>(null);
   const invoiceRef = useRef<HTMLDivElement>(null);
+  const timesheetRef = useRef<HTMLDivElement>(null);
+  const [activeTab, setActiveTab] = useState<'timesheet' | 'invoice'>('timesheet');
 
   useEffect(() => {
     if (!user) return;
@@ -390,6 +394,43 @@ export function InvoicePage() {
     }
   };
 
+  const handleTimesheetDownload = async () => {
+    if (!timesheetRef.current) return;
+    setDownloading(true);
+    try {
+      const el = timesheetRef.current;
+      const prevWidth        = el.style.width;
+      const prevBorderRadius = el.style.borderRadius;
+      const prevBoxShadow    = el.style.boxShadow;
+      el.style.width        = '794px';
+      el.style.borderRadius = '0';
+      el.style.boxShadow    = 'none';
+
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+
+      el.style.width        = prevWidth;
+      el.style.borderRadius = prevBorderRadius;
+      el.style.boxShadow    = prevBoxShadow;
+
+      const imgData     = canvas.toDataURL('image/png', 1);
+      const pdf         = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pdfWidth    = pdf.internal.pageSize.getWidth();
+      const imgHeightMm = (canvas.height / canvas.width) * pdfWidth;
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeightMm);
+
+      const slug    = (selectedProject?.name ?? 'timesheet').toLowerCase().replace(/\s+/g, '-');
+      const dateStr = format(new Date(), 'yyyy-MM-dd');
+      pdf.save(`timesheet-${slug}-${dateStr}.pdf`);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const openEmailModal = () => {
     if (!isPremium) {
       navigate('/#pricing');
@@ -478,6 +519,35 @@ export function InvoicePage() {
         <FileText className="h-6 w-6" />
         Invoice Generator
       </h1>
+
+      {/* ── Tab toggle ── */}
+      <div className="flex gap-2 mb-4">
+        <button
+          type="button"
+          onClick={() => setActiveTab('timesheet')}
+          className={cn(
+            'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+            activeTab === 'timesheet'
+              ? 'bg-[#FFD528] text-[#1F1F21]'
+              : 'bg-muted text-muted-foreground hover:text-foreground'
+          )}
+        >
+          Timesheet
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('invoice')}
+          className={cn(
+            'px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5',
+            activeTab === 'invoice'
+              ? 'bg-[#FFD528] text-[#1F1F21]'
+              : 'bg-muted text-muted-foreground hover:text-foreground'
+          )}
+        >
+          Invoice
+          {!isPremium && <Lock className="h-3 w-3" />}
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         {/* ── Left: Form ─────────────────────────────────────────────── */}
@@ -626,7 +696,41 @@ export function InvoicePage() {
           </CardContent>
         </Card>
 
-        {/* ── Right: Invoice Preview ──────────────────────────────────── */}
+        {/* ── Right: Timesheet / Invoice Preview ──────────────────────── */}
+        {activeTab === 'timesheet' ? (
+        <div className="space-y-3">
+          <div className="flex gap-2">
+            <Button
+              className="flex-1 gap-2 bg-[#FFD528] text-[#1F1F21] hover:bg-[#FFD528]/90"
+              onClick={handleTimesheetDownload}
+              disabled={downloading || selectedDays.length === 0}
+            >
+              {downloading
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
+                : <><Download className="h-4 w-4" /> Download PDF</>
+              }
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-1.5"
+              onClick={() => setActiveTab('invoice')}
+            >
+              Invoice {!isPremium && <Lock className="h-3 w-3" />}
+            </Button>
+          </div>
+          <div
+            ref={timesheetRef}
+            className="rounded-2xl shadow-lg overflow-hidden"
+          >
+            <TimesheetDocument
+              userName={companyName || user?.email || ''}
+              projectName={selectedProject?.name ?? ''}
+              clientName={selectedProject?.client_name ?? null}
+              selectedDays={selectedDays as TimesheetDay[]}
+            />
+          </div>
+        </div>
+        ) : (
         <div className="space-y-3">
           {/* Action buttons */}
           <div className="flex gap-2">
@@ -1140,6 +1244,7 @@ export function InvoicePage() {
             </div>
           </div>
         </div>
+        )}
       </div>
 
       {/* ── Email Compose Modal ──────────────────────────────────── */}
