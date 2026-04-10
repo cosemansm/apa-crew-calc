@@ -721,7 +721,7 @@ export function AdminPage() {
           <SectionTitle>Jobs Added — Last 30 Days</SectionTitle>
           <div className="bg-[#2a2a2c] rounded-2xl p-4 border border-white/5">
             <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={stats.jobs.byDay.map((d, i) => ({ ...d, label: shortDay(d.day, i) }))}>
+              <BarChart data={(stats.jobs.byDay ?? []).map((d, i) => ({ ...d, label: shortDay(d.day, i) }))}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                 <XAxis dataKey="label" tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11, fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
                 <YAxis allowDecimals={false} tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11, fontFamily: 'monospace' }} axisLine={false} tickLine={false} width={24} />
