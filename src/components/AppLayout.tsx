@@ -11,7 +11,7 @@ const navItems = [
   { path: '/calculator', label: 'Calculator', icon: Calculator },
   { path: '/projects', label: 'Jobs', icon: FolderOpen },
   { path: '/ai-input', label: 'AI Input', icon: Sparkles },
-  { path: '/invoices', label: 'Invoices', icon: FileText },
+  { path: '/invoices', label: 'Timesheets', icon: FileText },
   { path: '/support', label: 'Support', icon: LifeBuoy },
 ];
 
