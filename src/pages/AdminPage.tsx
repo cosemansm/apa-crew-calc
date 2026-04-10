@@ -63,13 +63,6 @@ function shortMonth(key: string): string {
   return d.toLocaleString('default', { month: 'short' });
 }
 
-// Format day key "YYYY-MM-DD" to "Apr 7" etc. — show label every 5th day to avoid clutter
-function shortDay(key: string, index: number): string {
-  if (index % 5 !== 0 && index !== 29) return '';
-  const [year, month, day] = key.split('-');
-  const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-  return d.toLocaleString('default', { month: 'short', day: 'numeric' });
-}
 
 function formatGBP(n: number): string {
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 }).format(n);
@@ -110,6 +103,7 @@ interface AdminStats {
     byStatus: { status: string; count: number }[];
     byMonth: { month: string; count: number }[];
     byDay: { day: string; count: number }[];
+    byWeek: { week: string; count: number }[];
     avgPerUser: number;
   };
   days: {
@@ -519,6 +513,7 @@ export function AdminPage() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [adminTab, setAdminTab] = useState<'dashboard' | 'feature-requests'>('dashboard');
+  const [jobsView, setJobsView] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const frReloadRef = useRef<(() => void) | null>(null);
   const [frLoading, setFrLoading] = useState(false);
   function loadAdminFeatureRequests() {
@@ -717,25 +712,75 @@ export function AdminPage() {
             <StatCard label="On Trial" value={stats.subscriptions.trialing} sub={`${stats.subscriptions.trialExtended} extended`} icon={Zap} />
           </div>
 
-          {/* ── Jobs Per Day ────────────────────────────────────────────── */}
-          <SectionTitle>Jobs Added — Last 30 Days</SectionTitle>
+          {/* ── Jobs Chart (tabbed: 30d / 52w / 12m) ───────────────────── */}
+          <SectionTitle>
+            {jobsView === 'daily' ? 'Jobs Added — Last 30 Days' : jobsView === 'weekly' ? 'Jobs Added — Last 52 Weeks' : 'Jobs Added — Last 12 Months'}
+          </SectionTitle>
           <div className="bg-[#2a2a2c] rounded-2xl p-4 border border-white/5">
+            {/* View tabs */}
+            <div className="flex gap-1 mb-3">
+              {(['daily', 'weekly', 'monthly'] as const).map(v => (
+                <button
+                  key={v}
+                  onClick={() => setJobsView(v)}
+                  className={`px-2.5 py-1 rounded-lg text-[10px] font-mono uppercase tracking-wider transition-all border ${
+                    jobsView === v
+                      ? 'bg-[#FFD528]/15 text-[#FFD528] border-[#FFD528]/25'
+                      : 'bg-white/5 text-white/40 hover:text-white/60 border-transparent'
+                  }`}
+                >
+                  {v === 'daily' ? '30d' : v === 'weekly' ? '52w' : '12m'}
+                </button>
+              ))}
+            </div>
             <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={(stats.jobs.byDay ?? []).map((d, i) => ({ ...d, label: shortDay(d.day, i) }))}>
+              <BarChart data={(
+                jobsView === 'daily' ? (stats.jobs.byDay ?? [])
+                : jobsView === 'weekly' ? (stats.jobs.byWeek ?? [])
+                : stats.jobs.byMonth
+              ) as object[]}>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="label" tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11, fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
+                <XAxis
+                  dataKey={jobsView === 'monthly' ? 'month' : jobsView === 'weekly' ? 'week' : 'day'}
+                  tickFormatter={(value: string, index: number) => {
+                    if (jobsView === 'daily') {
+                      if (index % 5 !== 0 && index !== 29) return '';
+                      const [y, m, d] = value.split('-');
+                      return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleString('default', { month: 'short', day: 'numeric' });
+                    }
+                    if (jobsView === 'weekly') {
+                      if (index % 8 !== 0 && index !== 51) return '';
+                      const [y, m, d] = value.split('-');
+                      return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleString('default', { month: 'short', day: 'numeric' });
+                    }
+                    return shortMonth(value);
+                  }}
+                  tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11, fontFamily: 'monospace' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
                 <YAxis allowDecimals={false} tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11, fontFamily: 'monospace' }} axisLine={false} tickLine={false} width={24} />
                 <Tooltip
-                  content={({ active, payload, label: tooltipLabel }) => {
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  content={(props: any) => {
+                    const { active, payload } = props;
                     if (!active || !payload?.length) return null;
-                    const d = payload[0].payload as { day: string; count: number };
-                    const [y, m, day] = d.day.split('-');
-                    const date = new Date(parseInt(y), parseInt(m) - 1, parseInt(day));
-                    const formatted = date.toLocaleString('default', { weekday: 'short', month: 'short', day: 'numeric' });
+                    const item = payload[0].payload;
+                    let label = '';
+                    if (jobsView === 'daily' && typeof item.day === 'string') {
+                      const [y, m, d] = item.day.split('-');
+                      label = new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleString('default', { weekday: 'short', month: 'short', day: 'numeric' });
+                    } else if (jobsView === 'weekly' && typeof item.week === 'string') {
+                      const [y, m, d] = item.week.split('-');
+                      label = `Week of ${new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleString('default', { month: 'short', day: 'numeric' })}`;
+                    } else if (typeof item.month === 'string') {
+                      label = `${shortMonth(item.month)} ${item.month.slice(0, 4)}`;
+                    }
+                    const count = typeof item.count === 'number' ? item.count : 0;
                     return (
                       <div style={{ background: CHARCOAL, border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, fontFamily: 'monospace', fontSize: 12, padding: '8px 12px' }}>
-                        <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>{formatted}</div>
-                        <div style={{ color: YELLOW }}>{d.count} job{d.count !== 1 ? 's' : ''}</div>
+                        <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>{label}</div>
+                        <div style={{ color: YELLOW }}>{count} job{count !== 1 ? 's' : ''}</div>
                       </div>
                     );
                   }}

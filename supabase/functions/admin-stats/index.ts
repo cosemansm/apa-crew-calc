@@ -111,6 +111,37 @@ Deno.serve(async (req) => {
       return days.map(d => ({ day: d, count: counts[d] }))
     }
 
+    // Returns the ISO date of the Monday of the week containing dateStr
+    function getWeekMonday(dateStr: string): string {
+      const d = new Date(dateStr.slice(0, 10) + 'T00:00:00Z')
+      const dow = d.getUTCDay() // 0=Sun
+      const diff = (dow + 6) % 7 // days since Monday
+      return new Date(d.getTime() - diff * 86400000).toISOString().slice(0, 10)
+    }
+
+    function last52WeekLabels(): string[] {
+      const labels: string[] = []
+      const todayStr = now.toISOString().slice(0, 10)
+      const todayUTC = new Date(todayStr + 'T00:00:00Z')
+      const dow = todayUTC.getUTCDay()
+      const currentMonday = new Date(todayUTC.getTime() - ((dow + 6) % 7) * 86400000)
+      for (let i = 51; i >= 0; i--) {
+        labels.push(new Date(currentMonday.getTime() - i * 7 * 86400000).toISOString().slice(0, 10))
+      }
+      return labels
+    }
+
+    function bucketByWeek(dates: string[]): { week: string; count: number }[] {
+      const weeks = last52WeekLabels()
+      const counts: Record<string, number> = {}
+      weeks.forEach(w => { counts[w] = 0 })
+      dates.forEach(d => {
+        const key = getWeekMonday(d)
+        if (key in counts) counts[key]++
+      })
+      return weeks.map(w => ({ week: w, count: counts[w] }))
+    }
+
     function bucketByMonth(dates: string[]): { month: string; count: number }[] {
       const months = last12MonthLabels()
       const counts: Record<string, number> = {}
@@ -255,6 +286,7 @@ Deno.serve(async (req) => {
         byStatus,
         byMonth: bucketByMonth(projectCreatedDates),
         byDay: bucketByDay(projectCreatedDates),
+        byWeek: bucketByWeek(projectCreatedDates),
         avgPerUser: avgJobsPerUser,
       },
       days: {
