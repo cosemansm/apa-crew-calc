@@ -1,7 +1,7 @@
 # AGENTS.md — Crew Dock
 
 > For Claude Code (terminal) and AI agents working in this repo.
-> Last updated: 25 March 2026
+> Last updated: 10 April 2026
 
 ---
 
@@ -41,11 +41,26 @@ No test suite configured — `npm test` will fail.
 
 ## Environment Variables
 
+**Frontend (Vite `import.meta.env`):**
+
 ```
 VITE_SUPABASE_URL
 VITE_SUPABASE_ANON_KEY
 VITE_GEMINI_API_KEY
+VITE_STRIPE_PRICE_MONTHLY   # Stripe Price IDs for Checkout (Settings billing UI)
+VITE_STRIPE_PRICE_YEARLY
 ```
+
+**Serverless (`api/*` — set in Vercel):**
+
+```
+STRIPE_SECRET_KEY
+STRIPE_WEBHOOK_SECRET
+SUPABASE_SERVICE_ROLE_KEY   # Stripe routes + webhook + keep-alive
+APP_URL                     # Checkout/portal return URLs (default https://app.crewdock.app)
+```
+
+`VITE_SUPABASE_URL` is also read by some API routes if `SUPABASE_URL` is unset.
 
 Path alias `@` → `src` (configured in `vite.config.ts`).
 
@@ -70,6 +85,7 @@ src/
     ui/                    — shadcn/ui components
   contexts/
     AuthContext.tsx        — Supabase auth session (global)
+    SubscriptionContext.tsx — Reads `subscriptions` row; `useSubscription()` → isPremium, trial UI state
   data/
     calculation-engine.ts  — APA pay logic: calculateCrewCost(input) → CalculationResult
     apa-rates.ts           — CrewRole definitions, rates, OT grades, specialRules
@@ -78,7 +94,10 @@ src/
     gemini.ts              — Gemini API client for AI Input
 
 api/                       — Vercel serverless functions
-  send-invoice.ts          — Send invoice PDF via Resend email
+  stripe/[action].ts       — POST `/api/stripe/create-checkout` | `create-portal` | `extend-trial` (dynamic segment = action)
+  stripe/webhook.ts        — Stripe webhooks → sync `subscriptions` in Supabase
+  email/[action].ts        — e.g. send-invoice (Resend)
+  keep-alive.ts            — Cron ping to keep Supabase active (`vercel.json` → `/api/keep-alive`)
   send-support.ts          — Support email (⚠ currently returning Load failed — route issue)
   parse-timesheet.ts       — AI Input endpoint (Gemini call server-side)
   delete-account.ts        — Hard-delete all user data + Supabase auth user
@@ -99,6 +118,7 @@ docs/                      — Planning docs (subscription.md, build plans, busi
 | `favourite_roles` | Saved favourite crew roles |
 | `custom_roles` | User-defined custom roles (synced with `apa-rates.ts` at runtime) |
 | `equipment_packages` | Saved kit packages with line items |
+| `subscriptions` | Per-user billing: Stripe IDs, `status`, `trial_ends_at`, trial pop-up flags — row created on signup (DB trigger) |
 | `calculation_history` | Legacy table — not actively used by current UI |
 
 > `supabase-dashboard-schema.sql` = current schema. `supabase-schema.sql` = legacy.
@@ -200,30 +220,35 @@ docs/                      — Planning docs (subscription.md, build plans, busi
 
 ---
 
-## Subscription Model (PLANNED — not yet implemented)
+## Subscription Model (implemented)
 
-Full spec: `docs/subscription.md`
+Full product/business spec: `docs/subscription.md` (may still say “planned” in its header — implementation matches that doc).
 
-| State | Access |
-|-------|--------|
-| `trialing` (14 days, no card) | Full access |
-| `active` | Full access |
-| `lifetime` | Full access (manually granted) |
-| `free` | Core only (no AI Input, no bookkeeping) |
-| `past_due` / `canceled` | Core only |
+**Behaviour:** New users get a `subscriptions` row via trigger on `auth.users` (`supabase/migrations/20260401_add_subscriptions.sql`) with `status = 'trialing'` and `trial_ends_at` = ~14 days. Stripe is used when they subscribe; webhooks update Supabase. **Access in the app** is driven by `SubscriptionProvider` (`src/App.tsx`) and `useSubscription()` in `src/contexts/SubscriptionContext.tsx`.
 
-**Pricing:** £3.45/mo · £29.95/yr · Founding member £19.99/yr (first 50–100 users)
+**`isPremium` is true when:** `status` is `active` or `lifetime`, **or** `status` is `trialing` and `trial_ends_at` is still in the future. Otherwise the user is on the free tier for gating (even if the row still says `trialing` after expiry until something else updates it).
 
-**Gated behind Pro:** AI Input, bookkeeping integrations (Xero/QuickBooks/FreeAgent), Invoice Direct (email send — TBD), 3yr data retention
+| DB `status` | Typical access |
+|-------------|----------------|
+| `trialing` (and trial not expired) | Full Pro access |
+| `active` | Full Pro access |
+| `lifetime` | Full Pro access (no Stripe subscription) |
+| `trialing` (trial expired) / effective free | Core only — job cap, AI Input locked, etc. |
+| `past_due` / `canceled` / `unpaid` | Not premium unless trial window still valid |
 
-**Frontend hook:** `useSubscription()` → `{ isPremium, isTrialing, trialDaysLeft, status }`
+**Pricing (product):** £3.45/mo · £29.95/yr · founding annual £19.99/yr (see `docs/subscription.md`).
 
-**Required Vercel API routes (to build):**
-- `POST /api/stripe/create-checkout`
-- `POST /api/stripe/create-portal`
-- `POST /api/stripe/webhook`
+**Gated behind Pro (enforced in UI):** AI Input (`ProLockOverlay`), email send from Invoice page, bookkeeping connect CTAs in Settings, share job / job limits (e.g. 10 jobs on free), dashboard/bookkeeping prompts — see usages of `useSubscription()` / `isPremium` in `src/`.
 
-**DB table to add:** `subscriptions` — see `docs/subscription.md` for full schema
+**`useSubscription()` returns:** `{ subscription, isPremium, isTrialing, trialDaysLeft, trialExtended, loading, error, refresh }`.
+
+**Stripe API (Vercel):**
+- `POST /api/stripe/create-checkout` — Checkout session (or portal if already active with customer)
+- `POST /api/stripe/create-portal` — Customer Portal
+- `POST /api/stripe/extend-trial` — One-time trial extension (server validates `trial_extended`)
+- `POST /api/stripe/webhook` — `customer.subscription.*`, `invoice.payment_failed` → patches `subscriptions`
+
+**Trial / upgrade UX:** `TrialBanner`, `ReviewPopupController`, and Settings billing section work with the same context.
 
 ---
 
@@ -233,10 +258,9 @@ Full spec: `docs/subscription.md`
 |-------|--------|
 | `/api/send-support` returning "Load failed" | Unresolved — route may be misconfigured in Vercel |
 | FreeAgent SVG logo in integrations assets | Not properly implemented |
-| Stripe subscription flow | Planned — not started |
-| Bookkeeping integrations (Xero, QuickBooks, FreeAgent) | Planned — see `docs/BUILD_PLAN_*.md` |
+| Bookkeeping integrations (Xero, QuickBooks, FreeAgent) | Partial — OAuth/export paths exist; product polish and depth per `docs/Build plans/BUILD_PLAN_*.md` |
 | Help & Guides screenshots | Discussed — not implemented |
-| Supabase keep-alive cron (`/api/ping`) | Planned — see `docs/subscription.md` |
+| Supabase keep-alive | Implemented — `vercel.json` cron → `GET /api/keep-alive` (every 6 days) |
 | £7.50 meal allowance on basic/continuous shooting days | S.6.2 shows this applies on all shoot days when meal not provided — engine currently only applies it for pre-light. UI would need a "meal provided?" toggle for shoot days. |
 | OT grade not dynamic | T&Cs S.4 defines grades by BDR range (I: ≤£444, II: £445–£676, III: ≥£677). Engine uses hardcoded grades from Appendix 1 per role. Roles with rates crossing a threshold (e.g. Art Director min £655 < £677 Grade III boundary) won't auto-adjust grade. |
 
