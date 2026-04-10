@@ -487,7 +487,7 @@ export function AIInputPage() {
         grand_total: result?.grandTotal ?? 0,
         result_json: result ?? null,
       });
-      if (dayErr) Sentry.captureException(dayErr, { extra: { context: 'AIInputPage project_days insert', dayNumber: i + 1 } });
+      if (dayErr) Sentry.captureException(new Error(dayErr.message), { extra: { context: 'AIInputPage project_days insert', dayNumber: i + 1, supabaseError: dayErr } });
     }
 
     setSaving(false);

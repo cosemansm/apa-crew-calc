@@ -136,7 +136,7 @@ export function InvoicePage() {
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
       .then(({ data, error }) => {
-        if (error) Sentry.captureException(error, { extra: { context: 'InvoicePage projects fetch' } });
+        if (error) Sentry.captureException(new Error(error.message), { extra: { context: 'InvoicePage projects fetch', supabaseError: error } });
         if (data) setProjects(data);
       });
 
@@ -145,7 +145,7 @@ export function InvoicePage() {
       .select('id, project_id, work_date, role_name, day_type, call_time, wrap_time, grand_total, result_json, expenses_amount, expenses_notes, projects(name, client_name)')
       .order('work_date', { ascending: true })
       .then(({ data, error }) => {
-        if (error) Sentry.captureException(error, { extra: { context: 'InvoicePage project_days fetch' } });
+        if (error) Sentry.captureException(new Error(error.message), { extra: { context: 'InvoicePage project_days fetch', supabaseError: error } });
         if (data) {
           const days = data as unknown as ProjectDay[];
           setAllDays(days);
@@ -177,7 +177,7 @@ export function InvoicePage() {
       .eq('user_id', user.id)
       .single()
       .then(({ data, error }) => {
-        if (error && error.code !== 'PGRST116') Sentry.captureException(error, { extra: { context: 'InvoicePage user_settings fetch' } });
+        if (error && error.code !== 'PGRST116') Sentry.captureException(new Error(error.message), { extra: { context: 'InvoicePage user_settings fetch', supabaseError: error } });
         if (!data) return;
         if (data.company_name) setCompanyName(data.company_name);
         if (data.company_address) setCompanyAddress(data.company_address);

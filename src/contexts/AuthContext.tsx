@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             { user_id: session.user.id, display_name: full_name, department: department || null },
             { onConflict: 'user_id', ignoreDuplicates: true }
           ).then(({ error }) => {
-            if (error) Sentry.captureException(error, { extra: { context: 'AuthContext user_settings upsert' } });
+            if (error) Sentry.captureException(new Error(error.message), { extra: { context: 'AuthContext user_settings upsert', supabaseError: error } });
           });
         }
       }
