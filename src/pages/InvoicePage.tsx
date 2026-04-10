@@ -552,7 +552,7 @@ export function InvoicePage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold flex items-center gap-2">
         <FileText className="h-6 w-6" />
-        Invoice Generator
+        Timesheet / Invoice
       </h1>
 
       {/* ── Tab toggle ── */}
@@ -588,7 +588,7 @@ export function InvoicePage() {
         {/* ── Left: Form ─────────────────────────────────────────────── */}
         <Card>
           <CardHeader>
-            <CardTitle>Invoice Details</CardTitle>
+            <CardTitle>{activeTab === 'timesheet' ? 'Timesheet Details' : 'Invoice Details'}</CardTitle>
             <CardDescription>Select a job, then fill in your details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -664,27 +664,29 @@ export function InvoicePage() {
 
             <Separator />
 
-            {/* Invoice number / date / ref */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Invoice Number</Label>
-                <Input
-                  value={invoiceNumber}
-                  onChange={e => setInvoiceNumber(e.target.value)}
-                  disabled={!!faConnected || !!xeroConnected || !!qboConnected}
-                  title={faConnected ? 'FreeAgent will assign its own invoice number' : xeroConnected ? 'Xero will assign its own invoice number' : qboConnected ? 'QuickBooks will assign its own invoice number' : undefined}
-                />
-                {(faConnected || xeroConnected || qboConnected) && (
-                  <p className="text-xs text-muted-foreground">
-                    {faConnected ? 'FreeAgent' : xeroConnected ? 'Xero' : 'QuickBooks'} assigns its own number
-                  </p>
-                )}
+            {/* Invoice number / date — invoice mode only */}
+            {activeTab === 'invoice' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Invoice Number</Label>
+                  <Input
+                    value={invoiceNumber}
+                    onChange={e => setInvoiceNumber(e.target.value)}
+                    disabled={!!faConnected || !!xeroConnected || !!qboConnected}
+                    title={faConnected ? 'FreeAgent will assign its own invoice number' : xeroConnected ? 'Xero will assign its own invoice number' : qboConnected ? 'QuickBooks will assign its own invoice number' : undefined}
+                  />
+                  {(faConnected || xeroConnected || qboConnected) && (
+                    <p className="text-xs text-muted-foreground">
+                      {faConnected ? 'FreeAgent' : xeroConnected ? 'Xero' : 'QuickBooks'} assigns its own number
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Date</Label>
+                  <Input value={format(new Date(), 'dd/MM/yyyy')} disabled />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Date</Label>
-                <Input value={format(new Date(), 'dd/MM/yyyy')} disabled />
-              </div>
-            </div>
+            )}
             <div className="space-y-2">
               <Label>Job Reference <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <Input value={jobReference} onChange={e => setJobReference(e.target.value)} placeholder="e.g. PO-1234, Ref: ABC" />
@@ -698,35 +700,41 @@ export function InvoicePage() {
               <Input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Production Co. Ltd" />
             </div>
             <div className="space-y-2">
-              <Label>Client Address</Label>
+              <Label>Client Address <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <Input value={clientAddress} onChange={e => setClientAddress(e.target.value)} placeholder="456 Studio Road, London" />
             </div>
-            <div className="space-y-2">
-              <Label>Client Email <span className="text-muted-foreground font-normal">(for sending invoice)</span></Label>
-              <Input
-                type="email"
-                value={clientEmail}
-                onChange={e => setClientEmail(e.target.value)}
-                placeholder="finance@production.com, producer@example.com"
-              />
-              <p className="text-xs text-muted-foreground">Separate multiple addresses with a comma</p>
-            </div>
 
-            <Separator />
+            {/* Invoice-only fields */}
+            {activeTab === 'invoice' && (
+              <>
+                <div className="space-y-2">
+                  <Label>Client Email <span className="text-muted-foreground font-normal">(for sending invoice)</span></Label>
+                  <Input
+                    type="email"
+                    value={clientEmail}
+                    onChange={e => setClientEmail(e.target.value)}
+                    placeholder="finance@production.com, producer@example.com"
+                  />
+                  <p className="text-xs text-muted-foreground">Separate multiple addresses with a comma</p>
+                </div>
 
-            {/* From — your details (read-only) */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <Label className="text-muted-foreground text-xs uppercase tracking-wide">Your Details</Label>
-                <a href="/settings" className="text-xs text-[#FFD528] underline">Edit your details →</a>
-              </div>
-              {companyName
-                ? <p className="text-sm font-medium text-foreground">{companyName}</p>
-                : <p className="text-sm text-amber-600">Company name not set — add it in Settings</p>
-              }
-              {companyAddress && <p className="text-sm text-muted-foreground">{companyAddress}</p>}
-              {vatNumber && <p className="text-sm text-muted-foreground">VAT: {vatNumber}</p>}
-            </div>
+                <Separator />
+
+                {/* From — your details (read-only) */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-muted-foreground text-xs uppercase tracking-wide">Your Details</Label>
+                    <a href="/settings" className="text-xs text-[#FFD528] underline">Edit your details →</a>
+                  </div>
+                  {companyName
+                    ? <p className="text-sm font-medium text-foreground">{companyName}</p>
+                    : <p className="text-sm text-amber-600">Company name not set — add it in Settings</p>
+                  }
+                  {companyAddress && <p className="text-sm text-muted-foreground">{companyAddress}</p>}
+                  {vatNumber && <p className="text-sm text-muted-foreground">VAT: {vatNumber}</p>}
+                </div>
+              </>
+            )}
 
           </CardContent>
         </Card>
