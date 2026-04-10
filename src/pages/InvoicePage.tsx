@@ -403,7 +403,16 @@ export function InvoicePage() {
       const prevBorderRadius = el.style.borderRadius;
       const prevBoxShadow    = el.style.boxShadow;
 
-      el.style.width        = '794px';
+      const margin          = 15; // mm on every side
+      const a4WidthMm       = 210;
+      const a4HeightMm      = 297;
+      const contentWidthMm  = a4WidthMm - margin * 2;  // 180mm
+      const contentHeightMm = a4HeightMm - margin * 2; // 267mm
+
+      // Capture at content width (not full A4) so margins fit naturally
+      const captureWidthPx = Math.round(794 * (contentWidthMm / a4WidthMm)); // ≈ 680px
+
+      el.style.width        = `${captureWidthPx}px`;
       el.style.borderRadius = '0';
       el.style.boxShadow    = 'none';
 
@@ -415,29 +424,29 @@ export function InvoicePage() {
           logging: false,
         });
 
-        const pdf         = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const pdfWidth    = pdf.internal.pageSize.getWidth();
-        const pdfHeight   = pdf.internal.pageSize.getHeight();
+        const pdf      = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pxPerMm  = canvas.width / contentWidthMm;
+        const pageHeightPx = Math.floor(contentHeightMm * pxPerMm);
 
-        // Split canvas into A4-sized slices to support multi-day timesheets
-        const pageHeightPx = Math.floor((canvas.width * pdfHeight) / pdfWidth);
         let remainingHeight = canvas.height;
-        let sourceY = 0;
-        let isFirstPage = true;
+        let sourceY         = 0;
+        let isFirstPage     = true;
 
         while (remainingHeight > 0) {
           if (!isFirstPage) pdf.addPage();
 
           const sliceH = Math.min(pageHeightPx, remainingHeight);
-          const pageCanvas = document.createElement('canvas');
-          pageCanvas.width  = canvas.width;
-          pageCanvas.height = sliceH;
+
+          const pageCanvas    = document.createElement('canvas');
+          pageCanvas.width    = canvas.width;
+          pageCanvas.height   = sliceH;
           const ctx = pageCanvas.getContext('2d');
           ctx?.drawImage(canvas, 0, sourceY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
 
           const sliceData     = pageCanvas.toDataURL('image/png', 1);
-          const sliceHeightMm = (sliceH / canvas.width) * pdfWidth;
-          pdf.addImage(sliceData, 'PNG', 0, 0, pdfWidth, sliceHeightMm);
+          const sliceHeightMm = sliceH / pxPerMm;
+
+          pdf.addImage(sliceData, 'PNG', margin, margin, contentWidthMm, sliceHeightMm);
 
           sourceY         += sliceH;
           remainingHeight -= sliceH;
