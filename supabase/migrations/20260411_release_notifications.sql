@@ -14,7 +14,6 @@ CREATE TABLE public.release_notifications (
 ALTER TABLE public.release_notifications ENABLE ROW LEVEL SECURITY;
 
 GRANT SELECT ON public.release_notifications TO authenticated;
-GRANT SELECT ON public.release_notifications TO anon;
 GRANT ALL    ON public.release_notifications TO service_role;
 
 -- All authenticated users can read
@@ -27,18 +26,18 @@ CREATE POLICY "anyone_select_release_notifications"
 CREATE POLICY "admin_insert_release_notifications"
   ON public.release_notifications FOR INSERT
   TO authenticated
-  WITH CHECK ((auth.jwt() ->> 'email') = 'milo.cosemans@gmail.com');
+  WITH CHECK (auth.email() = 'milo.cosemans@gmail.com');
 
 CREATE POLICY "admin_update_release_notifications"
   ON public.release_notifications FOR UPDATE
   TO authenticated
-  USING  ((auth.jwt() ->> 'email') = 'milo.cosemans@gmail.com')
-  WITH CHECK ((auth.jwt() ->> 'email') = 'milo.cosemans@gmail.com');
+  USING  (auth.email() = 'milo.cosemans@gmail.com')
+  WITH CHECK (auth.email() = 'milo.cosemans@gmail.com');
 
 CREATE POLICY "admin_delete_release_notifications"
   ON public.release_notifications FOR DELETE
   TO authenticated
-  USING ((auth.jwt() ->> 'email') = 'milo.cosemans@gmail.com');
+  USING (auth.email() = 'milo.cosemans@gmail.com');
 
 -- ── Supabase Storage bucket ───────────────────────────────────────────────────
 INSERT INTO storage.buckets (id, name, public)
@@ -51,7 +50,20 @@ CREATE POLICY "admin_upload_notification_images"
   TO authenticated
   WITH CHECK (
     bucket_id = 'notification-images'
-    AND (auth.jwt() ->> 'email') = 'milo.cosemans@gmail.com'
+    AND auth.email() = 'milo.cosemans@gmail.com'
+  );
+
+-- Allow admin to update (upsert) existing objects
+CREATE POLICY "admin_update_notification_images"
+  ON storage.objects FOR UPDATE
+  TO authenticated
+  USING (
+    bucket_id = 'notification-images'
+    AND auth.email() = 'milo.cosemans@gmail.com'
+  )
+  WITH CHECK (
+    bucket_id = 'notification-images'
+    AND auth.email() = 'milo.cosemans@gmail.com'
   );
 
 -- Allow admin to delete
@@ -60,7 +72,7 @@ CREATE POLICY "admin_delete_notification_images"
   TO authenticated
   USING (
     bucket_id = 'notification-images'
-    AND (auth.jwt() ->> 'email') = 'milo.cosemans@gmail.com'
+    AND auth.email() = 'milo.cosemans@gmail.com'
   );
 
 -- Public read for the bucket objects
