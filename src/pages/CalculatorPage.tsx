@@ -2165,7 +2165,7 @@ export function CalculatorPage() {
                         disabled={isDirty}
                         onClick={() => navigate('/invoices', { state: { dayId: currentDayId } })}
                       >
-                        <InvoiceIcon className="h-4 w-4 mr-2" /> Convert to Invoice
+                        <InvoiceIcon className="h-4 w-4 mr-2" /> Convert to Timesheet
                       </Button>
                       {isDirty && (
                         <p className="text-xs text-center text-muted-foreground mt-1">Unsaved changes, please save first</p>
