@@ -415,11 +415,34 @@ export function InvoicePage() {
           logging: false,
         });
 
-        const imgData     = canvas.toDataURL('image/png', 1);
         const pdf         = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
         const pdfWidth    = pdf.internal.pageSize.getWidth();
-        const imgHeightMm = (canvas.height / canvas.width) * pdfWidth;
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeightMm);
+        const pdfHeight   = pdf.internal.pageSize.getHeight();
+
+        // Split canvas into A4-sized slices to support multi-day timesheets
+        const pageHeightPx = Math.floor((canvas.width * pdfHeight) / pdfWidth);
+        let remainingHeight = canvas.height;
+        let sourceY = 0;
+        let isFirstPage = true;
+
+        while (remainingHeight > 0) {
+          if (!isFirstPage) pdf.addPage();
+
+          const sliceH = Math.min(pageHeightPx, remainingHeight);
+          const pageCanvas = document.createElement('canvas');
+          pageCanvas.width  = canvas.width;
+          pageCanvas.height = sliceH;
+          const ctx = pageCanvas.getContext('2d');
+          ctx?.drawImage(canvas, 0, sourceY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+
+          const sliceData     = pageCanvas.toDataURL('image/png', 1);
+          const sliceHeightMm = (sliceH / canvas.width) * pdfWidth;
+          pdf.addImage(sliceData, 'PNG', 0, 0, pdfWidth, sliceHeightMm);
+
+          sourceY         += sliceH;
+          remainingHeight -= sliceH;
+          isFirstPage      = false;
+        }
 
         const slug    = (selectedProject?.name ?? 'timesheet').toLowerCase().replace(/\s+/g, '-');
         const dateStr = format(new Date(), 'yyyy-MM-dd');
@@ -707,6 +730,7 @@ export function InvoicePage() {
               className="flex-1 gap-2 bg-[#FFD528] text-[#1F1F21] hover:bg-[#FFD528]/90"
               onClick={handleTimesheetDownload}
               disabled={downloading || selectedDays.length === 0}
+              title={selectedDays.length === 0 ? 'Select at least one day to download' : undefined}
             >
               {downloading
                 ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
