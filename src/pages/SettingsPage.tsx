@@ -173,11 +173,10 @@ function CustomRoleForm({ initial, onSave, onCancel }: {
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
 
-type SectionId = 'user-details' | 'company-details' | 'custom-rates' | 'my-equipment' | 'password' | 'billing' | 'integrations' | 'danger-zone';
+type SectionId = 'my-details' | 'custom-rates' | 'my-equipment' | 'password' | 'billing' | 'integrations' | 'danger-zone';
 
 const NAV_ITEMS: { id: SectionId; label: string; icon: React.ElementType; badge?: string; danger?: boolean }[] = [
-  { id: 'user-details',     label: 'User Details',     icon: User },
-  { id: 'company-details',  label: 'Company Details',  icon: Building2 },
+  { id: 'my-details',       label: 'My Details',       icon: User },
   { id: 'custom-rates',     label: 'Custom Rates',     icon: Briefcase },
   { id: 'my-equipment',     label: 'My Equipment',     icon: Package },
   { id: 'password',         label: 'Password',         icon: Lock },
@@ -191,7 +190,7 @@ const NAV_ITEMS: { id: SectionId; label: string; icon: React.ElementType; badge?
 export function SettingsPage() {
   usePageTitle('Settings');
   const { user } = useAuth();
-  const [activeSection, setActiveSection] = useState<SectionId>('user-details');
+  const [activeSection, setActiveSection] = useState<SectionId>('my-details');
   const { subscription, isPremium, isTrialing, trialDaysLeft, trialExtended } = useSubscription();
   const location = useLocation();
   const navigate = useNavigate();
@@ -204,8 +203,8 @@ export function SettingsPage() {
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [department, setDepartment] = useState('');
-  const [savingUser, setSavingUser] = useState(false);
-  const [savedUser, setSavedUser] = useState(false);
+  const [savingDetails, setSavingDetails] = useState(false);
+  const [savedDetails, setSavedDetails] = useState(false);
 
   // Company details
   const [companyName, setCompanyName] = useState('');
@@ -215,8 +214,6 @@ export function SettingsPage() {
   const [bankSortCode, setBankSortCode] = useState('');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
   const [showBankDetails, setShowBankDetails] = useState(false);
-  const [savingCompany, setSavingCompany] = useState(false);
-  const [savedCompany, setSavedCompany] = useState(false);
 
   // Password
   const [newPassword, setNewPassword] = useState('');
@@ -435,22 +432,16 @@ export function SettingsPage() {
     }
   };
 
-  const handleSaveUser = async () => {
-    setSavingUser(true); setSavedUser(false);
-    await upsertSettings({ display_name: displayName, phone, address, department });
-    setSavingUser(false); setSavedUser(true);
-    setTimeout(() => setSavedUser(false), 3000);
-  };
-
-  const handleSaveCompany = async () => {
-    setSavingCompany(true); setSavedCompany(false);
+  const handleSaveDetails = async () => {
+    setSavingDetails(true); setSavedDetails(false);
     await upsertSettings({
+      display_name: displayName, phone, address, department,
       company_name: companyName, company_address: companyAddress,
       vat_number: vatNumber, bank_account_name: bankAccountName,
       bank_sort_code: bankSortCode, bank_account_number: bankAccountNumber,
     });
-    setSavingCompany(false); setSavedCompany(true);
-    setTimeout(() => setSavedCompany(false), 3000);
+    setSavingDetails(false); setSavedDetails(true);
+    setTimeout(() => setSavedDetails(false), 3000);
   };
 
   const handleChangePassword = async () => {
@@ -655,103 +646,98 @@ export function SettingsPage() {
         {/* ── Right content panel ── */}
         <div className="flex-1 min-w-0 space-y-4 w-full">
 
-          {/* USER DETAILS */}
-          {activeSection === 'user-details' && (
+          {/* MY DETAILS */}
+          {activeSection === 'my-details' && (
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><User className="h-5 w-5" /> User Details</CardTitle>
-                <CardDescription>Your personal information and primary department</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input value={user?.email ?? ''} disabled className="opacity-60" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Display Name</Label>
-                  <Input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Your full name" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Phone</Label>
-                  <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+44 7700 000000" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Address</Label>
-                  <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="123 Film Street, London, W1A 1AA" />
-                </div>
-                <div className="space-y-2">
-                  <Label>My Department</Label>
-                  <Select value={department} onValueChange={setDepartment}>
-                    <SelectTrigger><SelectValue placeholder="Select your primary department…" /></SelectTrigger>
-                    <SelectContent>
-                      {DEPARTMENTS.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button onClick={handleSaveUser} disabled={savingUser} className="w-full mt-2">
-                  <Save className="h-4 w-4 mr-2" />
-                  {savingUser ? 'Saving…' : savedUser ? '✓ Saved!' : 'Save User Details'}
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* COMPANY DETAILS */}
-          {activeSection === 'company-details' && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5" /> Company Details</CardTitle>
-                <CardDescription>Used to pre-fill your invoice details</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Company Name</Label>
-                  <Input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Your Company Ltd" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Company Address</Label>
-                  <Input value={companyAddress} onChange={e => setCompanyAddress(e.target.value)} placeholder="123 Studio Road, London, W1A 1AA" />
-                </div>
-                <div className="space-y-2">
-                  <Label>VAT Number</Label>
-                  <Input value={vatNumber} onChange={e => setVatNumber(e.target.value)} placeholder="GB 123 4567 89" />
+              <CardContent className="space-y-4 pt-6">
+                <div>
+                  <h3 className="flex items-center gap-2 text-base font-semibold mb-1"><User className="h-4 w-4" /> User Details</h3>
+                  <p className="text-sm text-muted-foreground mb-4">Your personal information and primary department</p>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Email</Label>
+                      <Input value={user?.email ?? ''} disabled className="opacity-60" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Display Name</Label>
+                      <Input value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Your full name" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Phone</Label>
+                      <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+44 7700 000000" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Address</Label>
+                      <Input value={address} onChange={e => setAddress(e.target.value)} placeholder="123 Film Street, London, W1A 1AA" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>My Department</Label>
+                      <Select value={department} onValueChange={setDepartment}>
+                        <SelectTrigger><SelectValue placeholder="Select your primary department…" /></SelectTrigger>
+                        <SelectContent>
+                          {DEPARTMENTS.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
 
                 <Separator />
 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">Bank Details</p>
-                    <p className="text-xs text-muted-foreground">Stored securely — only visible to you</p>
+                <div>
+                  <h3 className="flex items-center gap-2 text-base font-semibold mb-1"><Building2 className="h-4 w-4" /> Company Details</h3>
+                  <p className="text-sm text-muted-foreground mb-4">Used to pre-fill your invoice details</p>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Company Name</Label>
+                      <Input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Your Company Ltd" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Company Address</Label>
+                      <Input value={companyAddress} onChange={e => setCompanyAddress(e.target.value)} placeholder="123 Studio Road, London, W1A 1AA" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>VAT Number</Label>
+                      <Input value={vatNumber} onChange={e => setVatNumber(e.target.value)} placeholder="GB 123 4567 89" />
+                    </div>
+
+                    <Separator />
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">Bank Details</p>
+                        <p className="text-xs text-muted-foreground">Stored securely — only visible to you</p>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => setShowBankDetails(!showBankDetails)}>
+                        {showBankDetails ? <EyeOff className="h-4 w-4 mr-1" /> : <Eye className="h-4 w-4 mr-1" />}
+                        {showBankDetails ? 'Hide' : 'Show'}
+                      </Button>
+                    </div>
+
+                    {showBankDetails && (
+                      <div className="space-y-3 p-4 rounded-xl bg-muted/40 border border-border">
+                        <div className="space-y-2">
+                          <Label>Account Name</Label>
+                          <Input value={bankAccountName} onChange={e => setBankAccountName(e.target.value)} placeholder="Your Name or Company Ltd" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <Label>Sort Code</Label>
+                            <Input value={bankSortCode} onChange={e => setBankSortCode(e.target.value)} placeholder="12-34-56" maxLength={8} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Account Number</Label>
+                            <Input value={bankAccountNumber} onChange={e => setBankAccountNumber(e.target.value)} placeholder="12345678" maxLength={8} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <Button variant="ghost" size="sm" onClick={() => setShowBankDetails(!showBankDetails)}>
-                    {showBankDetails ? <EyeOff className="h-4 w-4 mr-1" /> : <Eye className="h-4 w-4 mr-1" />}
-                    {showBankDetails ? 'Hide' : 'Show'}
-                  </Button>
                 </div>
 
-                {showBankDetails && (
-                  <div className="space-y-3 p-4 rounded-xl bg-muted/40 border border-border">
-                    <div className="space-y-2">
-                      <Label>Account Name</Label>
-                      <Input value={bankAccountName} onChange={e => setBankAccountName(e.target.value)} placeholder="Your Name or Company Ltd" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-2">
-                        <Label>Sort Code</Label>
-                        <Input value={bankSortCode} onChange={e => setBankSortCode(e.target.value)} placeholder="12-34-56" maxLength={8} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Account Number</Label>
-                        <Input value={bankAccountNumber} onChange={e => setBankAccountNumber(e.target.value)} placeholder="12345678" maxLength={8} />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <Button onClick={handleSaveCompany} disabled={savingCompany} className="w-full mt-2">
+                <Button onClick={handleSaveDetails} disabled={savingDetails} className="w-full mt-2">
                   <Save className="h-4 w-4 mr-2" />
-                  {savingCompany ? 'Saving…' : savedCompany ? '✓ Saved!' : 'Save Company Details'}
+                  {savingDetails ? 'Saving…' : savedDetails ? '✓ Saved!' : 'Save details'}
                 </Button>
               </CardContent>
             </Card>
