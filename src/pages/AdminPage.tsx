@@ -63,6 +63,14 @@ function shortMonth(key: string): string {
   return d.toLocaleString('default', { month: 'short' });
 }
 
+// Format day key "YYYY-MM-DD" to "Apr 7" etc. — show label every 5th day to avoid clutter
+function shortDay(key: string, index: number): string {
+  if (index % 5 !== 0 && index !== 29) return '';
+  const [year, month, day] = key.split('-');
+  const d = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+  return d.toLocaleString('default', { month: 'short', day: 'numeric' });
+}
+
 function formatGBP(n: number): string {
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', maximumFractionDigits: 0 }).format(n);
 }
@@ -101,6 +109,7 @@ interface AdminStats {
     last30Days: number;
     byStatus: { status: string; count: number }[];
     byMonth: { month: string; count: number }[];
+    byDay: { day: string; count: number }[];
     avgPerUser: number;
   };
   days: {
@@ -706,6 +715,34 @@ export function AdminPage() {
             <StatCard label="Avg Day Rate" value={formatGBP(stats.days.avgRate)} sub="per work day" icon={TrendingUp} />
             <StatCard label="Active (30d)" value={stats.users.activeLastMonth} sub="users signed in" icon={Users} />
             <StatCard label="On Trial" value={stats.subscriptions.trialing} sub={`${stats.subscriptions.trialExtended} extended`} icon={Zap} />
+          </div>
+
+          {/* ── Jobs Per Day ────────────────────────────────────────────── */}
+          <SectionTitle>Jobs Added — Last 30 Days</SectionTitle>
+          <div className="bg-[#2a2a2c] rounded-2xl p-4 border border-white/5">
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={stats.jobs.byDay.map((d, i) => ({ ...d, label: shortDay(d.day, i) }))}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <XAxis dataKey="label" tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11, fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11, fontFamily: 'monospace' }} axisLine={false} tickLine={false} width={24} />
+                <Tooltip
+                  content={({ active, payload, label: tooltipLabel }) => {
+                    if (!active || !payload?.length) return null;
+                    const d = payload[0].payload as { day: string; count: number };
+                    const [y, m, day] = d.day.split('-');
+                    const date = new Date(parseInt(y), parseInt(m) - 1, parseInt(day));
+                    const formatted = date.toLocaleString('default', { weekday: 'short', month: 'short', day: 'numeric' });
+                    return (
+                      <div style={{ background: CHARCOAL, border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, fontFamily: 'monospace', fontSize: 12, padding: '8px 12px' }}>
+                        <div style={{ color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>{formatted}</div>
+                        <div style={{ color: YELLOW }}>{d.count} job{d.count !== 1 ? 's' : ''}</div>
+                      </div>
+                    );
+                  }}
+                />
+                <Bar dataKey="count" fill={YELLOW} radius={[3, 3, 0, 0]} name="Jobs added" />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
 
           {/* ── User Growth ─────────────────────────────────────────────── */}

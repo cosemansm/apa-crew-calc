@@ -91,6 +91,26 @@ Deno.serve(async (req) => {
       return labels
     }
 
+    function last30DayLabels(): string[] {
+      const labels: string[] = []
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000)
+        labels.push(d.toISOString().slice(0, 10)) // "YYYY-MM-DD"
+      }
+      return labels
+    }
+
+    function bucketByDay(dates: string[]): { day: string; count: number }[] {
+      const days = last30DayLabels()
+      const counts: Record<string, number> = {}
+      days.forEach(d => { counts[d] = 0 })
+      dates.forEach(d => {
+        const key = d.slice(0, 10) // "YYYY-MM-DD"
+        if (key in counts) counts[key]++
+      })
+      return days.map(d => ({ day: d, count: counts[d] }))
+    }
+
     function bucketByMonth(dates: string[]): { month: string; count: number }[] {
       const months = last12MonthLabels()
       const counts: Record<string, number> = {}
@@ -234,6 +254,7 @@ Deno.serve(async (req) => {
         last30Days: countSince(projectCreatedDates, 30),
         byStatus,
         byMonth: bucketByMonth(projectCreatedDates),
+        byDay: bucketByDay(projectCreatedDates),
         avgPerUser: avgJobsPerUser,
       },
       days: {
