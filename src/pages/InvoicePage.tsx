@@ -402,30 +402,33 @@ export function InvoicePage() {
       const prevWidth        = el.style.width;
       const prevBorderRadius = el.style.borderRadius;
       const prevBoxShadow    = el.style.boxShadow;
+
       el.style.width        = '794px';
       el.style.borderRadius = '0';
       el.style.boxShadow    = 'none';
 
-      const canvas = await html2canvas(el, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-      });
+      try {
+        const canvas = await html2canvas(el, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+        });
 
-      el.style.width        = prevWidth;
-      el.style.borderRadius = prevBorderRadius;
-      el.style.boxShadow    = prevBoxShadow;
+        const imgData     = canvas.toDataURL('image/png', 1);
+        const pdf         = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pdfWidth    = pdf.internal.pageSize.getWidth();
+        const imgHeightMm = (canvas.height / canvas.width) * pdfWidth;
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeightMm);
 
-      const imgData     = canvas.toDataURL('image/png', 1);
-      const pdf         = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pdfWidth    = pdf.internal.pageSize.getWidth();
-      const imgHeightMm = (canvas.height / canvas.width) * pdfWidth;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeightMm);
-
-      const slug    = (selectedProject?.name ?? 'timesheet').toLowerCase().replace(/\s+/g, '-');
-      const dateStr = format(new Date(), 'yyyy-MM-dd');
-      pdf.save(`timesheet-${slug}-${dateStr}.pdf`);
+        const slug    = (selectedProject?.name ?? 'timesheet').toLowerCase().replace(/\s+/g, '-');
+        const dateStr = format(new Date(), 'yyyy-MM-dd');
+        pdf.save(`timesheet-${slug}-${dateStr}.pdf`);
+      } finally {
+        el.style.width        = prevWidth;
+        el.style.borderRadius = prevBorderRadius;
+        el.style.boxShadow    = prevBoxShadow;
+      }
     } finally {
       setDownloading(false);
     }
