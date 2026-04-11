@@ -708,11 +708,27 @@ function AdminNotificationsPanel({ reloadRef }: { reloadRef: React.MutableRefObj
                 Discover link
               </label>
               <input
+                list="app-routes"
                 value={discoverLink}
                 onChange={e => setDiscoverLink(e.target.value)}
-                placeholder="/invoice"
+                placeholder="Type or select a page…"
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-[13px] text-white font-mono focus:outline-none focus:border-[#FFD528]/50"
               />
+              <datalist id="app-routes">
+                <option value="/dashboard" label="Dashboard" />
+                <option value="/calculator" label="Calculator" />
+                <option value="/projects" label="Projects" />
+                <option value="/invoices" label="Invoices" />
+                <option value="/support" label="Support" />
+                <option value="/settings" label="Settings" />
+                <option value="/ai-input" label="AI Input" />
+                <option value="/admin" label="Admin" />
+                <option value="/login" label="Login" />
+                <option value="/terms" label="Terms of Service" />
+                <option value="/privacy" label="Privacy Policy" />
+                <option value="/update-password" label="Update Password" />
+                <option value="/share/:token" label="Share link (dynamic)" />
+              </datalist>
             </div>
           </div>
 
