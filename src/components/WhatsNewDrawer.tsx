@@ -185,7 +185,7 @@ export function WhatsNewDrawer({ open, onClose, onSeen }: WhatsNewDrawerProps) {
                   </span>
                 </div>
                 <h3 className="text-[13px] font-bold text-white font-mono leading-snug mb-1.5">{n.title}</h3>
-                <p className="text-[11px] text-white/50 font-mono leading-relaxed mb-3">{n.description}</p>
+                <p className="text-[11px] text-white/50 font-mono leading-relaxed mb-3 whitespace-pre-wrap">{n.description}</p>
                 <button
                   onClick={() => {
                     if (n.discover_link.startsWith('http')) {

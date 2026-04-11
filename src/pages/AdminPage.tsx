@@ -842,7 +842,7 @@ function AdminNotificationsPanel({ reloadRef }: { reloadRef: React.MutableRefObj
                 <p className="text-[12px] font-bold font-mono leading-snug mb-1" style={{ color: title ? '#fff' : 'rgba(255,255,255,0.2)' }}>
                   {title || 'Your title will appear here'}
                 </p>
-                <p className="text-[10px] font-mono leading-relaxed mb-2.5" style={{ color: description ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)' }}>
+                <p className="text-[10px] font-mono leading-relaxed mb-2.5 whitespace-pre-wrap" style={{ color: description ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)' }}>
                   {description || 'Your description will appear here...'}
                 </p>
                 <button className="inline-flex items-center gap-1 bg-[#FFD528] text-[#1F1F21] text-[10px] font-bold px-2.5 py-1.5 rounded-md font-mono">
