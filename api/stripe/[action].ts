@@ -94,6 +94,15 @@ export default async function handler(req: any, res: any) {
       });
       return res.status(200).json({ url: portalSession.url });
     } catch (err: any) {
+      if (err?.code === 'resource_missing') {
+        // Stale customer ID (test/live mode mismatch or deleted customer) — clear it
+        await fetch(`${SUPABASE_URL}/rest/v1/subscriptions?user_id=eq.${userId}`, {
+          method: 'PATCH',
+          headers: { ...sbHeaders(), Prefer: 'return=minimal' },
+          body: JSON.stringify({ stripe_customer_id: null }),
+        });
+        return res.status(400).json({ error: 'Billing record is out of date. Please subscribe again.' });
+      }
       return res.status(500).json({ error: err?.message ?? 'Failed to create portal session' });
     }
   }
