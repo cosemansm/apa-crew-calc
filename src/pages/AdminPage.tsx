@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import * as Sentry from '@sentry/react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -532,7 +532,7 @@ function AdminNotificationsPanel({ reloadRef }: { reloadRef: React.MutableRefObj
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  async function fetchNotifications() {
+  const fetchNotifications = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('release_notifications')
@@ -540,9 +540,9 @@ function AdminNotificationsPanel({ reloadRef }: { reloadRef: React.MutableRefObj
       .order('published_at', { ascending: false });
     if (!error && data) setNotifications(data as AdminNotification[]);
     setLoading(false);
-  }
+  }, []);
 
-  useEffect(() => { fetchNotifications(); }, []);
+  useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
   useEffect(() => { reloadRef.current = fetchNotifications; }, [fetchNotifications, reloadRef]);
 
   function resetForm() {
