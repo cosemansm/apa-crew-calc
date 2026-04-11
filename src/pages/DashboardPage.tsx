@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
   Plus, FolderOpen, Star, StarOff, ChevronLeft, ChevronRight,
-  Calendar, PoundSterling, Clock, X, TrendingUp, Sparkles, ExternalLink
+  Calendar, PoundSterling, Clock, X, TrendingUp, Sparkles, ExternalLink, Bell
 } from 'lucide-react';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, getDay,
@@ -24,6 +24,8 @@ import { TrialBanner } from '@/components/TrialBanner';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { JobLimitDialog } from '@/components/JobLimitDialog';
 import { BookkeepingSection } from '@/components/BookkeepingSection';
+import { cn } from '@/lib/utils';
+import { WhatsNewDrawer, useUnreadCount } from '@/components/WhatsNewDrawer';
 
 interface Project {
   id: string;
@@ -75,6 +77,10 @@ export function DashboardPage() {
   const [projectError, setProjectError] = useState<string | null>(null);
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [userDepartment, setUserDepartment] = useState<string | null>(null);
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
+  const [notifications, setNotifications] = useState<{ id: string; published_at: string }[]>([]);
+  const [badgeCount, setBadgeCount] = useState(0);
+  const unreadCount = useUnreadCount(notifications);
 
   useEffect(() => {
     if (user) {
@@ -91,6 +97,19 @@ export function DashboardPage() {
         });
     }
   }, [user, location.key]);
+
+  useEffect(() => {
+    async function fetchBadge() {
+      const { data } = await supabase
+        .from('release_notifications')
+        .select('id, published_at')
+        .order('published_at', { ascending: false });
+      if (data) setNotifications(data);
+    }
+    if (user) fetchBadge();
+  }, [user]);
+
+  useEffect(() => { setBadgeCount(unreadCount); }, [unreadCount]);
 
   const loadProjects = async () => {
     setLoading(true);
@@ -299,7 +318,7 @@ export function DashboardPage() {
   const chartTicks = [chartStep, chartStep * 2, chartStep * 3];
 
   return (
-    <div className="space-y-6">
+    <div className={cn("space-y-6 transition-all duration-300", whatsNewOpen ? 'mr-[400px]' : 'mr-0')}>
       <TrialBanner />
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
@@ -344,6 +363,19 @@ export function DashboardPage() {
           >
             <Plus className="h-4 w-4" /> New Job
           </Button>
+          {/* Bell — rightmost */}
+          <button
+            onClick={() => setWhatsNewOpen(true)}
+            className="relative w-9 h-9 rounded-lg border border-border bg-background hover:bg-accent flex items-center justify-center transition-colors"
+            title="What's new"
+          >
+            <Bell className="h-4 w-4" />
+            {badgeCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 border-2 border-background">
+                {badgeCount}
+              </span>
+            )}
+          </button>
         </div>
       </div>
 
@@ -834,6 +866,11 @@ export function DashboardPage() {
         projects={projects}
         onDeleted={id => setProjects(prev => prev.filter(p => p.id !== id))}
         onProceed={() => setShowNewProject(true)}
+      />
+      <WhatsNewDrawer
+        open={whatsNewOpen}
+        onClose={() => setWhatsNewOpen(false)}
+        onSeen={() => setBadgeCount(0)}
       />
     </div>
   );
