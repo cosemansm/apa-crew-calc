@@ -769,7 +769,7 @@ export function InvoicePage() {
             <TimesheetDocument
               userName={companyName || user?.email || ''}
               projectName={selectedProject?.name ?? ''}
-              clientName={selectedProject?.client_name ?? null}
+              clientName={clientName || null}
               selectedDays={selectedDays as TimesheetDay[]}
             />
           </div>
