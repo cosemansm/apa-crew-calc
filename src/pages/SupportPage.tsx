@@ -371,10 +371,31 @@ export function SupportPage() {
         <h1 className="text-2xl font-bold">Support</h1>
       </div>
 
+      {/* ── Mobile horizontal nav ── */}
+      <div className="md:hidden w-full overflow-x-auto pb-1 mb-2">
+        <div className="flex gap-1 min-w-max">
+          {NAV_ITEMS.map(item => (
+            <button
+              key={item.id}
+              onClick={() => navigate(`/support/${item.id}`)}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-colors whitespace-nowrap shrink-0',
+                activeSection === item.id
+                  ? 'bg-[#1F1F21] text-white'
+                  : 'text-muted-foreground bg-muted hover:text-foreground'
+              )}
+            >
+              <item.icon className="h-3.5 w-3.5 shrink-0" />
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="flex gap-6 items-start">
 
-        {/* ── Left sidebar nav ── */}
-        <div className="w-52 shrink-0">
+        {/* ── Left sidebar nav (desktop only) ── */}
+        <div className="hidden md:block w-52 shrink-0">
           <nav className="space-y-0.5">
             {NAV_ITEMS.map(item => (
               <button
@@ -406,7 +427,7 @@ export function SupportPage() {
                 <CardDescription>Got a question, issue, or just want to say hi? We'll get back to you as soon as we can.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Name</Label>
                     <Input value={contactName} onChange={e => setContactName(e.target.value)} placeholder="Your name" />

@@ -100,7 +100,7 @@ export function WhatsNewDrawer({ open, onClose, onSeen }: WhatsNewDrawerProps) {
       {/* Backdrop (mobile only) */}
       {open && (
         <div
-          className="fixed inset-0 z-30 md:hidden"
+          className="fixed inset-0 z-[55] md:hidden"
           onClick={onClose}
         />
       )}
@@ -108,7 +108,7 @@ export function WhatsNewDrawer({ open, onClose, onSeen }: WhatsNewDrawerProps) {
       {/* Drawer */}
       <div
         className={cn(
-          'fixed top-0 right-0 bottom-0 z-40 w-[400px] max-w-[100vw] bg-[#1F1F21] flex flex-col',
+          'fixed top-0 right-0 bottom-0 z-[60] w-[400px] max-w-[100vw] bg-[#1F1F21] flex flex-col',
           'transition-transform duration-300 ease-in-out',
           'rounded-l-2xl shadow-2xl',
           open ? 'translate-x-0' : 'translate-x-full'
