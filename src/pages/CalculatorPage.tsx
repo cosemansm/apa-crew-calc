@@ -694,6 +694,10 @@ export function CalculatorPage() {
         .then(({ data }) => {
           if (data) {
             setProjectDays(data as ProjectDaySummary[]);
+            // Sync calendar to the month of the first job day so booked dates are visible
+            if (data.length > 0) {
+              setCalendarMonth(new Date(data[0].work_date + 'T00:00:00'));
+            }
             // Skip auto-load only if session has meaningful state (role + rate are populated).
             // If the session is stale/incomplete (e.g. role missing due to a prior race condition),
             // still trigger auto-load so the form isn't left blank.
