@@ -48,6 +48,7 @@ export function WhatsNewDrawer({ open, onClose, onSeen }: WhatsNewDrawerProps) {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(false);
   const [unreadIds, setUnreadIds] = useState<Set<string>>(new Set());
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
@@ -55,7 +56,11 @@ export function WhatsNewDrawer({ open, onClose, onSeen }: WhatsNewDrawerProps) {
       .from('release_notifications')
       .select('id, title, description, category, discover_link, image_url, published_at')
       .order('published_at', { ascending: false });
-    if (!error && data) setNotifications(data as ReleaseNotification[]);
+    if (error) {
+      setFetchError('Failed to load notifications.');
+    } else if (data) {
+      setNotifications(data as ReleaseNotification[]);
+    }
     setLoading(false);
   }, []);
 
@@ -182,7 +187,14 @@ export function WhatsNewDrawer({ open, onClose, onSeen }: WhatsNewDrawerProps) {
                 <h3 className="text-[13px] font-bold text-white font-mono leading-snug mb-1.5">{n.title}</h3>
                 <p className="text-[11px] text-white/50 font-mono leading-relaxed mb-3">{n.description}</p>
                 <button
-                  onClick={() => { navigate(n.discover_link); onClose(); }}
+                  onClick={() => {
+                    if (n.discover_link.startsWith('http')) {
+                      window.open(n.discover_link, '_blank', 'noopener,noreferrer');
+                    } else {
+                      navigate(n.discover_link);
+                    }
+                    onClose();
+                  }}
                   className="inline-flex items-center gap-1.5 bg-[#FFD528] text-[#1F1F21] text-[11px] font-bold px-3 py-1.5 rounded-md font-mono"
                 >
                   Discover {n.category}
@@ -201,7 +213,10 @@ export function WhatsNewDrawer({ open, onClose, onSeen }: WhatsNewDrawerProps) {
             </button>
           )}
 
-          {!loading && notifications.length === 0 && (
+          {fetchError && (
+            <p className="text-center text-red-400 text-xs font-mono py-12">{fetchError}</p>
+          )}
+          {!fetchError && !loading && notifications.length === 0 && (
             <p className="text-center text-white/25 text-xs font-mono py-12">No releases yet</p>
           )}
         </div>
