@@ -194,6 +194,8 @@ export function SettingsPage() {
   const { user } = useAuth();
   const { section } = useParams<{ section?: string }>();
   const { subscription, isPremium, isTrialing, trialDaysLeft, trialExtended } = useSubscription();
+  const isLifetime = subscription?.status === 'lifetime';
+  const isStripePro = isPremium && !isTrialing && !isLifetime;
   const location = useLocation();
   const navigate = useNavigate();
   const activeSection: SectionId = (VALID_SETTINGS_SECTIONS.has(section ?? '') ? section : 'my-details') as SectionId;
@@ -962,14 +964,17 @@ export function SettingsPage() {
                   <div className="flex items-center justify-between p-4 bg-muted rounded-xl">
                     <div>
                       <p className="text-sm font-semibold">
-                        {isPremium && !isTrialing ? '✦ Crew Dock Pro' : isTrialing ? 'Crew Dock Pro (Trial)' : 'Free'}
+                        {isLifetime ? '✦ Crew Dock Pro — Lifetime' : isStripePro ? '✦ Crew Dock Pro' : isTrialing ? 'Crew Dock Pro (Trial)' : 'Free'}
                       </p>
+                      {isLifetime && (
+                        <p className="text-xs text-muted-foreground mt-0.5">Access never expires — no billing required</p>
+                      )}
                       {isTrialing && (
                         <p className="text-xs text-muted-foreground mt-0.5">
                           Trial ends in {trialDaysLeft} day{trialDaysLeft !== 1 ? 's' : ''}
                         </p>
                       )}
-                      {isPremium && !isTrialing && subscription?.current_period_end && (
+                      {isStripePro && subscription?.current_period_end && (
                         <p className="text-xs text-muted-foreground mt-0.5">
                           Renews {new Date(subscription.current_period_end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </p>
@@ -978,18 +983,20 @@ export function SettingsPage() {
                         <p className="text-xs text-muted-foreground mt-0.5">Core features only — Pro features locked</p>
                       )}
                     </div>
-                    <span className={cn('text-xs font-bold px-3 py-1 rounded-full border', isPremium && !isTrialing
+                    <span className={cn('text-xs font-bold px-3 py-1 rounded-full border', isLifetime
+                      ? 'bg-[#FFD528]/10 border-[#FFD528]/25 text-[#FFD528]'
+                      : isStripePro
                       ? 'bg-green-500/10 border-green-500/25 text-green-400'
                       : isTrialing
                       ? 'bg-[#FFD528]/10 border-[#FFD528]/25 text-[#FFD528]'
                       : 'bg-white/5 border-white/10 text-white/40'
                     )}>
-                      {isPremium && !isTrialing ? 'Active' : isTrialing ? 'Trial' : 'Free'}
+                      {isLifetime ? 'Lifetime' : isStripePro ? 'Active' : isTrialing ? 'Trial' : 'Free'}
                     </span>
                   </div>
 
-                  {/* Manage plan (Pro only) */}
-                  {isPremium && !isTrialing && (
+                  {/* Manage plan — Stripe Pro only */}
+                  {isStripePro && (
                     <div className="space-y-2">
                       <Button
                         variant="outline"
@@ -1016,7 +1023,7 @@ export function SettingsPage() {
               </Card>
 
               {/* Upgrade card (trial and free users only) */}
-              {(!isPremium || isTrialing) && !(isPremium && !isTrialing) && (
+              {(!isPremium || isTrialing) && !isLifetime && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base">
