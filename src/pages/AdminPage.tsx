@@ -531,6 +531,45 @@ function AdminNotificationsPanel({ reloadRef }: { reloadRef: React.MutableRefObj
   const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const linkInputRef = useRef<HTMLInputElement>(null);
+  const linkDropdownRef = useRef<HTMLDivElement>(null);
+  const [linkDropdownOpen, setLinkDropdownOpen] = useState(false);
+
+  const APP_ROUTES = [
+    { path: '/dashboard',        label: 'Dashboard' },
+    { path: '/calculator',       label: 'Calculator' },
+    { path: '/projects',         label: 'Projects' },
+    { path: '/invoices',         label: 'Invoices' },
+    { path: '/support',          label: 'Support' },
+    { path: '/settings',         label: 'Settings' },
+    { path: '/ai-input',         label: 'AI Input' },
+    { path: '/admin',            label: 'Admin' },
+    { path: '/login',            label: 'Login' },
+    { path: '/terms',            label: 'Terms of Service' },
+    { path: '/privacy',          label: 'Privacy Policy' },
+    { path: '/update-password',  label: 'Update Password' },
+    { path: '/share/:token',     label: 'Share link (dynamic)' },
+  ];
+
+  const filteredRoutes = APP_ROUTES.filter(r =>
+    r.label.toLowerCase().includes(discoverLink.toLowerCase()) ||
+    r.path.toLowerCase().includes(discoverLink.toLowerCase())
+  );
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        linkDropdownRef.current &&
+        !linkDropdownRef.current.contains(e.target as Node) &&
+        linkInputRef.current &&
+        !linkInputRef.current.contains(e.target as Node)
+      ) {
+        setLinkDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
@@ -707,32 +746,40 @@ function AdminNotificationsPanel({ reloadRef }: { reloadRef: React.MutableRefObj
                 ))}
               </select>
             </div>
-            <div>
+            <div className="relative">
               <label className="block text-[11px] font-bold text-white/40 uppercase tracking-widest font-mono mb-1.5">
                 Discover link
               </label>
               <input
-                list="app-routes"
+                ref={linkInputRef}
                 value={discoverLink}
-                onChange={e => setDiscoverLink(e.target.value)}
+                onChange={e => { setDiscoverLink(e.target.value); setLinkDropdownOpen(true); }}
+                onFocus={() => setLinkDropdownOpen(true)}
                 placeholder="Type or select a page…"
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-[13px] text-white font-mono focus:outline-none focus:border-[#FFD528]/50"
               />
-              <datalist id="app-routes">
-                <option value="/dashboard" label="Dashboard" />
-                <option value="/calculator" label="Calculator" />
-                <option value="/projects" label="Projects" />
-                <option value="/invoices" label="Invoices" />
-                <option value="/support" label="Support" />
-                <option value="/settings" label="Settings" />
-                <option value="/ai-input" label="AI Input" />
-                <option value="/admin" label="Admin" />
-                <option value="/login" label="Login" />
-                <option value="/terms" label="Terms of Service" />
-                <option value="/privacy" label="Privacy Policy" />
-                <option value="/update-password" label="Update Password" />
-                <option value="/share/:token" label="Share link (dynamic)" />
-              </datalist>
+              {linkDropdownOpen && filteredRoutes.length > 0 && (
+                <div
+                  ref={linkDropdownRef}
+                  className="absolute z-50 mt-1 w-full rounded-lg border border-white/10 bg-[#1F1F21] shadow-xl overflow-hidden"
+                >
+                  {filteredRoutes.map(r => (
+                    <button
+                      key={r.path}
+                      type="button"
+                      onMouseDown={e => {
+                        e.preventDefault();
+                        setDiscoverLink(r.path);
+                        setLinkDropdownOpen(false);
+                      }}
+                      className="flex items-center justify-between w-full px-3 py-2 text-left hover:bg-white/5 group"
+                    >
+                      <span className="text-[13px] text-white/80 font-mono group-hover:text-white">{r.label}</span>
+                      <span className="text-[11px] text-white/30 font-mono group-hover:text-[#FFD528]/70">{r.path}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
