@@ -200,6 +200,7 @@ export function SettingsPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('yearly');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState('');
 
   // User details
   const [displayName, setDisplayName] = useState('');
@@ -555,14 +556,18 @@ export function SettingsPage() {
   const handleManagePlan = async () => {
     if (!user) return;
     setPortalLoading(true);
+    setPortalError('');
     try {
       const res = await fetch('/api/stripe/create-portal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id }),
       });
-      const { url } = await res.json();
-      if (url) window.location.href = url;
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Failed to open billing portal');
+      if (data.url) window.location.href = data.url;
+    } catch (err) {
+      setPortalError(err instanceof Error ? err.message : 'Failed to open billing portal');
     } finally {
       setPortalLoading(false);
     }
@@ -1002,6 +1007,9 @@ export function SettingsPage() {
                       >
                         Cancel subscription
                       </Button>
+                      {portalError && (
+                        <p className="text-sm text-destructive">{portalError}</p>
+                      )}
                     </div>
                   )}
                 </CardContent>

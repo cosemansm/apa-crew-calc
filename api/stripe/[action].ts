@@ -87,12 +87,15 @@ export default async function handler(req: any, res: any) {
       return res.status(404).json({ error: 'No Stripe customer found for this user' });
     }
 
-    const portalSession = await stripe.billingPortal.sessions.create({
-      customer: customerId,
-      return_url: `${APP_URL}/settings`,
-    });
-
-    return res.status(200).json({ url: portalSession.url });
+    try {
+      const portalSession = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: `${APP_URL}/settings`,
+      });
+      return res.status(200).json({ url: portalSession.url });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message ?? 'Failed to create portal session' });
+    }
   }
 
   // ── extend-trial ──────────────────────────────────────────────────────────
