@@ -7,7 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from 'recharts';
-import { Users, Briefcase, CalendarDays, PoundSterling, TrendingUp, Zap, RefreshCw, BarChart2, Lightbulb, ChevronDown } from 'lucide-react';
+import { Users, Briefcase, CalendarDays, PoundSterling, TrendingUp, Zap, RefreshCw, BarChart2, Lightbulb, ChevronDown, X, Upload, Trash2, Pencil, ArrowRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 const ADMIN_EMAIL = 'milo.cosemans@gmail.com';
@@ -48,6 +48,21 @@ const FR_STATUS_OPTIONS: { value: AdminFeatureRequest['status']; label: string; 
   { value: 'planned',     label: 'Planned',     color: '#60a5fa' },
   { value: 'in_progress', label: 'In Progress', color: '#f97316' },
   { value: 'completed',   label: 'Completed',   color: '#4ade80' },
+];
+
+interface AdminNotification {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  discover_link: string;
+  image_url: string | null;
+  published_at: string;
+}
+
+const NOTIFICATION_CATEGORIES = [
+  'Timesheets', 'Dashboard', 'Bookkeeping', 'Calculator',
+  'Projects', 'Settings', 'Subscription', 'General',
 ];
 
 const FEATURE_TAGS = [
@@ -499,6 +514,347 @@ function AdminFeatureRequests({
   );
 }
 
+function AdminNotificationsPanel() {
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Form state
+  const [editId, setEditId] = useState<string | null>(null);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
+  const [discoverLink, setDiscoverLink] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function fetchNotifications() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('release_notifications')
+      .select('*')
+      .order('published_at', { ascending: false });
+    if (!error && data) setNotifications(data as AdminNotification[]);
+    setLoading(false);
+  }
+
+  useEffect(() => { fetchNotifications(); }, []);
+
+  function resetForm() {
+    setEditId(null);
+    setTitle('');
+    setDescription('');
+    setCategory('');
+    setDiscoverLink('');
+    setImageFile(null);
+    setImagePreviewUrl(null);
+    setExistingImageUrl(null);
+  }
+
+  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = ev => setImagePreviewUrl(ev.target?.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  function startEdit(n: AdminNotification) {
+    setEditId(n.id);
+    setTitle(n.title);
+    setDescription(n.description);
+    setCategory(n.category);
+    setDiscoverLink(n.discover_link);
+    setExistingImageUrl(n.image_url);
+    setImagePreviewUrl(n.image_url);
+    setImageFile(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function handleSubmit() {
+    if (!title.trim() || !description.trim() || !category || !discoverLink.trim()) {
+      setError('Please fill in all fields.');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+
+    try {
+      let imageUrl: string | null = existingImageUrl ?? null;
+
+      if (imageFile) {
+        const ext = imageFile.name.split('.').pop();
+        const path = `${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from('notification-images')
+          .upload(path, imageFile, { upsert: true });
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage
+          .from('notification-images')
+          .getPublicUrl(path);
+        imageUrl = urlData.publicUrl;
+      }
+
+      const payload = {
+        title: title.trim(),
+        description: description.trim(),
+        category,
+        discover_link: discoverLink.trim(),
+        image_url: imageUrl,
+      };
+
+      if (editId) {
+        const { error: updateError } = await supabase
+          .from('release_notifications')
+          .update(payload)
+          .eq('id', editId);
+        if (updateError) throw updateError;
+      } else {
+        const { error: insertError } = await supabase
+          .from('release_notifications')
+          .insert(payload);
+        if (insertError) throw insertError;
+      }
+
+      resetForm();
+      await fetchNotifications();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('Delete this notification? Users will no longer see it.')) return;
+    await supabase.from('release_notifications').delete().eq('id', id);
+    await fetchNotifications();
+  }
+
+  const previewImageSrc = imagePreviewUrl;
+  const previewDate = new Date().toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6 mt-4">
+
+      {/* ── Left: form + list ── */}
+      <div className="space-y-6">
+
+        {/* Form */}
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+          <h3 className="text-xs font-bold text-white/40 uppercase tracking-widest font-mono mb-4">
+            {editId ? 'Edit release' : 'Publish new release'}
+          </h3>
+
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/25 text-red-400 text-xs font-mono rounded-xl p-3 mb-4">
+              {error}
+            </div>
+          )}
+
+          {/* Image upload */}
+          <div className="mb-4">
+            <label className="block text-[11px] font-bold text-white/40 uppercase tracking-widest font-mono mb-2">
+              Feature image
+            </label>
+            <div
+              className="border-2 border-dashed border-white/15 hover:border-[#FFD528]/40 rounded-xl overflow-hidden cursor-pointer transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {previewImageSrc ? (
+                <img src={previewImageSrc} alt="Preview" className="w-full h-28 object-cover block" />
+              ) : (
+                <div className="h-28 flex flex-col items-center justify-center gap-2">
+                  <Upload className="h-5 w-5 text-white/20" />
+                  <span className="text-[11px] text-white/25 font-mono">Click to upload — JPG, PNG, WebP</span>
+                </div>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageSelect}
+            />
+          </div>
+
+          {/* Category + Link */}
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <label className="block text-[11px] font-bold text-white/40 uppercase tracking-widest font-mono mb-1.5">
+                Category
+              </label>
+              <select
+                value={category}
+                onChange={e => setCategory(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-[13px] text-white font-mono appearance-none focus:outline-none focus:border-[#FFD528]/50"
+              >
+                <option value="">Select...</option>
+                {NOTIFICATION_CATEGORIES.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-white/40 uppercase tracking-widest font-mono mb-1.5">
+                Discover link
+              </label>
+              <input
+                value={discoverLink}
+                onChange={e => setDiscoverLink(e.target.value)}
+                placeholder="/invoice"
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-[13px] text-white font-mono focus:outline-none focus:border-[#FFD528]/50"
+              />
+            </div>
+          </div>
+
+          {/* Title */}
+          <div className="mb-3">
+            <label className="block text-[11px] font-bold text-white/40 uppercase tracking-widest font-mono mb-1.5">
+              Title
+            </label>
+            <input
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="e.g. Timesheet Export is now live"
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-[13px] text-white font-mono focus:outline-none focus:border-[#FFD528]/50"
+            />
+          </div>
+
+          {/* Description */}
+          <div className="mb-4">
+            <label className="block text-[11px] font-bold text-white/40 uppercase tracking-widest font-mono mb-1.5">
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              rows={3}
+              placeholder="Describe the new feature in 1–2 sentences..."
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-[13px] text-white font-mono resize-none focus:outline-none focus:border-[#FFD528]/50"
+            />
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between pt-4 border-t border-white/8">
+            {editId && (
+              <button
+                onClick={resetForm}
+                className="text-[12px] text-white/40 hover:text-white/70 font-mono transition-colors"
+              >
+                Cancel edit
+              </button>
+            )}
+            {!editId && <span className="text-[11px] text-white/25 font-mono">Visible to all users immediately</span>}
+            <button
+              onClick={handleSubmit}
+              disabled={saving}
+              className="flex items-center gap-2 bg-[#FFD528] text-[#1F1F21] text-[13px] font-bold px-5 py-2 rounded-lg font-mono disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : editId ? 'Save changes' : 'Publish Release'}
+            </button>
+          </div>
+        </div>
+
+        {/* Published list */}
+        <div>
+          <h3 className="text-[11px] font-bold text-white/40 uppercase tracking-widest font-mono mb-3">
+            Published releases
+          </h3>
+          {loading && (
+            <p className="text-xs text-white/25 font-mono py-4">Loading...</p>
+          )}
+          {notifications.map(n => (
+            <div key={n.id} className="flex items-center gap-3 bg-white/5 border border-white/8 rounded-xl p-3 mb-2">
+              {n.image_url ? (
+                <img src={n.image_url} alt="" className="w-12 h-9 object-cover rounded-md shrink-0" />
+              ) : (
+                <div className="w-12 h-9 bg-white/10 rounded-md shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-bold text-white font-mono truncate">{n.title}</p>
+                <p className="text-[10px] text-white/35 font-mono">{n.category} · {new Date(n.published_at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })} · {n.discover_link}</p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={() => startEdit(n)}
+                  className="flex items-center gap-1 text-[11px] text-white/50 hover:text-white border border-white/10 hover:border-white/25 px-2.5 py-1.5 rounded-lg font-mono transition-colors"
+                >
+                  <Pencil className="h-3 w-3" /> Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(n.id)}
+                  className="flex items-center gap-1 text-[11px] text-red-400 hover:text-red-300 border border-red-500/20 hover:border-red-500/40 px-2.5 py-1.5 rounded-lg font-mono transition-colors"
+                >
+                  <Trash2 className="h-3 w-3" /> Delete
+                </button>
+              </div>
+            </div>
+          ))}
+          {!loading && notifications.length === 0 && (
+            <p className="text-xs text-white/25 font-mono py-4">No releases published yet.</p>
+          )}
+        </div>
+      </div>
+
+      {/* ── Right: live preview ── */}
+      <div className="xl:sticky xl:top-0">
+        <p className="text-[11px] font-bold text-white/40 uppercase tracking-widest font-mono mb-3">Live preview</p>
+
+        {/* Mini drawer chrome */}
+        <div className="bg-[#161618] border border-white/8 rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/8">
+            <div className="flex items-center gap-2">
+              <span className="text-[13px] font-bold text-white font-mono">What's New</span>
+              <span className="bg-[#FFD528] text-[#1F1F21] text-[9px] font-black px-2 py-0.5 rounded-full">1 NEW</span>
+            </div>
+            <div className="w-6 h-6 bg-white/8 rounded-md flex items-center justify-center">
+              <X className="h-3 w-3 text-white/40" />
+            </div>
+          </div>
+
+          <div className="p-3">
+            {/* Preview card */}
+            <div className="bg-[#FFD528]/7 border border-[#FFD528]/25 rounded-xl overflow-hidden">
+              {previewImageSrc ? (
+                <img src={previewImageSrc} alt="Preview" className="w-full h-[120px] object-cover block" />
+              ) : (
+                <div className="w-full h-[120px] bg-white/5 flex items-center justify-center">
+                  <span className="text-[9px] text-white/20 uppercase tracking-widest font-mono">Feature image</span>
+                </div>
+              )}
+
+              <div className="p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[9px] font-black uppercase tracking-widest bg-[#FFD528]/15 text-[#FFD528] px-2 py-0.5 rounded-full">
+                    {category || 'Category'}
+                  </span>
+                  <span className="text-[9px] text-white/30 font-mono">{previewDate}</span>
+                </div>
+                <p className="text-[12px] font-bold font-mono leading-snug mb-1" style={{ color: title ? '#fff' : 'rgba(255,255,255,0.2)' }}>
+                  {title || 'Your title will appear here'}
+                </p>
+                <p className="text-[10px] font-mono leading-relaxed mb-2.5" style={{ color: description ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.2)' }}>
+                  {description || 'Your description will appear here...'}
+                </p>
+                <button className="inline-flex items-center gap-1 bg-[#FFD528] text-[#1F1F21] text-[10px] font-bold px-2.5 py-1.5 rounded-md font-mono">
+                  Discover {category || '...'} <ArrowRight className="h-2.5 w-2.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AdminPage() {
   usePageTitle('Admin');
   const { user, session } = useAuth();
@@ -512,7 +868,7 @@ export function AdminPage() {
   const [userList, setUserList] = useState<UserListEntry[] | null>(null);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
-  const [adminTab, setAdminTab] = useState<'dashboard' | 'feature-requests'>('dashboard');
+  const [adminTab, setAdminTab] = useState<'dashboard' | 'feature-requests' | 'notifications'>('dashboard');
   const [jobsView, setJobsView] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const frReloadRef = useRef<(() => void) | null>(null);
   const [frLoading, setFrLoading] = useState(false);
@@ -647,15 +1003,19 @@ export function AdminPage() {
             Admin Dashboard
           </h1>
           <p className="text-xs text-white/30 mt-0.5">
-            {adminTab === 'dashboard' ? 'Platform analytics — visible only to you' : 'Manage feature requests'}
+            {adminTab === 'dashboard'
+              ? 'Platform analytics — visible only to you'
+              : adminTab === 'feature-requests'
+              ? 'Manage feature requests'
+              : 'Publish release notifications'}
           </p>
         </div>
         <button
-          onClick={adminTab === 'dashboard' ? fetchStats : loadAdminFeatureRequests}
-          disabled={adminTab === 'dashboard' ? loading : frLoading}
+          onClick={adminTab === 'dashboard' ? fetchStats : adminTab === 'feature-requests' ? loadAdminFeatureRequests : undefined}
+          disabled={adminTab === 'dashboard' ? loading : adminTab === 'feature-requests' ? frLoading : false}
           className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white text-xs font-mono transition-all disabled:opacity-40"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${(adminTab === 'dashboard' ? loading : frLoading) ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${(adminTab === 'dashboard' ? loading : adminTab === 'feature-requests' ? frLoading : false) ? 'animate-spin' : ''}`} />
           Refresh
         </button>
       </div>
@@ -665,6 +1025,7 @@ export function AdminPage() {
         {[
           { id: 'dashboard' as const, label: 'Dashboard', icon: BarChart2 },
           { id: 'feature-requests' as const, label: 'Feature Requests', icon: Lightbulb },
+          { id: 'notifications' as const, label: 'Notifications', icon: Zap },
         ].map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -1116,6 +1477,9 @@ export function AdminPage() {
 
       {adminTab === 'feature-requests' && (
         <AdminFeatureRequests reloadRef={frReloadRef} onLoadingChange={setFrLoading} />
+      )}
+      {adminTab === 'notifications' && (
+        <AdminNotificationsPanel />
       )}
     </div>
   );
