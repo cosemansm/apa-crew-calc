@@ -514,7 +514,7 @@ function AdminFeatureRequests({
   );
 }
 
-function AdminNotificationsPanel() {
+function AdminNotificationsPanel({ reloadRef }: { reloadRef: React.MutableRefObject<(() => void) | null> }) {
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -543,6 +543,7 @@ function AdminNotificationsPanel() {
   }
 
   useEffect(() => { fetchNotifications(); }, []);
+  useEffect(() => { reloadRef.current = fetchNotifications; }, [fetchNotifications, reloadRef]);
 
   function resetForm() {
     setEditId(null);
@@ -632,7 +633,8 @@ function AdminNotificationsPanel() {
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this notification? Users will no longer see it.')) return;
-    await supabase.from('release_notifications').delete().eq('id', id);
+    const { error: deleteError } = await supabase.from('release_notifications').delete().eq('id', id);
+    if (deleteError) { setError(deleteError.message); return; }
     await fetchNotifications();
   }
 
@@ -875,6 +877,10 @@ export function AdminPage() {
   function loadAdminFeatureRequests() {
     frReloadRef.current?.();
   }
+  const notifReloadRef = useRef<(() => void) | null>(null);
+  function loadAdminNotifications() {
+    notifReloadRef.current?.();
+  }
 
   // Gate — redirect non-admins immediately
   useEffect(() => {
@@ -1011,7 +1017,7 @@ export function AdminPage() {
           </p>
         </div>
         <button
-          onClick={adminTab === 'dashboard' ? fetchStats : adminTab === 'feature-requests' ? loadAdminFeatureRequests : undefined}
+          onClick={adminTab === 'dashboard' ? fetchStats : adminTab === 'feature-requests' ? loadAdminFeatureRequests : loadAdminNotifications}
           disabled={adminTab === 'dashboard' ? loading : adminTab === 'feature-requests' ? frLoading : false}
           className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white text-xs font-mono transition-all disabled:opacity-40"
         >
@@ -1479,7 +1485,7 @@ export function AdminPage() {
         <AdminFeatureRequests reloadRef={frReloadRef} onLoadingChange={setFrLoading} />
       )}
       {adminTab === 'notifications' && (
-        <AdminNotificationsPanel />
+        <AdminNotificationsPanel reloadRef={notifReloadRef} />
       )}
     </div>
   );
