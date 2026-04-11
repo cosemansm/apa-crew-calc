@@ -52,14 +52,18 @@ export function WhatsNewDrawer({ open, onClose, onSeen }: WhatsNewDrawerProps) {
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('release_notifications')
-      .select('id, title, description, category, discover_link, image_url, published_at')
-      .order('published_at', { ascending: false });
-    if (error) {
-      setFetchError('Failed to load notifications.');
-    } else if (data) {
-      setNotifications(data as ReleaseNotification[]);
+    try {
+      const { data, error } = await supabase
+        .from('release_notifications')
+        .select('id, title, description, category, discover_link, image_url, published_at')
+        .order('published_at', { ascending: false });
+      if (error) {
+        setFetchError('Failed to load notifications.');
+      } else if (data) {
+        setNotifications(data as ReleaseNotification[]);
+      }
+    } catch {
+      // Network error (e.g. Safari "Load failed") — silently ignore
     }
     setLoading(false);
   }, []);

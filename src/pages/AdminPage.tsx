@@ -534,11 +534,15 @@ function AdminNotificationsPanel({ reloadRef }: { reloadRef: React.MutableRefObj
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('release_notifications')
-      .select('*')
-      .order('published_at', { ascending: false });
-    if (!error && data) setNotifications(data as AdminNotification[]);
+    try {
+      const { data, error } = await supabase
+        .from('release_notifications')
+        .select('*')
+        .order('published_at', { ascending: false });
+      if (!error && data) setNotifications(data as AdminNotification[]);
+    } catch {
+      // Network error (e.g. Safari "Load failed") — silently ignore
+    }
     setLoading(false);
   }, []);
 
