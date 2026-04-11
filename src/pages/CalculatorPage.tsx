@@ -513,6 +513,9 @@ export function CalculatorPage() {
   const formTopRef = useRef<HTMLDivElement>(null);
   const suppressDirtyRef = useRef(true); // Suppress initial dirty flag on mount
   const autoSaveNewDayRef = useRef(false);
+  // When loadDayIntoForm runs before customRoles loads, store the pending role/rate here
+  const pendingRoleNameRef = useRef<string | null>(null);
+  const pendingAgreedRateRef = useRef<string | null>(null);
 
   // Unsaved changes tracking
   const [isDirty, setIsDirty] = useState(false); // Never restore from session — always clean on load/refresh
@@ -657,6 +660,17 @@ export function CalculatorPage() {
             isBuyout: r.is_buyout ?? false,
           }));
           setCustomRoles(mapped);
+          // If loadDayIntoForm ran before custom roles loaded, retry the role lookup now
+          if (pendingRoleNameRef.current && pendingAgreedRateRef.current) {
+            const found = mapped.find(r => r.role === pendingRoleNameRef.current);
+            if (found) {
+              suppressDirtyRef.current = true;
+              setSelectedRole(found);
+              setAgreedRate(pendingAgreedRateRef.current);
+              pendingRoleNameRef.current = null;
+              pendingAgreedRateRef.current = null;
+            }
+          }
           // If session had a custom role selected that wasn't found at mount time, restore it now
           const sessionRoleName = sessionRef.current?.selectedRoleName;
           if (sessionRoleName && !selectedRole) {
@@ -680,10 +694,13 @@ export function CalculatorPage() {
         .then(({ data }) => {
           if (data) {
             setProjectDays(data as ProjectDaySummary[]);
-            // Skip auto-load if we restored form state from session (user was mid-edit)
+            // Skip auto-load only if session has meaningful state (role + rate are populated).
+            // If the session is stale/incomplete (e.g. role missing due to a prior race condition),
+            // still trigger auto-load so the form isn't left blank.
             if (restoredFromSession.current) {
               restoredFromSession.current = false;
-              return;
+              const sessionHasRole = !!(sessionRef.current?.selectedRoleName && sessionRef.current?.agreedRate);
+              if (sessionHasRole) return;
             }
             // If there are saved days, auto-load the most recent one
             if (data.length > 0) {
@@ -870,6 +887,12 @@ export function CalculatorPage() {
     if (role) {
       setSelectedRole(role);
       setAgreedRate(String(day.agreed_rate));
+      pendingRoleNameRef.current = null;
+      pendingAgreedRateRef.current = null;
+    } else {
+      // customRoles may not have loaded yet — stash for retry when they arrive
+      pendingRoleNameRef.current = day.role_name;
+      pendingAgreedRateRef.current = String(day.agreed_rate);
     }
     setSaveSuccess(false);
   };
