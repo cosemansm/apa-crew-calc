@@ -55,14 +55,17 @@ interface AdminNotification {
   title: string;
   description: string;
   category: string;
+  button_label: string | null;
   discover_link: string;
   image_url: string | null;
   published_at: string;
 }
 
 const NOTIFICATION_CATEGORIES = [
-  'Timesheets', 'Dashboard', 'Bookkeeping', 'Calculator',
-  'Projects', 'Settings', 'Subscription', 'General',
+  'General', 'Dashboard', 'Calculator', 'Jobs', 'Invoices',
+  'Timesheets', 'Bookkeeping', 'AI Input', 'Integrations',
+  'Projects', 'Equipment', 'Expenses', 'PDF / Export',
+  'Feature Requests', 'Settings', 'Subscription', 'Mobile',
 ];
 
 const FEATURE_TAGS = [
@@ -525,6 +528,7 @@ function AdminNotificationsPanel({ reloadRef }: { reloadRef: React.MutableRefObj
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
+  const [buttonLabel, setButtonLabel] = useState('');
   const [discoverLink, setDiscoverLink] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
@@ -593,6 +597,7 @@ function AdminNotificationsPanel({ reloadRef }: { reloadRef: React.MutableRefObj
     setTitle('');
     setDescription('');
     setCategory('');
+    setButtonLabel('');
     setDiscoverLink('');
     setImageFile(null);
     setImagePreviewUrl(null);
@@ -613,6 +618,7 @@ function AdminNotificationsPanel({ reloadRef }: { reloadRef: React.MutableRefObj
     setTitle(n.title);
     setDescription(n.description);
     setCategory(n.category);
+    setButtonLabel(n.button_label ?? '');
     setDiscoverLink(n.discover_link);
     setExistingImageUrl(n.image_url);
     setImagePreviewUrl(n.image_url);
@@ -648,6 +654,7 @@ function AdminNotificationsPanel({ reloadRef }: { reloadRef: React.MutableRefObj
         title: title.trim(),
         description: description.trim(),
         category,
+        button_label: buttonLabel.trim() || null,
         discover_link: discoverLink.trim(),
         image_url: imageUrl,
       };
@@ -783,6 +790,19 @@ function AdminNotificationsPanel({ reloadRef }: { reloadRef: React.MutableRefObj
             </div>
           </div>
 
+          {/* Button label */}
+          <div className="mb-3">
+            <label className="block text-[11px] font-bold text-white/40 uppercase tracking-widest font-mono mb-1.5">
+              Button label
+            </label>
+            <input
+              value={buttonLabel}
+              onChange={e => setButtonLabel(e.target.value)}
+              placeholder={`e.g. Try it now, See what's new, View invoices`}
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-[13px] text-white font-mono focus:outline-none focus:border-[#FFD528]/50"
+            />
+          </div>
+
           {/* Title */}
           <div className="mb-3">
             <label className="block text-[11px] font-bold text-white/40 uppercase tracking-widest font-mono mb-1.5">
@@ -913,7 +933,7 @@ function AdminNotificationsPanel({ reloadRef }: { reloadRef: React.MutableRefObj
                   {description || 'Your description will appear here...'}
                 </p>
                 <button className="inline-flex items-center gap-1 bg-[#FFD528] text-[#1F1F21] text-[10px] font-bold px-2.5 py-1.5 rounded-md font-mono">
-                  Discover {category || '...'} <ArrowRight className="h-2.5 w-2.5" />
+                  {buttonLabel.trim() || (category ? `Discover ${category}` : '...')} <ArrowRight className="h-2.5 w-2.5" />
                 </button>
               </div>
             </div>

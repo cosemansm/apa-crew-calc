@@ -12,6 +12,7 @@ interface ReleaseNotification {
   title: string;
   description: string;
   category: string;
+  button_label: string | null;
   discover_link: string;
   image_url: string | null;
   published_at: string;
@@ -201,7 +202,7 @@ export function WhatsNewDrawer({ open, onClose, onSeen }: WhatsNewDrawerProps) {
                   }}
                   className="inline-flex items-center gap-1.5 bg-[#FFD528] text-[#1F1F21] text-[11px] font-bold px-3 py-1.5 rounded-md font-mono"
                 >
-                  Discover {n.category}
+                  {n.button_label || `Discover ${n.category}`}
                   <ArrowRight className="h-3 w-3" />
                 </button>
               </div>
