@@ -71,8 +71,8 @@ export default function App() {
                 <Route path="/ai-input" element={<AIInputPage />} />
                 <Route path="/history" element={<Navigate to="/projects" replace />} />
                 <Route path="/invoices" element={<InvoicePage />} />
-                <Route path="/support" element={<SupportPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/support/:section?" element={<SupportPage />} />
+                <Route path="/settings/:section?" element={<SettingsPage />} />
                 <Route path="/admin" element={<AdminPage />} />
               </Route>
               <Route path="/update-password" element={<UpdatePasswordPage />} />

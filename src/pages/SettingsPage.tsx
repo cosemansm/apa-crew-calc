@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { isFreeAgentConnected, disconnectFreeAgent } from '@/services/bookkeeping/freeagent';
 import { isXeroConnected, disconnectXero } from '@/services/bookkeeping/xero';
 import { isQBOConnected, disconnectQBO } from '@/services/bookkeeping/quickbooks';
@@ -185,15 +185,18 @@ const NAV_ITEMS: { id: SectionId; label: string; icon: React.ElementType; badge?
   { id: 'danger-zone',      label: 'Danger Zone',      icon: AlertTriangle, danger: true },
 ];
 
+const VALID_SETTINGS_SECTIONS = new Set<string>(['my-details', 'custom-rates', 'my-equipment', 'password', 'billing', 'integrations', 'danger-zone']);
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function SettingsPage() {
   usePageTitle('Settings');
   const { user } = useAuth();
-  const [activeSection, setActiveSection] = useState<SectionId>('my-details');
+  const { section } = useParams<{ section?: string }>();
   const { subscription, isPremium, isTrialing, trialDaysLeft, trialExtended } = useSubscription();
   const location = useLocation();
   const navigate = useNavigate();
+  const activeSection: SectionId = (VALID_SETTINGS_SECTIONS.has(section ?? '') ? section : 'my-details') as SectionId;
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('yearly');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
@@ -300,12 +303,10 @@ export function SettingsPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('stripe') === 'success') {
-      setActiveSection('billing');
-      window.history.replaceState({}, '', '/settings');
+      window.history.replaceState({}, '', '/settings/billing');
     }
     if (location.state?.section === 'billing') {
-      setActiveSection('billing');
-      navigate(location.pathname, { replace: true, state: {} });
+      navigate('/settings/billing', { replace: true, state: {} });
     }
   }, []);
 
@@ -331,21 +332,18 @@ export function SettingsPage() {
     if (params.get('connected') === 'freeagent') {
       faConnectedFromUrl.current = true;
       setFaConnected(true);
-      setActiveSection('integrations');
-      navigate('/settings', { replace: true });
+      navigate('/settings/integrations', { replace: true });
     }
     const err = params.get('error');
     const FA_ERRORS = new Set(['freeagent_denied', 'freeagent_token_failed', 'freeagent_not_configured', 'freeagent_db_failed', 'invalid_state', 'invalid_callback']);
     if (err && FA_ERRORS.has(err)) {
       setFaConnectError(err);
-      setActiveSection('integrations');
-      navigate('/settings', { replace: true });
+      navigate('/settings/integrations', { replace: true });
     }
     if (params.get('connected') === 'xero') {
       xeroConnectedFromUrl.current = true;
       setXeroConnected(true);
-      setActiveSection('integrations');
-      navigate('/settings', { replace: true });
+      navigate('/settings/integrations', { replace: true });
     }
     const urlError = params.get('error');
     if (urlError === 'xero_denied') setXeroConnectError('Connection cancelled.');
@@ -357,8 +355,7 @@ export function SettingsPage() {
     if (params.get('connected') === 'quickbooks') {
       qboConnectedFromUrl.current = true;
       setQboConnected(true);
-      setActiveSection('integrations');
-      navigate('/settings', { replace: true });
+      navigate('/settings/integrations', { replace: true });
     }
     const QBO_ERRORS = new Set(['qbo_denied', 'qbo_token_failed', 'qbo_not_configured', 'qbo_db_failed', 'invalid_callback', 'invalid_state']);
     if (urlError === 'qbo_denied') setQboConnectError('Connection cancelled.');
@@ -368,8 +365,7 @@ export function SettingsPage() {
     if (urlError === 'invalid_callback') setQboConnectError('Invalid callback — please try connecting again.');
     if (urlError === 'invalid_state') setQboConnectError('Connection expired — please try connecting again.');
     if (urlError && QBO_ERRORS.has(urlError)) {
-      setActiveSection('integrations');
-      navigate('/settings', { replace: true });
+      navigate('/settings/integrations', { replace: true });
     }
   }, [location.search, navigate]);
 
@@ -588,7 +584,7 @@ export function SettingsPage() {
           {NAV_ITEMS.map(item => (
             <button
               key={item.id}
-              onClick={() => !item.badge && setActiveSection(item.id)}
+              onClick={() => !item.badge && navigate(`/settings/${item.id}`)}
               disabled={!!item.badge}
               className={cn(
                 'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-colors whitespace-nowrap shrink-0',
@@ -617,7 +613,7 @@ export function SettingsPage() {
             {NAV_ITEMS.map(item => (
               <button
                 key={item.id}
-                onClick={() => !item.badge && setActiveSection(item.id)}
+                onClick={() => !item.badge && navigate(`/settings/${item.id}`)}
                 disabled={!!item.badge}
                 className={cn(
                   'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left',

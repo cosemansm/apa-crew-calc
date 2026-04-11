@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import {
   LifeBuoy, MessageSquare, Lightbulb, BookOpen, Send, ChevronUp, ChevronRight,
@@ -188,10 +189,14 @@ const HELP_SECTIONS: {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+const VALID_SUPPORT_SECTIONS = new Set<string>(['contact', 'feature-requests', 'help', 'terms', 'privacy']);
+
 export function SupportPage() {
   usePageTitle('Support');
   const { user } = useAuth();
-  const [activeSection, setActiveSection] = useState<SectionId>('contact');
+  const { section } = useParams<{ section?: string }>();
+  const navigate = useNavigate();
+  const activeSection: SectionId = (VALID_SUPPORT_SECTIONS.has(section ?? '') ? section : 'contact') as SectionId;
 
   // Contact form
   const [contactName, setContactName] = useState('');
@@ -374,7 +379,7 @@ export function SupportPage() {
             {NAV_ITEMS.map(item => (
               <button
                 key={item.id}
-                onClick={() => setActiveSection(item.id)}
+                onClick={() => navigate(`/support/${item.id}`)}
                 className={cn(
                   'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left',
                   activeSection === item.id
