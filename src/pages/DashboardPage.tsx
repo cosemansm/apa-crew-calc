@@ -368,6 +368,7 @@ export function DashboardPage() {
             onClick={() => setWhatsNewOpen(true)}
             className="relative w-9 h-9 rounded-lg border border-border bg-background hover:bg-accent flex items-center justify-center transition-colors"
             title="What's new"
+            aria-label="What's new"
           >
             <Bell className="h-4 w-4" />
             {badgeCount > 0 && (
