@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CrewDock — Multi-Engine Architecture</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&display=swap');
+
+:root {
+  --bg: #0A0D14;
+  --surface: #111827;
+  --surface-raised: #1A2036;
+  --border: rgba(255,255,255,0.06);
+  --border-bright: rgba(255,255,255,0.12);
+  --text: #94A3B8;
+  --text-dim: #475569;
+  --text-bright: #E2E8F0;
+  --text-white: #F8FAFC;
+  --uk: #F59E0B;
+  --uk-soft: #FBBF24;
+  --uk-dim: rgba(245,158,11,0.1);
+  --uk-border: rgba(245,158,11,0.25);
+  --uk-glow: rgba(245,158,11,0.06);
+  --be: #14B8A6;
+  --be-soft: #2DD4BF;
+  --be-dim: rgba(20,184,166,0.1);
+  --be-border: rgba(20,184,166,0.25);
+  --be-glow: rgba(20,184,166,0.06);
+  --indigo: #818CF8;
+  --indigo-dim: rgba(129,140,248,0.08);
+  --indigo-border: rgba(129,140,248,0.2);
+  --green: #34D399;
+  --green-dim: rgba(52,211,153,0.08);
+  --green-border: rgba(52,211,153,0.2);
+  --font-display: 'Syne', system-ui, sans-serif;
+  --font-mono: 'DM Mono', 'Menlo', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { font-size: 15px; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-weight: 400;
+  min-height: 100vh;
+  padding: 52px 32px 80px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle dot grid */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Ambient glow */
+body::after {
+  content: '';
+  position: fixed;
+  top: -200px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 900px;
+  height: 600px;
+  background: radial-gradient(ellipse, rgba(245,158,11,0.03) 0%, transparent 60%),
+              radial-gradient(ellipse at 60% 50%, rgba(20,184,166,0.025) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.diagram {
+  position: relative;
+  z-index: 1;
+  max-width: 1060px;
+  margin: 0 auto;
+}
+
+/* ── HEADER ── */
+.header {
+  text-align: center;
+  margin-bottom: 56px;
+}
+.header h1 {
+  font-family: var(--font-display);
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: var(--text-white);
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+.header h1 span.dim { color: var(--text-dim); font-weight: 600; }
+.header .subtitle {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-top: 8px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+/* ── LAYERS ── */
+.layer { margin-bottom: 6px; }
+.layer-label {
+  font-size: 0.6rem;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.layer-label .num {
+  color: var(--indigo);
+  font-weight: 500;
+}
+.layer-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border-bright), transparent);
+}
+
+/* ── VERTICAL CONNECTOR ── */
+.v-conn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 36px;
+  margin: 2px 0;
+  position: relative;
+}
+.v-conn .stem {
+  width: 1px;
+  flex: 1;
+  background: linear-gradient(to bottom, var(--border-bright), var(--border));
+}
+.v-conn .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  flex-shrink: 0;
+}
+
+/* ── DOMAINS ROW ── */
+.domains-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+.domain-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border-bright);
+  border-radius: 100px;
+  padding: 10px 20px;
+  font-size: 0.85rem;
+  color: var(--text-bright);
+  font-weight: 400;
+}
+.domain-pill .flag { font-size: 1.1rem; line-height: 1; }
+.domain-pill.be-pill {
+  border-color: var(--be-border);
+  background: linear-gradient(135deg, var(--be-dim) 0%, var(--surface) 80%);
+}
+.redirect-tag {
+  font-size: 0.55rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--be);
+  background: var(--be-dim);
+  border: 1px solid var(--be-border);
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+.arrow-icon {
+  color: var(--text-dim);
+  font-size: 1.1rem;
+  font-weight: 300;
+}
+
+/* ── AUTH BOX ── */
+.auth-box {
+  background: var(--surface);
+  border: 1px solid var(--border-bright);
+  border-radius: 12px;
+  padding: 24px 32px;
+  max-width: 640px;
+  margin: 0 auto;
+  text-align: center;
+}
+.auth-title {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-white);
+  margin-bottom: 14px;
+}
+.detect-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.chip {
+  font-size: 0.65rem;
+  font-family: var(--font-mono);
+  border-radius: 6px;
+  padding: 4px 10px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.chip.neutral { color: var(--indigo); background: var(--indigo-dim); border-color: var(--indigo-border); }
+.chip.dim { color: var(--text-dim); background: transparent; border-color: var(--border); font-size: 0.6rem; }
+.chip.uk { color: var(--uk-soft); background: var(--uk-dim); border-color: var(--uk-border); }
+.chip.be { color: var(--be-soft); background: var(--be-dim); border-color: var(--be-border); }
+.auth-note {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  margin-top: 10px;
+  line-height: 1.6;
+}
+.auth-note code {
+  color: var(--text);
+  background: rgba(255,255,255,0.04);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.6rem;
+}
+
+/* ── FORK / SPLIT CONNECTOR ── */
+.split-conn {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  height: 44px;
+  position: relative;
+  margin: 2px 0;
+}
+.split-conn .center-stem {
+  width: 1px;
+  height: 16px;
+  background: var(--border-bright);
+  position: absolute;
+  top: 0;
+  left: 50%;
+}
+.split-conn .branch {
+  position: absolute;
+  top: 16px;
+  height: 1px;
+}
+.split-conn .branch-left {
+  right: 50%;
+  left: 25%;
+  background: linear-gradient(90deg, var(--uk-border), var(--border-bright));
+}
+.split-conn .branch-right {
+  left: 50%;
+  right: 25%;
+  background: linear-gradient(90deg, var(--border-bright), var(--be-border));
+}
+.split-conn .drop {
+  position: absolute;
+  top: 16px;
+  width: 1px;
+  height: 28px;
+}
+.split-conn .drop-left {
+  left: 25%;
+  background: linear-gradient(to bottom, var(--uk-border), rgba(245,158,11,0.1));
+}
+.split-conn .drop-right {
+  right: 25%;
+  background: linear-gradient(to bottom, var(--be-border), rgba(20,184,166,0.1));
+}
+.split-conn .split-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  position: absolute;
+  top: 13px;
+  left: calc(50% - 2.5px);
+}
+
+/* ── ENGINE CARDS ── */
+.engines-row {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  gap: 0 20px;
+}
+.engines-divider {
+  background: linear-gradient(to bottom, var(--border-bright), transparent);
+  width: 1px;
+}
+.engine-card {
+  border-radius: 12px;
+  border: 1px solid;
+  overflow: hidden;
+}
+.engine-card.uk {
+  border-color: var(--uk-border);
+  background: linear-gradient(160deg, var(--uk-glow) 0%, var(--surface) 40%);
+}
+.engine-card.be {
+  border-color: var(--be-border);
+  background: linear-gradient(160deg, var(--be-glow) 0%, var(--surface) 40%);
+}
+.engine-head {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.engine-head .ename {
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.engine-head.uk .ename { color: var(--uk-soft); }
+.engine-head.be .ename { color: var(--be-soft); }
+.engine-head .epath {
+  font-size: 0.58rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.currency-badge {
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+.currency-badge.uk { color: var(--uk-soft); background: var(--uk-dim); border: 1px solid var(--uk-border); }
+.currency-badge.be { color: var(--be-soft); background: var(--be-dim); border: 1px solid var(--be-border); }
+
+.engine-body {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.esection {}
+.esection-label {
+  font-size: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.eitems { display: flex; flex-direction: column; gap: 4px; }
+.eitem {
+  font-size: 0.68rem;
+  color: var(--text);
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  line-height: 1.45;
+}
+.eitem::before {
+  content: '';
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+.eitem.accent-uk { color: var(--uk-soft); }
+.eitem.accent-uk::before { background: var(--uk); }
+.eitem.accent-be { color: var(--be-soft); }
+.eitem.accent-be::before { background: var(--be); }
+
+/* ── UX CALLOUT ── */
+.ux-callout {
+  background: var(--surface);
+  border: 1px solid var(--indigo-border);
+  border-radius: 10px;
+  padding: 16px 22px;
+  max-width: 680px;
+  margin: 0 auto;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.ux-callout-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.ux-callout-body {}
+.ux-callout-title {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 6px;
+}
+.ux-callout-text {
+  font-size: 0.65rem;
+  color: var(--text);
+  line-height: 1.65;
+}
+.ux-callout-text strong { color: var(--text-bright); font-weight: 500; }
+
+/* ── APP LAYER ── */
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+.app-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 10px 12px;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+.app-card:hover { border-color: var(--border-bright); }
+.app-card .aicon { font-size: 1.15rem; margin-bottom: 7px; }
+.app-card .aname {
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+}
+.app-card .adesc {
+  font-size: 0.55rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.app-card.engine-aware {
+  border-color: var(--indigo-border);
+  background: linear-gradient(145deg, var(--indigo-dim) 0%, var(--surface) 70%);
+}
+.ea-badge {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 0.45rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--indigo);
+  background: var(--indigo-dim);
+  border: 1px solid var(--indigo-border);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+/* ── DB LAYER ── */
+.db-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.db-table {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.db-thead {
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-bright);
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.db-thead .ticon { color: var(--text-dim); font-size: 0.7rem; }
+.db-tbody { padding: 8px 16px; }
+.db-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.025);
+  font-size: 0.68rem;
+}
+.db-field:last-child { border-bottom: none; }
+.db-fname { color: var(--text); font-family: var(--font-mono); }
+.db-ftype { color: var(--text-dim); font-size: 0.58rem; }
+.db-fnew {
+  margin-left: auto;
+  font-size: 0.5rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--green);
+  background: var(--green-dim);
+  border: 1px solid var(--green-border);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+/* ── LEGEND ── */
+.legend {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.legend-note {
+  font-size: 0.62rem;
+  color: var(--text-dim);
+  line-height: 1.7;
+  max-width: 520px;
+}
+.legend-note strong { color: var(--text); font-weight: 500; }
+.legend-note code {
+  color: var(--text);
+  background: rgba(255,255,255,0.04);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.58rem;
+}
+.legend-keys {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.legend-key {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.58rem;
+  color: var(--text-dim);
+}
+.legend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── ANIMATIONS ── */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.layer, .v-conn, .split-conn { animation: slideUp 0.45s ease both; }
+.layer:nth-of-type(1) { animation-delay: 0.05s; }
+.v-conn:nth-of-type(1), .layer:nth-of-type(2) { animation-delay: 0.12s; }
+.split-conn, .layer:nth-of-type(3) { animation-delay: 0.22s; }
+.layer:nth-of-type(4) { animation-delay: 0.32s; }
+.layer:nth-of-type(5) { animation-delay: 0.42s; }
+.layer:nth-of-type(6) { animation-delay: 0.52s; }
+.layer:nth-of-type(7) { animation-delay: 0.6s; }
+.legend { animation: slideUp 0.45s ease 0.7s both; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 860px) {
+  body { padding: 32px 16px 60px; }
+  .engines-row { grid-template-columns: 1fr; gap: 12px; }
+  .engines-divider { display: none; }
+  .app-grid { grid-template-columns: repeat(3, 1fr); }
+  .db-grid { grid-template-columns: 1fr; }
+  .split-conn { display: none; }
+}
+@media (max-width: 520px) {
+  .app-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="diagram">
+
+  <!-- ━━━ HEADER ━━━ -->
+  <div class="header">
+    <h1>CrewDock <span class="dim">—</span> Multi-Engine Architecture</h1>
+    <p class="subtitle">System design &middot; Calculator engines &middot; UX flows &middot; Data model</p>
+  </div>
+
+  <!-- ━━━ 01 — ENTRY POINTS ━━━ -->
+  <div class="layer">
+    <div class="layer-label"><span class="num">01</span> Entry points</div>
+    <div class="domains-row">
+      <div class="domain-pill">
+        <span class="flag">🇬🇧</span>
+        crewdock.com
+      </div>
+      <span class="arrow-icon">←</span>
+      <div class="domain-pill be-pill">
+        <span class="flag">🇧🇪</span>
+        crewdock.be
+        <span class="redirect-tag">301 redirect</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- connector -->
+  <div class="v-conn"><div class="stem"></div><div class="dot"></div></div>
+
+  <!-- ━━━ 02 — AUTH & SIGNUP ━━━ -->
+  <div class="layer">
+    <div class="layer-label"><span class="num">02</span> Signup &amp; country detection</div>
+    <div class="auth-box">
+      <div class="auth-title">Signup / Login</div>
+      <div class="detect-row">
+        <span class="chip neutral">CF-IPCountry header</span>
+        <span class="chip dim">or</span>
+        <span class="chip neutral">Vercel x-vercel-ip-country</span>
+        <span class="chip dim">or</span>
+        <span class="chip neutral">crewdock.be referrer</span>
+      </div>
+      <div class="detect-row">
+        <span class="chip uk">🇬🇧 UK / unknown → default: apa-uk</span>
+        <span class="chip dim">│</span>
+        <span class="chip be">🇧🇪 Belgium → default: sdym-be</span>
+      </div>
+      <div class="auth-note">
+        Stored as <code>profiles.default_engine</code> · User can change anytime in Settings
+      </div>
+    </div>
+  </div>
+
+  <!-- split connector -->
+  <div class="split-conn">
+    <div class="center-stem"></div>
+    <div class="split-dot"></div>
+    <div class="branch branch-left"></div>
+    <div class="branch branch-right"></div>
+    <div class="drop drop-left"></div>
+    <div class="drop drop-right"></div>
+  </div>
+
+  <!-- ━━━ 03 — ENGINE REGISTRY ━━━ -->
+  <div class="layer">
+    <div class="layer-label"><span class="num">03</span> Engine registry &nbsp;<span style="font-weight:300;opacity:0.5;">src/engines/index.ts</span></div>
+
+    <div class="engines-row">
+      <!-- ── UK ENGINE ── -->
+      <div class="engine-card uk">
+        <div class="engine-head uk">
+          <div>
+            <div class="ename">🇬🇧 &nbsp;APA UK Engine</div>
+            <div class="epath">engines/apa-uk/</div>
+          </div>
+          <span class="currency-badge uk">£ GBP</span>
+        </div>
+        <div class="engine-body">
+          <div class="esection">
+            <div class="esection-label">Roles &amp; rates — APA Appendix 1 (Sept 2025)</div>
+            <div class="eitems">
+              <div class="eitem">60+ roles across 17 departments</div>
+              <div class="eitem">Negotiable min / max rate ranges per role</div>
+              <div class="eitem">OT Grade I / II / III assigned per role</div>
+              <div class="eitem">Custom OT rates (lighting union overrides)</div>
+              <div class="eitem">Custom user-created roles via Settings</div>
+            </div>
+          </div>
+          <div class="esection">
+            <div class="esection-label">Day types</div>
+            <div class="eitems">
+              <div class="eitem">Basic Working Day (shoot) · Continuous Working</div>
+              <div class="eitem">Prep · Recce · Build/Strike · Pre-light</div>
+              <div class="eitem">Rest Day · Travel Day</div>
+            </div>
+          </div>
+          <div class="esection">
+            <div class="esection-label">OT calculation logic</div>
+            <div class="eitems">
+              <div class="eitem accent-uk">BHR = agreedDailyRate ÷ 10</div>
+              <div class="eitem accent-uk">Grade I: BHR × 1.5 per hour</div>
+              <div class="eitem accent-uk">Grade II: BHR × 1.25 per hour</div>
+              <div class="eitem accent-uk">Grade III: BHR × 1.0 per hour</div>
+              <div class="eitem">OT triggers from 10th hr (basic) / 9th hr (continuous)</div>
+            </div>
+          </div>
+          <div class="esection">
+            <div class="esection-label">Penalties, mileage &amp; extras</div>
+            <div class="eitems">
+              <div class="eitem">Break violation penalties (timing-based)</div>
+              <div class="eitem">Post-M25 mileage at £0.45/mile</div>
+              <div class="eitem">Travel pay · Equipment charges</div>
+              <div class="eitem">UK bank holiday auto-detection</div>
+              <div class="eitem">Time-off-the-clock tracking</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- divider -->
+      <div class="engines-divider"></div>
+
+      <!-- ── BE ENGINE ── -->
+      <div class="engine-card be">
+        <div class="engine-head be">
+          <div>
+            <div class="ename">🇧🇪 &nbsp;Belgian SDYM Engine</div>
+            <div class="epath">engines/sdym-be/</div>
+          </div>
+          <span class="currency-badge be">€ EUR</span>
+        </div>
+        <div class="engine-body">
+          <div class="esection">
+            <div class="esection-label">Roles &amp; rates — Sodyum Deal Memo 2026</div>
+            <div class="eitems">
+              <div class="eitem">Gaffer · Lighting Assistant (initial scope)</div>
+              <div class="eitem">Fixed absolute rates — non-negotiable</div>
+              <div class="eitem">Base hourly: Gaffer €54 / LA €49</div>
+              <div class="eitem">Expandable as more deal memos arrive</div>
+            </div>
+          </div>
+          <div class="esection">
+            <div class="esection-label">Day types</div>
+            <div class="eitems">
+              <div class="eitem">Standard Day (10h + 1h meal break)</div>
+              <div class="eitem">Journée Continue (continuous working)</div>
+              <div class="eitem">Samedi / 6e jour consécutif (150%)</div>
+              <div class="eitem">Dimanche / Jour Férié (200%)</div>
+              <div class="eitem">Recce / Préparation · Travel Day</div>
+            </div>
+          </div>
+          <div class="esection">
+            <div class="esection-label">OT calculation logic</div>
+            <div class="eitems">
+              <div class="eitem accent-be">OT = 200% of base hourly (flat absolute)</div>
+              <div class="eitem accent-be">Standard day → OT from 11th working hour</div>
+              <div class="eitem accent-be">Journée continue → OT from 10th hour</div>
+              <div class="eitem accent-be">Night surcharge +hourly rate (22:00–06:00)</div>
+              <div class="eitem">Night stacks on top of base or OT</div>
+            </div>
+          </div>
+          <div class="esection">
+            <div class="esection-label">Mileage, fees &amp; extras</div>
+            <div class="eitems">
+              <div class="eitem">Mileage: €0.43/km (standard)</div>
+              <div class="eitem">Mileage: €0.80/km (with equipment)</div>
+              <div class="eitem">Cancellation fee tiers (≤24h / 24–48h)</div>
+              <div class="eitem">Belgian public holidays calendar</div>
+              <div class="eitem">Truck base-to-base working time calculation</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- connector -->
+  <div class="v-conn" style="height:32px;"><div class="stem"></div><div class="dot"></div></div>
+
+  <!-- ━━━ 04 — UX CALLOUT ━━━ -->
+  <div class="layer">
+    <div class="layer-label"><span class="num">04</span> Per-job override (UX detail)</div>
+    <div class="ux-callout">
+      <div class="ux-callout-icon">🎯</div>
+      <div class="ux-callout-body">
+        <div class="ux-callout-title">Subtle engine selection at the job level</div>
+        <div class="ux-callout-text">
+          When creating or editing a job, a single dropdown reads <strong>"T&amp;Cs: UK APA ▾"</strong> — pre-filled from the user's global default.
+          For most users this is invisible. When needed, switch to <strong>"Belgian Deal Memo"</strong> and the entire calculator adapts:
+          different role list, day types, currency, OT rules, mileage tiers. Existing saved days on other jobs remain untouched.
+          No marketing, no splash — just there when you need it.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- connector -->
+  <div class="v-conn" style="height:32px;"><div class="stem"></div><div class="dot"></div></div>
+
+  <!-- ━━━ 05 — APP FEATURES ━━━ -->
+  <div class="layer">
+    <div class="layer-label"><span class="num">05</span> Application layer</div>
+    <div class="app-grid">
+      <div class="app-card">
+        <div class="aicon">📊</div>
+        <div class="aname">Dashboard</div>
+        <div class="adesc">Earnings overview, recent activity</div>
+      </div>
+      <div class="app-card engine-aware">
+        <div class="aicon">📁</div>
+        <div class="aname">Jobs</div>
+        <div class="adesc">Per-job engine selector in create/edit</div>
+        <span class="ea-badge">engine override</span>
+      </div>
+      <div class="app-card engine-aware">
+        <div class="aicon">🧮</div>
+        <div class="aname">Calculator</div>
+        <div class="adesc">Roles, day types, currency, OT logic adapt</div>
+        <span class="ea-badge">engine-aware</span>
+      </div>
+      <div class="app-card engine-aware">
+        <div class="aicon">🧾</div>
+        <div class="aname">Invoices</div>
+        <div class="adesc">Currency &amp; VAT rules per engine</div>
+        <span class="ea-badge">engine-aware</span>
+      </div>
+      <div class="app-card">
+        <div class="aicon">🤖</div>
+        <div class="aname">AI Input</div>
+        <div class="adesc">Timesheet parsing, auto-fill calculator</div>
+      </div>
+      <div class="app-card">
+        <div class="aicon">⚙️</div>
+        <div class="aname">Settings</div>
+        <div class="adesc">Global default engine, custom roles, integrations</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- connector -->
+  <div class="v-conn" style="height:32px;"><div class="stem"></div><div class="dot"></div></div>
+
+  <!-- ━━━ 06 — DATABASE ━━━ -->
+  <div class="layer">
+    <div class="layer-label"><span class="num">06</span> Data layer &nbsp;<span style="font-weight:300;opacity:0.5;">Supabase / PostgreSQL</span></div>
+    <div class="db-grid">
+      <div class="db-table">
+        <div class="db-thead"><span class="ticon">⬡</span> profiles</div>
+        <div class="db-tbody">
+          <div class="db-field"><span class="db-fname">user_id</span><span class="db-ftype">uuid PK</span></div>
+          <div class="db-field"><span class="db-fname">email</span><span class="db-ftype">text</span></div>
+          <div class="db-field"><span class="db-fname">company_name</span><span class="db-ftype">text</span></div>
+          <div class="db-field">
+            <span class="db-fname">default_engine</span><span class="db-ftype">text</span>
+            <span class="db-fnew">new</span>
+          </div>
+          <div class="db-field">
+            <span class="db-fname">signup_country</span><span class="db-ftype">text</span>
+            <span class="db-fnew">new</span>
+          </div>
+        </div>
+      </div>
+      <div class="db-table">
+        <div class="db-thead"><span class="ticon">⬡</span> projects</div>
+        <div class="db-tbody">
+          <div class="db-field"><span class="db-fname">id</span><span class="db-ftype">uuid PK</span></div>
+          <div class="db-field"><span class="db-fname">name</span><span class="db-ftype">text</span></div>
+          <div class="db-field"><span class="db-fname">client_name</span><span class="db-ftype">text</span></div>
+          <div class="db-field"><span class="db-fname">status</span><span class="db-ftype">text</span></div>
+          <div class="db-field">
+            <span class="db-fname">calc_engine</span><span class="db-ftype">text</span>
+            <span class="db-fnew">new</span>
+          </div>
+        </div>
+      </div>
+      <div class="db-table">
+        <div class="db-thead"><span class="ticon">⬡</span> calculations</div>
+        <div class="db-tbody">
+          <div class="db-field"><span class="db-fname">id</span><span class="db-ftype">uuid PK</span></div>
+          <div class="db-field"><span class="db-fname">project_id</span><span class="db-ftype">uuid FK</span></div>
+          <div class="db-field"><span class="db-fname">role_name</span><span class="db-ftype">text</span></div>
+          <div class="db-field"><span class="db-fname">result_json</span><span class="db-ftype">jsonb</span></div>
+          <div class="db-field">
+            <span class="db-fname">calc_engine</span><span class="db-ftype">text</span>
+            <span class="db-fnew">new</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ━━━ LEGEND ━━━ -->
+  <div class="legend">
+    <div class="legend-note">
+      <strong>Engine abstraction:</strong> each engine exports <code>meta</code>, <code>roles</code>, <code>dayTypes</code>,
+      and a <code>calculate()</code> function behind a shared TypeScript interface.
+      Adding a new country = adding a new folder under <code>src/engines/</code>. Zero changes to the rest of the app.
+    </div>
+    <div class="legend-keys">
+      <div class="legend-key"><div class="legend-dot" style="background:var(--uk);"></div>APA UK</div>
+      <div class="legend-key"><div class="legend-dot" style="background:var(--be);"></div>Belgian SDYM</div>
+      <div class="legend-key"><div class="legend-dot" style="background:var(--indigo);"></div>Engine-aware</div>
+      <div class="legend-key"><div class="legend-dot" style="background:var(--green);"></div>New DB field</div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
