@@ -821,7 +821,7 @@ export function CalculatorPage() {
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(async () => {
       await handleSave();
-    }, 1500);
+    }, 5000);
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
   }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
 
