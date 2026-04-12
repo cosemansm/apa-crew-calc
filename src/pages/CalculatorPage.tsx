@@ -1685,7 +1685,7 @@ export function CalculatorPage() {
                   )}
                   <div className="space-y-2">
                     <Label htmlFor="mileage" className="text-sm">Miles outside M25</Label>
-                    <Input id="mileage" type="number" value={mileage} onChange={e => setMileage(e.target.value)} min="0" placeholder="0" className="rounded-xl" />
+                    <Input id="mileage" type="number" value={mileage} onChange={e => setMileage(e.target.value)} onWheel={e => e.currentTarget.blur()} min="0" placeholder="0" className="rounded-xl" />
                     <p className="text-xs text-muted-foreground">50p/mile · W1F 9SE to location & back</p>
                   </div>
                 </div>
@@ -1758,6 +1758,7 @@ export function CalculatorPage() {
                       type="number"
                       value={equipmentValue}
                       onChange={e => setEquipmentValue(e.target.value)}
+                      onWheel={e => e.currentTarget.blur()}
                       min="0"
                       step="0.01"
                       placeholder="0.00"
@@ -1773,6 +1774,7 @@ export function CalculatorPage() {
                       type="number"
                       value={equipmentDiscount}
                       onChange={e => setEquipmentDiscount(e.target.value)}
+                      onWheel={e => e.currentTarget.blur()}
                       min="0"
                       max="100"
                       placeholder="0"
@@ -1817,6 +1819,7 @@ export function CalculatorPage() {
                       className="pl-7"
                       value={expensesDayAmount}
                       onChange={e => setExpensesDayAmount(e.target.value)}
+                      onWheel={e => e.currentTarget.blur()}
                       min="0"
                       step="0.01"
                       placeholder="0.00"
