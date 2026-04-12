@@ -1,0 +1,2 @@
+[functions.new-user-notification]
+verify_jwt = false
