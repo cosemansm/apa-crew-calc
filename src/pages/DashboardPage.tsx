@@ -307,15 +307,28 @@ export function DashboardPage() {
     return totals;
   }, [allProjectDays]);
 
+  // Per-month currency groupings for multi-currency bar tooltips
+  const monthlyCurrencyGroups = useMemo(() => {
+    const groups: Record<string, Record<string, number>> = {};
+    allProjectDays.forEach(d => {
+      const key = format(parseISO(d.work_date), 'yyyy-MM');
+      if (!groups[key]) groups[key] = {};
+      const symbol = getCurrencySymbol(d.calc_engine);
+      groups[key][symbol] = (groups[key][symbol] ?? 0) + dayTotal(d);
+    });
+    return groups;
+  }, [allProjectDays]);
+
   const monthlyBreakdown = useMemo(() => {
     const now = new Date();
     return Array.from({ length: 6 }, (_, i) => {
       const date = subMonths(now, 5 - i);
       const key = format(date, 'yyyy-MM');
       const total = monthlyTotals[key] || 0;
-      return { date, total, label: format(date, 'MMM'), isCurrent: isSameMonth(date, now) };
+      const currencyGroups = monthlyCurrencyGroups[key] ?? {};
+      return { date, total, currencyGroups, label: format(date, 'MMM'), isCurrent: isSameMonth(date, now) };
     });
-  }, [monthlyTotals]);
+  }, [monthlyTotals, monthlyCurrencyGroups]);
 
   const isFavourite = (roleName: string) => favourites.some(f => f.role_name === roleName);
 
@@ -329,6 +342,12 @@ export function DashboardPage() {
 
   // Bar chart maths
   const barMax = Math.max(...monthlyBreakdown.map(m => m.total), 1);
+
+  // Dominant currency symbol for Y-axis tick labels
+  const dominantCurrencySymbol = (() => {
+    const symbols = new Set(allProjectDays.map(d => getCurrencySymbol(d.calc_engine)));
+    return symbols.size === 1 ? [...symbols][0] : '£';
+  })();
 
   // Compute nice reference line step (3 evenly spaced ticks above barMax)
   function niceStep(maxVal: number): number {
@@ -697,7 +716,7 @@ export function DashboardPage() {
                     >
                       <div className="flex-1 border-t border-dashed" style={{ borderColor: 'rgba(0,0,0,0.08)' }} />
                       <span className="text-[9px] text-muted-foreground/50 pl-1.5 shrink-0 font-mono">
-                        £{tick >= 1000 ? `${(tick / 1000).toFixed(tick % 1000 === 0 ? 0 : 1)}k` : tick}
+                        {dominantCurrencySymbol}{tick >= 1000 ? `${(tick / 1000).toFixed(tick % 1000 === 0 ? 0 : 1)}k` : tick}
                       </span>
                     </div>
                   );
@@ -715,7 +734,7 @@ export function DashboardPage() {
                             background: m.isCurrent ? '#FFD528' : '#1F1F21',
                             opacity: m.isCurrent ? 1 : 0.15 + (idx / monthlyBreakdown.length) * 0.55,
                           }}
-                          title={`£${m.total.toLocaleString('en-GB', { maximumFractionDigits: 0 })}`}
+                          title={Object.keys(m.currencyGroups).length > 0 ? formatMultiCurrencyTotal(m.currencyGroups) : '—'}
                         />
                         <span className="text-[10px] text-muted-foreground font-medium font-mono">{m.label}</span>
                       </div>
