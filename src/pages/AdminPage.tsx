@@ -7,8 +7,10 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from 'recharts';
-import { Users, Briefcase, CalendarDays, PoundSterling, TrendingUp, Zap, RefreshCw, BarChart2, Lightbulb, ChevronDown, X, Upload, Trash2, Pencil, ArrowRight } from 'lucide-react';
+import { Users, Briefcase, CalendarDays, PoundSterling, TrendingUp, Zap, RefreshCw, BarChart2, Lightbulb, ChevronDown, X, Upload, Trash2, Pencil, ArrowRight, Globe } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { Switch } from '@/components/ui/switch';
+import { getAllEngines } from '@/engines/index';
 
 const ADMIN_EMAIL = 'milo.cosemans@gmail.com';
 
@@ -944,6 +946,81 @@ function AdminNotificationsPanel({ reloadRef }: { reloadRef: React.MutableRefObj
   );
 }
 
+interface EngineUserEntry {
+  id: string;
+  email: string;
+  display_name: string | null;
+  signup_country: string | null;
+  multi_engine_enabled: boolean;
+  authorized_engines: string[];
+}
+
+function EngineAccessRow({
+  user,
+  onUpdate,
+}: {
+  user: EngineUserEntry;
+  onUpdate: (updated: EngineUserEntry) => void;
+}) {
+  const allEngines = getAllEngines();
+  const isAdmin = user.email === ADMIN_EMAIL;
+
+  const toggleMultiEngine = async () => {
+    if (isAdmin) return;
+    const newValue = !user.multi_engine_enabled;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ multi_engine_enabled: newValue })
+      .eq('id', user.id);
+    if (!error) onUpdate({ ...user, multi_engine_enabled: newValue });
+  };
+
+  const toggleEngine = async (engineId: string) => {
+    if (isAdmin) return;
+    const current = user.authorized_engines;
+    const next = current.includes(engineId)
+      ? current.filter(id => id !== engineId)
+      : [...current, engineId];
+    if (next.length === 0) return; // minimum 1 engine
+    const { error } = await supabase
+      .from('profiles')
+      .update({ authorized_engines: next })
+      .eq('id', user.id);
+    if (!error) onUpdate({ ...user, authorized_engines: next });
+  };
+
+  return (
+    <tr className="border-b border-white/5 last:border-0 hover:bg-white/3">
+      <td className="px-4 py-2.5 text-white/80 font-mono text-xs">{user.display_name ?? <span className="text-white/25">—</span>}</td>
+      <td className="px-4 py-2.5 text-white/50 font-mono text-xs">{user.email || <span className="text-white/25">—</span>}</td>
+      <td className="px-4 py-2.5 text-white/50 font-mono text-xs">{user.signup_country ?? <span className="text-white/25">—</span>}</td>
+      <td className="px-4 py-2.5">
+        <Switch
+          checked={user.multi_engine_enabled}
+          onCheckedChange={toggleMultiEngine}
+          disabled={isAdmin}
+        />
+      </td>
+      <td className="px-4 py-2.5">
+        <div className="flex flex-wrap gap-2">
+          {allEngines.map(e => (
+            <label key={e.meta.id} className="flex items-center gap-1 text-xs font-mono text-white/60 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isAdmin || user.authorized_engines.includes(e.meta.id)}
+                onChange={() => toggleEngine(e.meta.id)}
+                disabled={isAdmin}
+                className="accent-[#FFD528]"
+              />
+              {e.meta.shortName} ({e.meta.currencySymbol})
+            </label>
+          ))}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 export function AdminPage() {
   usePageTitle('Admin');
   const { user, session } = useAuth();
@@ -957,7 +1034,9 @@ export function AdminPage() {
   const [userList, setUserList] = useState<UserListEntry[] | null>(null);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
-  const [adminTab, setAdminTab] = useState<'dashboard' | 'feature-requests' | 'notifications'>('dashboard');
+  const [adminTab, setAdminTab] = useState<'dashboard' | 'feature-requests' | 'notifications' | 'engine-access'>('dashboard');
+  const [engineUsers, setEngineUsers] = useState<EngineUserEntry[]>([]);
+  const [engineUsersLoading, setEngineUsersLoading] = useState(false);
   const [jobsView, setJobsView] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const frReloadRef = useRef<(() => void) | null>(null);
   const [frLoading, setFrLoading] = useState(false);
@@ -1034,6 +1113,28 @@ export function AdminPage() {
     }
   }
 
+  async function fetchEngineUsers() {
+    setEngineUsersLoading(true);
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, display_name, signup_country, multi_engine_enabled, authorized_engines')
+        .order('created_at', { ascending: false });
+      if (data) {
+        setEngineUsers(data.map(row => ({
+          id: row.id,
+          email: '',
+          display_name: row.display_name ?? null,
+          signup_country: row.signup_country ?? null,
+          multi_engine_enabled: row.multi_engine_enabled ?? false,
+          authorized_engines: row.authorized_engines ?? ['apa-uk'],
+        })));
+      }
+    } finally {
+      setEngineUsersLoading(false);
+    }
+  }
+
   async function revokeLifetime(userId: string) {
     if (!session?.access_token) return;
     setRevokingLifetime(userId);
@@ -1100,15 +1201,17 @@ export function AdminPage() {
               ? 'Platform analytics — visible only to you'
               : adminTab === 'feature-requests'
               ? 'Manage feature requests'
-              : 'Publish release notifications'}
+              : adminTab === 'notifications'
+              ? 'Publish release notifications'
+              : 'Manage user engine access'}
           </p>
         </div>
         <button
-          onClick={adminTab === 'dashboard' ? fetchStats : adminTab === 'feature-requests' ? loadAdminFeatureRequests : loadAdminNotifications}
-          disabled={adminTab === 'dashboard' ? loading : adminTab === 'feature-requests' ? frLoading : false}
+          onClick={adminTab === 'dashboard' ? fetchStats : adminTab === 'feature-requests' ? loadAdminFeatureRequests : adminTab === 'engine-access' ? fetchEngineUsers : loadAdminNotifications}
+          disabled={adminTab === 'dashboard' ? loading : adminTab === 'feature-requests' ? frLoading : adminTab === 'engine-access' ? engineUsersLoading : false}
           className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white text-xs font-mono transition-all disabled:opacity-40"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${(adminTab === 'dashboard' ? loading : adminTab === 'feature-requests' ? frLoading : false) ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${(adminTab === 'dashboard' ? loading : adminTab === 'feature-requests' ? frLoading : adminTab === 'engine-access' ? engineUsersLoading : false) ? 'animate-spin' : ''}`} />
           Refresh
         </button>
       </div>
@@ -1119,6 +1222,7 @@ export function AdminPage() {
           { id: 'dashboard' as const, label: 'Dashboard', icon: BarChart2 },
           { id: 'feature-requests' as const, label: 'Feature Requests', icon: Lightbulb },
           { id: 'notifications' as const, label: 'Notifications', icon: Zap },
+          { id: 'engine-access' as const, label: 'Engine Access', icon: Globe },
         ].map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -1573,6 +1677,56 @@ export function AdminPage() {
       )}
       {adminTab === 'notifications' && (
         <AdminNotificationsPanel reloadRef={notifReloadRef} />
+      )}
+      {adminTab === 'engine-access' && (
+        <div className="mt-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-white/50 font-mono uppercase tracking-widest">Engine Access</h2>
+            {engineUsers.length === 0 && (
+              <button
+                onClick={fetchEngineUsers}
+                disabled={engineUsersLoading}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white text-xs font-mono transition-all disabled:opacity-40"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${engineUsersLoading ? 'animate-spin' : ''}`} />
+                {engineUsersLoading ? 'Loading…' : 'Load users'}
+              </button>
+            )}
+          </div>
+          {engineUsers.length > 0 && (
+            <div className="bg-[#2a2a2c] rounded-2xl border border-white/5 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs font-mono">
+                  <thead>
+                    <tr className="border-b border-white/5">
+                      <th className="text-left text-white/30 px-4 py-2 font-normal">Name</th>
+                      <th className="text-left text-white/30 px-4 py-2 font-normal">Email</th>
+                      <th className="text-left text-white/30 px-4 py-2 font-normal">Signup Country</th>
+                      <th className="text-left text-white/30 px-4 py-2 font-normal">Multi-Engine</th>
+                      <th className="text-left text-white/30 px-4 py-2 font-normal">Authorized Engines</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {engineUsers.map(u => (
+                      <EngineAccessRow
+                        key={u.id}
+                        user={u}
+                        onUpdate={(updated) => {
+                          setEngineUsers(prev => prev.map(x => x.id === updated.id ? updated : x));
+                        }}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          {engineUsersLoading && engineUsers.length === 0 && (
+            <div className="flex items-center justify-center py-16 text-white/30 text-sm font-mono">
+              Loading…
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
