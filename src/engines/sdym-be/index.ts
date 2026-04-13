@@ -3,7 +3,7 @@ import type { CalculatorEngine } from '../types'
 import { meta } from './meta'
 import { dayTypes } from './day-types'
 import { SDYM_ROLES, SDYM_DEPARTMENTS, getRolesByDepartment, getRole } from './rates'
-import { calculateBelgian } from './calculator'
+import { calculateSdym } from './calculator'
 
 const engine: CalculatorEngine = {
   meta,
@@ -12,7 +12,7 @@ const engine: CalculatorEngine = {
   dayTypes,
   getRolesByDepartment,
   getRole,
-  calculate: calculateBelgian,
+  calculate: calculateSdym,
 }
 
 registerEngine(engine)

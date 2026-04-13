@@ -485,7 +485,7 @@ export function CalculatorPage() {
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [favouriteRoles, setFavouriteRoles] = useState<string[]>([]);
   const [customRoles, setCustomRoles] = useState<EngineRole[]>([]);
-  // Belgian engine state
+  // SDYM engine state
   const [hasEquipment, setHasEquipment] = useState(false);
   const [kmRate, setKmRate] = useState(0.43);
   // T&Cs engine selector (for new job creation)
@@ -781,7 +781,7 @@ export function CalculatorPage() {
 
   const result: EngineResult | null = useMemo(() => {
     if (!selectedRole) return null;
-    // Belgian engine derives its own rate; other engines require a positive agreed rate
+    // SDYM engine derives its own rate; other engines require a positive agreed rate
     const rate = parseInt(agreedRate) || 0;
     if (activeEngine.meta.id !== 'sdym-be' && (isNaN(rate) || rate <= 0)) return null;
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest'
 import type { EngineCalculationInput } from '../types'
 
-describe('Belgian SDYM engine', () => {
+describe('Sodyum Deal Memo 2026 engine', () => {
   beforeAll(async () => {
     await import('../sdym-be/index')
   })

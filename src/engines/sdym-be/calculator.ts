@@ -70,7 +70,7 @@ function calcNightWorkingMins(
   return Math.max(0, nightMins)
 }
 
-export function calculateBelgian(input: EngineCalculationInput): EngineResult {
+export function calculateSdym(input: EngineCalculationInput): EngineResult {
   const rates = input.role.engineData as unknown as SdymRoleData
   const roleName = input.role.role
 

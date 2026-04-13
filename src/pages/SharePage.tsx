@@ -311,7 +311,7 @@ export function SharePage() {
 
   // ── Engine handlers ──────────────────────────────────────────────────────────
 
-  const handleEnableBelgianEngine = async () => {
+  const handleEnableSdymEngine = async () => {
     if (!user) return;
     const { data: profile, error: selectError } = await supabase
       .from('profiles')
@@ -494,10 +494,10 @@ export function SharePage() {
           <div className="rounded-lg border p-4 space-y-3 mb-6">
             <p className="text-sm">
               This job uses {shareEngine.meta.name} ({shareEngine.meta.currencySymbol}).
-              Enable the Belgian engine to recalculate.
+              Enable the Sodyum engine to recalculate.
             </p>
             <div className="flex gap-2">
-              <Button size="sm" onClick={handleEnableBelgianEngine}>Enable Belgian Engine</Button>
+              <Button size="sm" onClick={handleEnableSdymEngine}>Enable Sodyum Engine</Button>
               <Button variant="outline" size="sm" onClick={() => setMismatchDismissed(true)}>View anyway</Button>
               <Button variant="ghost" size="sm" onClick={handleReportIssue}>Report issue</Button>
             </div>
