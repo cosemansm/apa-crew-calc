@@ -9,4 +9,14 @@ export const meta: EngineMeta = {
   currencySymbol: '€',
   mileageUnit: 'km',
   domain: 'crewdock.be',
+  features: {
+    agreedRateInput: false,
+    bhrOtInfo: false,
+    breaksAndPenalties: false,
+    mileage: false,
+    equipmentTransport: true,
+    favourites: false,
+    tocWarning: false,
+    callTypeBadges: false,
+  },
 }

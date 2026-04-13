@@ -9,4 +9,14 @@ export const meta: EngineMeta = {
   currencySymbol: '£',
   mileageUnit: 'miles',
   domain: undefined,
+  features: {
+    agreedRateInput: true,
+    bhrOtInfo: true,
+    breaksAndPenalties: true,
+    mileage: true,
+    equipmentTransport: false,
+    favourites: true,
+    tocWarning: true,
+    callTypeBadges: true,
+  },
 }
