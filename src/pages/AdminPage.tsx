@@ -1141,19 +1141,23 @@ export function AdminPage() {
       const json = await resp.json();
       if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
       const emailMap: Record<string, string> = {};
-      (json.userList as UserListEntry[]).forEach(u => { emailMap[u.user_id] = u.email; });
+      const nameMap: Record<string, string> = {};
+      (json.userList as UserListEntry[]).forEach(u => {
+        emailMap[u.user_id] = u.email;
+        nameMap[u.user_id] = u.name;
+      });
 
-      // Note: email is not in profiles — cross-referenced from admin-users edge function
+      // Note: email and name are not in profiles — cross-referenced from admin-users edge function
       const { data, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, display_name, signup_country, multi_engine_enabled, authorized_engines')
+        .select('id, signup_country, multi_engine_enabled, authorized_engines')
         .order('created_at', { ascending: false });
       if (profilesError) throw new Error(profilesError.message);
       if (data) {
         setEngineUsers(data.map(row => ({
           id: row.id,
           email: emailMap[row.id] ?? '',
-          display_name: row.display_name ?? null,
+          display_name: nameMap[row.id] ?? null,
           signup_country: row.signup_country ?? null,
           multi_engine_enabled: row.multi_engine_enabled ?? false,
           authorized_engines: row.authorized_engines ?? ['apa-uk'],
