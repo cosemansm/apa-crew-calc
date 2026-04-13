@@ -281,8 +281,8 @@ export function SharePage() {
           mileage: mileageMiles,
           previous_wrap: d.previousWrap,
           is_bank_holiday: d.isBankHoliday,
-          equipment_value: equipValue,
-          equipment_discount: equipDiscount,
+          ...(equipValue ? { equipment_value: equipValue } : {}),
+          ...(equipDiscount ? { equipment_discount: equipDiscount } : {}),
           result_json: result,
           grand_total: result.grandTotal,
         };

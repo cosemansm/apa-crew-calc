@@ -482,8 +482,6 @@ export function AIInputPage() {
         continuous_additional_break_given: entry.dayType === 'continuous_working',
         travel_hours: 0,
         mileage: 0,
-        equipment_value: 0,
-        equipment_discount: 0,
         grand_total: result?.grandTotal ?? 0,
         result_json: result ?? null,
       });
