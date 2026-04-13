@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown, Trash2, Receipt, Info, Check, Cloud, Car, Send } from 'lucide-react';
+import { Save, RotateCcw, Calculator, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown, Trash2, Receipt, Info, Check, Cloud, Car, Send } from 'lucide-react';
 import { format, getDay, addDays, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { toast } from 'sonner';
 import { useEngine } from '@/hooks/useEngine';
@@ -736,8 +736,11 @@ export function CalculatorPage() {
     if (projectNameFromUrl) {
       setProjectName(decodeURIComponent(projectNameFromUrl));
     } else if (projectId) {
-      supabase.from('projects').select('name').eq('id', projectId).single().then(({ data }) => {
-        if (data) setProjectName(data.name);
+      supabase.from('projects').select('name, calc_engine').eq('id', projectId).single().then(({ data }) => {
+        if (data) {
+          setProjectName(data.name);
+          setJobEngine(data.calc_engine ?? null);
+        }
       });
     }
   }, [projectId, projectNameFromUrl]);
@@ -1244,7 +1247,7 @@ export function CalculatorPage() {
         <Card>
           <CardHeader className="hidden md:flex md:flex-row md:items-center md:justify-between pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <PoundSterling className="h-4 w-4" />
+              <Calculator className="h-4 w-4" />
               Crew Rate Calculator
               {currentDayId && (
                 <Badge variant="outline" className="ml-2 text-xs font-normal">Editing saved day</Badge>
