@@ -18,7 +18,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { APA_CREW_ROLES } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek } from '@/data/calculation-engine';
 import { useEngine } from '@/hooks/useEngine';
@@ -145,7 +144,7 @@ export function ProjectsPage() {
   const { user } = useAuth();
   const { isPremium } = useSubscription();
   const navigate = useNavigate();
-  const { showEngineSelector, authorizedEngines } = useEngine();
+  const { showEngineSelector } = useEngine();
   const [activeTab, setActiveTab] = useState<'jobs' | 'history'>('jobs');
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
