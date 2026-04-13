@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import * as Sentry from '@sentry/react'
 import './engines/apa-uk'   // registers APA UK engine
+import './engines/sdym-be'  // registers Belgian SDYM engine
 import './index.css'
 import App from './App'
 
