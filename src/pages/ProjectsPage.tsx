@@ -170,12 +170,6 @@ export function ProjectsPage() {
   const [shareLinkCopied, setShareLinkCopied] = useState(false);
   const [shareDialogError, setShareDialogError] = useState<string | null>(null);
 
-  const [engineSwitchWarning, setEngineSwitchWarning] = useState<{
-    open: boolean;
-    targetId: string;
-    onConfirm: () => void;
-  }>({ open: false, targetId: '', onConfirm: () => {} });
-
   // History state
   const [historyDays, setHistoryDays] = useState<HistoryDay[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -990,34 +984,6 @@ export function ProjectsPage() {
         onDeleted={id => setProjects(prev => prev.filter(p => p.id !== id))}
         onProceed={() => navigate('/calculator')}
       />
-
-      {/* ── Engine switch warning dialog ─────────────────────────────────── */}
-      <Dialog open={engineSwitchWarning.open} onOpenChange={(open) => setEngineSwitchWarning(s => ({ ...s, open }))}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              Switching to {authorizedEngines.find(e => e.meta.id === engineSwitchWarning.targetId)?.meta.name}
-            </DialogTitle>
-          </DialogHeader>
-          <ul className="text-sm space-y-1 list-disc pl-4 text-muted-foreground">
-            <li>Rates are fixed — no agreed daily rate input</li>
-            <li>Custom roles not available</li>
-            <li>Some APA-specific fields are hidden</li>
-          </ul>
-          <p className="text-sm mt-2">Your other jobs are not affected.</p>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setEngineSwitchWarning(s => ({ ...s, open: false }))}>
-              Cancel
-            </Button>
-            <Button onClick={() => {
-              engineSwitchWarning.onConfirm()
-              setEngineSwitchWarning(s => ({ ...s, open: false }))
-            }}>
-              Switch
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* ── Share dialog ──────────────────────────────────────────────────── */}
       <Dialog
