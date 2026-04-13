@@ -1136,7 +1136,7 @@ export function InvoicePage() {
                           {hasBreakdown && rj && (
                             <>
                               {/* Line items (base rate, OT, etc.) */}
-                              {rj.lineItems?.map((item, i) => (
+                              {rj.lineItems?.filter(Boolean).map((item, i) => (
                                 <tr key={`li-${i}`} style={{ backgroundColor: '#FAFAF8' }}>
                                   <td style={{ padding: '3px 14px 3px 28px', color: '#6B6B6B', fontSize: '11px' }}>
                                     {item.description}
@@ -1153,7 +1153,7 @@ export function InvoicePage() {
                                 </tr>
                               ))}
                               {/* Penalties */}
-                              {rj.penalties?.map((p, i) => (
+                              {rj.penalties?.filter(Boolean).map((p, i) => (
                                 <tr key={`pen-${i}`} style={{ backgroundColor: '#FAFAF8' }}>
                                   <td style={{ padding: '3px 14px 3px 28px', color: '#6B6B6B', fontSize: '11px' }} colSpan={2}>
                                     {p.description}

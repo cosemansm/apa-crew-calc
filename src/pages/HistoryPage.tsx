@@ -115,13 +115,13 @@ export function HistoryPage() {
 
                 {expandedId === day.id && day.result_json && (
                   <div className="mt-4 p-4 bg-muted/40 rounded-xl space-y-1 text-sm">
-                    {day.result_json.lineItems?.map((item, i) => (
+                    {day.result_json.lineItems?.filter(Boolean).map((item, i) => (
                       <div key={i} className="flex justify-between">
                         <span className="text-muted-foreground">{item.description}</span>
                         <span className="font-mono">{getCurrencySymbol(day.projects?.calc_engine)}{item.total.toFixed(2)}</span>
                       </div>
                     ))}
-                    {day.result_json.penalties?.map((p, i) => (
+                    {day.result_json.penalties?.filter(Boolean).map((p, i) => (
                       <div key={i} className="flex justify-between text-orange-600">
                         <span>{p.description}</span>
                         <span className="font-mono">{getCurrencySymbol(day.projects?.calc_engine)}{p.total.toFixed(2)}</span>

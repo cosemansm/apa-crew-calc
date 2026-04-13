@@ -752,13 +752,13 @@ export function AIInputPage() {
                 <>
                   <Separator />
                   <div className="space-y-1">
-                    {result.lineItems.map((item, j) => (
+                    {result.lineItems.filter(Boolean).map((item, j) => (
                       <div key={j} className="flex justify-between text-xs text-muted-foreground">
                         <span>{item.description}</span>
                         <span className="font-medium text-foreground">£{item.total.toFixed(2)}</span>
                       </div>
                     ))}
-                    {result.penalties.map((item, j) => (
+                    {result.penalties.filter(Boolean).map((item, j) => (
                       <div key={`pen-${j}`} className="flex justify-between text-xs text-orange-600">
                         <span>{item.description}</span>
                         <span className="font-medium">£{item.total.toFixed(2)}</span>

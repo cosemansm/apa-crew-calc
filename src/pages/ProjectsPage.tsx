@@ -582,7 +582,7 @@ export function ProjectsPage() {
                     </div>
                     {expandedHistoryId === day.id && day.result_json && (
                       <div className="mt-4 p-4 bg-muted/40 rounded-xl space-y-1 text-sm">
-                        {day.result_json.lineItems?.map((item, i) => (
+                        {day.result_json.lineItems?.filter(Boolean).map((item, i) => (
                           <div key={i} className="flex justify-between gap-2">
                             <div className="min-w-0">
                               <span className="text-muted-foreground">{item.description}</span>
@@ -596,7 +596,7 @@ export function ProjectsPage() {
                             <span className="font-mono shrink-0">£{item.total.toFixed(2)}</span>
                           </div>
                         ))}
-                        {day.result_json.penalties?.map((p, i) => (
+                        {day.result_json.penalties?.filter(Boolean).map((p, i) => (
                           <div key={i} className="flex justify-between gap-2">
                             <span className="text-muted-foreground">{p.description}</span>
                             <span className="font-mono shrink-0">£{p.total.toFixed(2)}</span>
@@ -879,7 +879,7 @@ export function ProjectsPage() {
                             {(lineItems.length > 0 || penalties.length > 0 || travelPay > 0 || mileagePay > 0) && (
                               <div className="px-4 py-2">
                                 <div className="grid gap-x-3" style={{ gridTemplateColumns: '1fr auto auto' }}>
-                                  {lineItems.map((item, i) => {
+                                  {lineItems.filter(Boolean).map((item, i) => {
                                     const isFlatRate = !!(item.rate && Math.abs(item.total - item.rate) < 1);
                                     const isDayRate = item.isDayRate || isFlatRate;
                                     const timePart = item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : '';
@@ -901,7 +901,7 @@ export function ProjectsPage() {
                                   {penalties.length > 0 && (
                                     <>
                                       <div className="col-span-3 border-t border-border/40 my-1" />
-                                      {penalties.map((item, i) => {
+                                      {penalties.filter(Boolean).map((item, i) => {
                                         const pIsFlatRate = !!(item.rate && Math.abs(item.total - item.rate) < 1);
                                         let pDetail = '';
                                         if (item.rate && item.hours) {
