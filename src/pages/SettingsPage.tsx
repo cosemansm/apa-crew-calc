@@ -178,7 +178,7 @@ type SectionId = 'my-details' | 'custom-rates' | 'my-equipment' | 'password' | '
 
 const NAV_ITEMS: { id: SectionId; label: string; icon: React.ElementType; badge?: string; danger?: boolean }[] = [
   { id: 'my-details',       label: 'My Details',       icon: User },
-  { id: 'custom-rates',     label: 'Custom Rates',     icon: Briefcase },
+  { id: 'custom-rates',     label: 'My Rates',     icon: Briefcase },
   { id: 'my-equipment',     label: 'My Equipment',     icon: Package },
   { id: 'password',         label: 'Password',         icon: Lock },
   { id: 'billing',          label: 'Plan & Billing',   icon: CreditCard },
