@@ -1114,22 +1114,44 @@ export function AdminPage() {
   }
 
   async function fetchEngineUsers() {
+    if (!session?.access_token) return;
     setEngineUsersLoading(true);
     try {
-      const { data } = await supabase
+      // Fetch email list from admin-users edge function so we can cross-reference by user_id
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+      const resp = await fetch(`${supabaseUrl}/functions/v1/admin-users`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'apikey': anonKey,
+        },
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
+      const emailMap: Record<string, string> = {};
+      (json.userList as UserListEntry[]).forEach(u => { emailMap[u.user_id] = u.email; });
+
+      // Note: email is not in profiles — cross-referenced from admin-users edge function
+      const { data, error: profilesError } = await supabase
         .from('profiles')
         .select('id, display_name, signup_country, multi_engine_enabled, authorized_engines')
         .order('created_at', { ascending: false });
+      if (profilesError) throw new Error(profilesError.message);
       if (data) {
         setEngineUsers(data.map(row => ({
           id: row.id,
-          email: '',
+          email: emailMap[row.id] ?? '',
           display_name: row.display_name ?? null,
           signup_country: row.signup_country ?? null,
           multi_engine_enabled: row.multi_engine_enabled ?? false,
           authorized_engines: row.authorized_engines ?? ['apa-uk'],
         })));
       }
+    } catch (e) {
+      Sentry.captureException(e, { extra: { context: 'AdminPage fetchEngineUsers' } });
+      console.error('fetchEngineUsers failed:', e);
     } finally {
       setEngineUsersLoading(false);
     }
