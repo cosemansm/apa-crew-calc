@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
+import { getEngine, DEFAULT_ENGINE_ID } from '@/engines/index';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -32,6 +33,7 @@ interface Project {
   name: string;
   client_name: string | null;
   job_reference: string | null;
+  calc_engine: string | null;
 }
 
 interface DayResultJson {
@@ -132,7 +134,7 @@ export function InvoicePage() {
 
     supabase
       .from('projects')
-      .select('id, name, client_name, job_reference')
+      .select('id, name, client_name, job_reference, calc_engine')
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
       .then(({ data, error }) => {
@@ -331,6 +333,14 @@ export function InvoicePage() {
   const vatAmount = vatNumber ? totalAmount * 0.2 : 0;
   const totalWithVat = totalAmount + vatAmount;
 
+  const engineId = selectedProject?.calc_engine ?? DEFAULT_ENGINE_ID;
+  let currencySymbol = '£';
+  try {
+    currencySymbol = getEngine(engineId).meta.currencySymbol;
+  } catch {
+    currencySymbol = '£';
+  }
+
   // Shared helper — captures the invoice element and builds a jsPDF.
   // scale:2 + PNG for crisp downloads; scale:1 + JPEG for smaller email attachments.
   const capturePDF = async (scale: number, format: 'PNG' | 'JPEG'): Promise<jsPDF | null> => {
@@ -474,7 +484,7 @@ export function InvoicePage() {
     setEmailTo(clientEmail);
     setEmailSubject(`Invoice ${invoiceNumber} – ${selectedProject?.name || 'Services Rendered'}`);
     setEmailMessage(
-      `Hi ${clientName || 'there'},\n\nPlease find attached invoice ${invoiceNumber} for ${selectedProject?.name || 'recent work'}.\n\nTotal amount due: £${(vatNumber ? totalWithVat : totalAmount).toFixed(2)}${vatNumber ? ' (inc. VAT)' : ''}\nPayment terms: 30 days from receipt.\n\nKind regards,\n${companyName || 'Your Name'}`
+      `Hi ${clientName || 'there'},\n\nPlease find attached invoice ${invoiceNumber} for ${selectedProject?.name || 'recent work'}.\n\nTotal amount due: ${currencySymbol}${(vatNumber ? totalWithVat : totalAmount).toFixed(2)}${vatNumber ? ' (inc. VAT)' : ''}\nPayment terms: 30 days from receipt.\n\nKind regards,\n${companyName || 'Your Name'}`
     );
     setEmailError('');
     setShowEmailModal(true);
@@ -1124,7 +1134,7 @@ export function InvoicePage() {
                               {day.call_time} – {day.wrap_time}
                             </td>
                             <td style={{ padding: hasBreakdown ? '12px 14px 4px' : '12px 14px', textAlign: 'right', fontWeight: '700', color: '#1F1F21', verticalAlign: 'top', fontFamily: 'monospace', fontSize: '14px' }}>
-                              £{(day.grand_total || 0).toFixed(2)}
+                              {currencySymbol}{(day.grand_total || 0).toFixed(2)}
                             </td>
                           </tr>
 
@@ -1141,10 +1151,10 @@ export function InvoicePage() {
                                     {item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : ''}
                                   </td>
                                   <td style={{ padding: '3px 14px', color: '#9A9A9A', fontSize: '11px', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
-                                    {item.rate && item.hours ? `£${item.rate.toFixed(0)} × ${Math.abs(item.rate - item.total) < 1 ? '1' : item.hours % 1 === 0 ? `${item.hours}h` : `${item.hours.toFixed(2)}h`}` : ''}
+                                    {item.rate && item.hours ? `${currencySymbol}${item.rate.toFixed(0)} × ${Math.abs(item.rate - item.total) < 1 ? '1' : item.hours % 1 === 0 ? `${item.hours}h` : `${item.hours.toFixed(2)}h`}` : ''}
                                   </td>
                                   <td style={{ padding: '3px 14px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace' }}>
-                                    £{item.total.toFixed(2)}
+                                    {currencySymbol}{item.total.toFixed(2)}
                                   </td>
                                 </tr>
                               ))}
@@ -1155,10 +1165,10 @@ export function InvoicePage() {
                                     {p.description}
                                   </td>
                                   <td style={{ padding: '3px 14px', color: '#9A9A9A', fontSize: '11px', fontFamily: 'monospace' }}>
-                                    {p.rate && p.hours && p.hours > 0 ? `£${p.rate.toFixed(0)} × ${p.hours.toFixed(2)}h` : ''}
+                                    {p.rate && p.hours && p.hours > 0 ? `${currencySymbol}${p.rate.toFixed(0)} × ${p.hours.toFixed(2)}h` : ''}
                                   </td>
                                   <td style={{ padding: '3px 14px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace' }}>
-                                    £{p.total.toFixed(2)}
+                                    {currencySymbol}{p.total.toFixed(2)}
                                   </td>
                                 </tr>
                               ))}
@@ -1169,7 +1179,7 @@ export function InvoicePage() {
                                     Travel pay{rj.mileageMiles ? ` · ${rj.mileageMiles} miles outside M25` : ''}
                                   </td>
                                   <td style={{ padding: '3px 14px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace' }}>
-                                    £{((rj.travelPay ?? 0) + (rj.mileage ?? 0)).toFixed(2)}
+                                    {currencySymbol}{((rj.travelPay ?? 0) + (rj.mileage ?? 0)).toFixed(2)}
                                   </td>
                                 </tr>
                               )}
@@ -1180,7 +1190,7 @@ export function InvoicePage() {
                                     Equipment{(rj.equipmentDiscount ?? 0) > 0 ? ` (−${rj.equipmentDiscount}% discount)` : ''}
                                   </td>
                                   <td style={{ padding: '3px 14px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace' }}>
-                                    £{(rj.equipmentTotal ?? 0).toFixed(2)}
+                                    {currencySymbol}{(rj.equipmentTotal ?? 0).toFixed(2)}
                                   </td>
                                 </tr>
                               )}
@@ -1191,7 +1201,7 @@ export function InvoicePage() {
                                     Expenses{day.expenses_notes ? ` — ${day.expenses_notes}` : ''}
                                   </td>
                                   <td style={{ padding: '3px 14px 8px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace', borderBottom: '1px solid #F0EDE8' }}>
-                                    £{(day.expenses_amount ?? 0).toFixed(2)}
+                                    {currencySymbol}{(day.expenses_amount ?? 0).toFixed(2)}
                                   </td>
                                 </tr>
                               )}
@@ -1225,18 +1235,18 @@ export function InvoicePage() {
                         </p>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                           <span style={{ color: '#9A9A9A', fontSize: '12px' }}>Subtotal (ex. VAT)</span>
-                          <span style={{ color: '#FFFFFF', fontSize: '12px', fontFamily: 'monospace' }}>£{totalAmount.toFixed(2)}</span>
+                          <span style={{ color: '#FFFFFF', fontSize: '12px', fontFamily: 'monospace' }}>{currencySymbol}{totalAmount.toFixed(2)}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
                           <span style={{ color: '#9A9A9A', fontSize: '12px' }}>VAT (20%)</span>
-                          <span style={{ color: '#FFFFFF', fontSize: '12px', fontFamily: 'monospace' }}>£{vatAmount.toFixed(2)}</span>
+                          <span style={{ color: '#FFFFFF', fontSize: '12px', fontFamily: 'monospace' }}>{currencySymbol}{vatAmount.toFixed(2)}</span>
                         </div>
                         <div style={{ borderTop: '1px solid #3A3A3C', paddingTop: '10px', marginBottom: '6px' }}>
                           <p style={{ color: '#9A9A9A', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px' }}>
                             Total Due (inc. VAT)
                           </p>
                           <p style={{ color: '#FFD528', fontWeight: '800', fontSize: '26px', fontFamily: 'monospace', margin: '0' }}>
-                            £{totalWithVat.toFixed(2)}
+                            {currencySymbol}{totalWithVat.toFixed(2)}
                           </p>
                         </div>
                       </>
@@ -1246,7 +1256,7 @@ export function InvoicePage() {
                           Total Due
                         </p>
                         <p style={{ color: '#FFD528', fontWeight: '800', fontSize: '26px', fontFamily: 'monospace', margin: '0 0 6px' }}>
-                          £{totalAmount.toFixed(2)}
+                          {currencySymbol}{totalAmount.toFixed(2)}
                         </p>
                       </>
                     )}
