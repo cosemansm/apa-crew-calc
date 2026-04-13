@@ -59,29 +59,29 @@ export default function App() {
       <BrowserRouter>
         <AuthProvider>
           <EngineProvider>
-          <SubscriptionProvider>
-            <PendingShareRedirect />
-            <Routes>
-              <Route path="/terms" element={<TermsPage />} />
-              <Route path="/privacy" element={<PrivacyPage />} />
-              <Route path="/share/:token" element={<SharePage />} />
-              <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-              <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-                <Route path="/dashboard" element={<DashboardPage />} />
-                <Route path="/calculator" element={<CalculatorPage />} />
-                <Route path="/projects" element={<ProjectsPage />} />
-                <Route path="/ai-input" element={<AIInputPage />} />
-                <Route path="/history" element={<Navigate to="/projects" replace />} />
-                <Route path="/invoices" element={<InvoicePage />} />
-                <Route path="/support/:section?" element={<SupportPage />} />
-                <Route path="/settings/:section?" element={<SettingsPage />} />
-                <Route path="/admin" element={<AdminPage />} />
-              </Route>
-              <Route path="/update-password" element={<UpdatePasswordPage />} />
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-            <ReviewPopupController />
-          </SubscriptionProvider>
+            <SubscriptionProvider>
+              <PendingShareRedirect />
+              <Routes>
+                <Route path="/terms" element={<TermsPage />} />
+                <Route path="/privacy" element={<PrivacyPage />} />
+                <Route path="/share/:token" element={<SharePage />} />
+                <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+                <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+                  <Route path="/dashboard" element={<DashboardPage />} />
+                  <Route path="/calculator" element={<CalculatorPage />} />
+                  <Route path="/projects" element={<ProjectsPage />} />
+                  <Route path="/ai-input" element={<AIInputPage />} />
+                  <Route path="/history" element={<Navigate to="/projects" replace />} />
+                  <Route path="/invoices" element={<InvoicePage />} />
+                  <Route path="/support/:section?" element={<SupportPage />} />
+                  <Route path="/settings/:section?" element={<SettingsPage />} />
+                  <Route path="/admin" element={<AdminPage />} />
+                </Route>
+                <Route path="/update-password" element={<UpdatePasswordPage />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+              <ReviewPopupController />
+            </SubscriptionProvider>
           </EngineProvider>
         </AuthProvider>
       </BrowserRouter>

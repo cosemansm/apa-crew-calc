@@ -31,7 +31,13 @@ export function EngineProvider({ children }: { children: ReactNode }) {
   const [authorizedEngineIds, setAuthorizedEngineIds] = useState<string[]>([DEFAULT_ENGINE_ID])
 
   useEffect(() => {
-    if (!user) return
+    if (!user) {
+      setDefaultEngineId(DEFAULT_ENGINE_ID)
+      setShowEngineSelector(false)
+      setAuthorizedEngineIds([DEFAULT_ENGINE_ID])
+      setJobEngineOverride(null)
+      return
+    }
     supabase
       .from('profiles')
       .select('default_engine, multi_engine_enabled, authorized_engines')
