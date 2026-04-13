@@ -309,6 +309,7 @@ export function ProjectsPage() {
       name: `${project.name} (copy)`,
       client_name: project.client_name,
       status: 'ongoing',
+      calc_engine: project.calc_engine,
     }).select().single();
     if (error || !newProject) return;
 

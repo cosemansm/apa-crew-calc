@@ -23,6 +23,7 @@ import { APA_CREW_ROLES, getRolesByDepartment } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek } from '@/data/calculation-engine';
 import { parseTimesheetWithGemini, type ParsedEntry } from '@/lib/gemini';
 import { supabase } from '@/lib/supabase';
+import { useEngine } from '@/hooks/useEngine';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
@@ -287,6 +288,7 @@ export function AIInputPage() {
   usePageTitle('AI Input');
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { defaultEngineId } = useEngine();
 
   const [stage, setStage] = useState<Stage>('input');
   const [input, setInput] = useState('');
@@ -447,7 +449,7 @@ export function AIInputPage() {
 
     const { data: project, error: projErr } = await supabase
       .from('projects')
-      .insert({ user_id: user.id, name: projectName.trim() || 'AI Import' })
+      .insert({ user_id: user.id, name: projectName.trim() || 'AI Import', calc_engine: defaultEngineId })
       .select().single();
 
     if (projErr || !project) {

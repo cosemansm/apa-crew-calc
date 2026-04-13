@@ -736,14 +736,19 @@ export function CalculatorPage() {
     if (projectNameFromUrl) {
       setProjectName(decodeURIComponent(projectNameFromUrl));
     } else if (projectId) {
-      supabase.from('projects').select('name, calc_engine').eq('id', projectId).single().then(({ data }) => {
-        if (data) {
-          setProjectName(data.name);
-          setJobEngine(data.calc_engine ?? null);
-        }
+      supabase.from('projects').select('name').eq('id', projectId).single().then(({ data }) => {
+        if (data) setProjectName(data.name);
       });
     }
   }, [projectId, projectNameFromUrl]);
+
+  // Always load the job's engine from DB when projectId changes
+  useEffect(() => {
+    if (!projectId) { setJobEngine(null); return; }
+    supabase.from('projects').select('calc_engine').eq('id', projectId).single().then(({ data }) => {
+      if (data) setJobEngine(data.calc_engine ?? null);
+    });
+  }, [projectId, setJobEngine]);
 
   const dayOfWeek: string = useMemo(() => {
     if (bankHolidays.has(workDate)) return 'bank_holiday';
@@ -1285,7 +1290,7 @@ export function CalculatorPage() {
               <Label htmlFor="project">Job Name</Label>
               <div className="flex gap-2">
                 <Input id="project" placeholder="e.g. Nike Summer Campaign" value={projectName} onChange={e => setProjectName(e.target.value)} className="flex-1" />
-                {/* T&Cs engine selector — dropdown for new jobs, read-only badge for existing jobs */}
+                {/* T&Cs engine selector — dropdown for both new and existing jobs */}
                 {showEngineSelector && !projectId && (
                   <Select value={selectedCalcEngine} onValueChange={(v) => { setSelectedCalcEngine(v); }}>
                     <SelectTrigger className="w-44">
@@ -1301,9 +1306,21 @@ export function CalculatorPage() {
                   </Select>
                 )}
                 {showEngineSelector && projectId && (
-                  <span className="inline-flex items-center px-3 h-10 rounded-md border border-border bg-muted text-sm text-muted-foreground whitespace-nowrap">
-                    {activeEngine.meta.shortName} ({activeEngine.meta.currencySymbol})
-                  </span>
+                  <Select value={activeEngine.meta.id} onValueChange={async (v) => {
+                    setJobEngine(v);
+                    await supabase.from('projects').update({ calc_engine: v }).eq('id', projectId);
+                  }}>
+                    <SelectTrigger className="w-44">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {authorizedEngines.map(e => (
+                        <SelectItem key={e.meta.id} value={e.meta.id}>
+                          {e.meta.shortName} ({e.meta.currencySymbol})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 )}
                 <div className="relative" ref={projectPickerRef}>
                   <Button

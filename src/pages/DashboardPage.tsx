@@ -27,6 +27,7 @@ import { JobLimitDialog } from '@/components/JobLimitDialog';
 import { BookkeepingSection } from '@/components/BookkeepingSection';
 import { cn } from '@/lib/utils';
 import { WhatsNewDrawer, useUnreadCount } from '@/components/WhatsNewDrawer';
+import { useEngine } from '@/hooks/useEngine';
 
 interface Project {
   id: string;
@@ -64,6 +65,7 @@ function dayTotal(d: ProjectDay): number {
 export function DashboardPage() {
   usePageTitle('Dashboard');
   const { user } = useAuth();
+  const { defaultEngineId } = useEngine();
   const { subscription, isPremium, isTrialing, trialDaysLeft, loading: subLoading } = useSubscription();
   const isLifetime = subscription?.status === 'lifetime';
   const navigate = useNavigate();
@@ -189,6 +191,7 @@ export function DashboardPage() {
       user_id: user!.id,
       name: newProjectName.trim(),
       client_name: newClientName.trim() || null,
+      calc_engine: defaultEngineId,
     }).select().single();
 
     if (error) {
