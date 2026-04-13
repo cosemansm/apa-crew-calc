@@ -42,7 +42,7 @@ export function EngineProvider({ children }: { children: ReactNode }) {
       .from('profiles')
       .select('default_engine, multi_engine_enabled, authorized_engines')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
       .then(({ data, error }) => {
         if (error) {
           Sentry.captureException(new Error(error.message), {
