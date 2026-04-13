@@ -248,7 +248,7 @@ function ProjectCalendar({
   onMonthChange,
   onSelectDay,
   onAddDate,
-  currency = '£',
+  currency,
 }: {
   projectDays: ProjectDaySummary[];
   selectedDate: string;
@@ -256,7 +256,7 @@ function ProjectCalendar({
   onMonthChange: (d: Date) => void;
   onSelectDay?: (dayId: string) => void;
   onAddDate: (date: string) => void;
-  currency?: string;
+  currency: string; // caller always passes activeEngine.meta.currencySymbol
 }) {
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
 
@@ -1518,7 +1518,7 @@ export function CalculatorPage() {
             <Separator />
 
             {/* Breaks */}
-            {(dayType === 'basic_working' || dayType === 'continuous_working' || dayType === 'prep' || dayType === 'recce' || dayType === 'build_strike' || dayType === 'pre_light') && (
+            {activeEngine.meta.id === 'apa-uk' && (dayType === 'basic_working' || dayType === 'continuous_working' || dayType === 'prep' || dayType === 'recce' || dayType === 'build_strike' || dayType === 'pre_light') && (
               <>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -2152,6 +2152,15 @@ export function CalculatorPage() {
                               <p className="text-[11px] font-bold uppercase tracking-wide text-[#FFD528] mt-0.5 leading-tight">
                                 {dayLabel}
                               </p>
+                              {day.isCurrent && activeEngine.meta.id === 'apa-uk' && (result.extra?.callType as string | undefined) && (result.extra?.callType as string) !== 'standard' && (
+                                <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium mt-0.5 ${
+                                  (result.extra?.callType as string) === 'early' ? 'bg-yellow-100 text-yellow-800' :
+                                  (result.extra?.callType as string) === 'late' ? 'bg-orange-100 text-orange-800' :
+                                  'bg-red-100 text-red-800'
+                                }`}>
+                                  {String(result.extra?.callType).charAt(0).toUpperCase() + String(result.extra?.callType).slice(1)} Call
+                                </span>
+                              )}
                               <p className="text-[10px] text-muted-foreground/60 truncate mt-0.5">{day.role_name}</p>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
