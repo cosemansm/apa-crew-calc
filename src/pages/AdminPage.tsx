@@ -7,7 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from 'recharts';
-import { Users, Briefcase, CalendarDays, PoundSterling, TrendingUp, Zap, RefreshCw, BarChart2, Lightbulb, ChevronDown, X, Upload, Trash2, Pencil, ArrowRight, Globe, Search } from 'lucide-react';
+import { Users, Briefcase, CalendarDays, PoundSterling, TrendingUp, Zap, RefreshCw, BarChart2, Lightbulb, ChevronDown, X, Upload, Trash2, Pencil, ArrowRight, Globe, Search, Save, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Switch } from '@/components/ui/switch';
 import { getAllEngines } from '@/engines/index';
@@ -957,54 +957,14 @@ interface EngineUserEntry {
 
 function EngineAccessRow({
   user,
-  accessToken,
-  onUpdate,
+  onToggleMultiEngine,
+  onToggleEngine,
 }: {
   user: EngineUserEntry;
-  accessToken: string;
-  onUpdate: (updated: EngineUserEntry) => void;
+  onToggleMultiEngine: (userId: string) => void;
+  onToggleEngine: (userId: string, engineId: string) => void;
 }) {
   const allEngines = useMemo(() => getAllEngines(), []);
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-
-  const updateProfile = async (field: 'multi_engine_enabled' | 'authorized_engines', value: boolean | string[]) => {
-    const resp = await fetch(`${supabaseUrl}/functions/v1/admin-update-engine-access`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-        'apikey': anonKey,
-      },
-      body: JSON.stringify({ user_id: user.id, field, value }),
-    });
-    const json = await resp.json();
-    if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
-  };
-
-  const toggleMultiEngine = async () => {
-    const newValue = !user.multi_engine_enabled;
-    try {
-      await updateProfile('multi_engine_enabled', newValue);
-      onUpdate({ ...user, multi_engine_enabled: newValue });
-    } catch (err) {
-      Sentry.captureException(err, { extra: { context: 'toggleMultiEngine', userId: user.id } });
-    }
-  };
-
-  const toggleEngine = async (engineId: string) => {
-    const current = user.authorized_engines;
-    const next = current.includes(engineId)
-      ? current.filter(id => id !== engineId)
-      : [...current, engineId];
-    if (next.length === 0) return; // minimum 1 engine
-    try {
-      await updateProfile('authorized_engines', next);
-      onUpdate({ ...user, authorized_engines: next });
-    } catch (err) {
-      Sentry.captureException(err, { extra: { context: 'toggleEngine', userId: user.id, engineId } });
-    }
-  };
 
   return (
     <tr className="border-b border-white/5 last:border-0 hover:bg-white/3">
@@ -1014,7 +974,7 @@ function EngineAccessRow({
       <td className="px-4 py-2.5">
         <Switch
           checked={user.multi_engine_enabled}
-          onCheckedChange={toggleMultiEngine}
+          onCheckedChange={() => onToggleMultiEngine(user.id)}
         />
       </td>
       <td className="px-4 py-2.5">
@@ -1024,7 +984,7 @@ function EngineAccessRow({
               <input
                 type="checkbox"
                 checked={user.authorized_engines.includes(e.meta.id)}
-                onChange={() => toggleEngine(e.meta.id)}
+                onChange={() => onToggleEngine(user.id, e.meta.id)}
                 className="accent-[#FFD528]"
               />
               {e.meta.shortName} ({e.meta.currencySymbol})
@@ -1055,9 +1015,12 @@ export function AdminPage() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
   const [engineUsers, setEngineUsers] = useState<EngineUserEntry[]>([]);
+  const [engineUsersOriginal, setEngineUsersOriginal] = useState<EngineUserEntry[]>([]);
   const [engineUsersLoading, setEngineUsersLoading] = useState(false);
   const [engineUsersError, setEngineUsersError] = useState<string | null>(null);
   const [engineUserSearch, setEngineUserSearch] = useState('');
+  const [engineSaving, setEngineSaving] = useState(false);
+  const [engineSaveSuccess, setEngineSaveSuccess] = useState(false);
   const [jobsView, setJobsView] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const frReloadRef = useRef<(() => void) | null>(null);
   const [frLoading, setFrLoading] = useState(false);
@@ -1161,14 +1124,16 @@ export function AdminPage() {
 
       // Profile data (multi_engine_enabled, authorized_engines, signup_country) is now
       // included in the admin-users response, fetched server-side via service role.
-      setEngineUsers((json.userList as UserListEntry[]).map(u => ({
+      const entries: EngineUserEntry[] = (json.userList as UserListEntry[]).map(u => ({
         id: u.user_id,
         email: u.email,
         display_name: u.name || null,
         signup_country: (u as unknown as { signup_country: string | null }).signup_country ?? null,
         multi_engine_enabled: (u as unknown as { multi_engine_enabled: boolean }).multi_engine_enabled ?? false,
         authorized_engines: (u as unknown as { authorized_engines: string[] }).authorized_engines ?? ['apa-uk'],
-      })));
+      }));
+      setEngineUsers(entries);
+      setEngineUsersOriginal(entries.map(e => ({ ...e, authorized_engines: [...e.authorized_engines] })));
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       setEngineUsersError(msg);
@@ -1176,6 +1141,73 @@ export function AdminPage() {
       console.error('fetchEngineUsers failed:', err);
     } finally {
       setEngineUsersLoading(false);
+    }
+  }
+
+  function handleToggleMultiEngine(userId: string) {
+    setEngineUsers(prev => prev.map(u => u.id === userId ? { ...u, multi_engine_enabled: !u.multi_engine_enabled } : u));
+    setEngineSaveSuccess(false);
+  }
+
+  function handleToggleEngine(userId: string, engineId: string) {
+    setEngineUsers(prev => prev.map(u => {
+      if (u.id !== userId) return u;
+      const next = u.authorized_engines.includes(engineId)
+        ? u.authorized_engines.filter(id => id !== engineId)
+        : [...u.authorized_engines, engineId];
+      if (next.length === 0) return u; // minimum 1 engine
+      return { ...u, authorized_engines: next };
+    }));
+    setEngineSaveSuccess(false);
+  }
+
+  const engineUsersDirty = useMemo(() => {
+    return engineUsers.filter(u => {
+      const orig = engineUsersOriginal.find(o => o.id === u.id);
+      if (!orig) return false;
+      return u.multi_engine_enabled !== orig.multi_engine_enabled
+        || JSON.stringify([...u.authorized_engines].sort()) !== JSON.stringify([...orig.authorized_engines].sort());
+    });
+  }, [engineUsers, engineUsersOriginal]);
+
+  async function saveEngineAccess() {
+    if (!session?.access_token || engineUsersDirty.length === 0) return;
+    setEngineSaving(true);
+    setEngineUsersError(null);
+    setEngineSaveSuccess(false);
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+    try {
+      for (const u of engineUsersDirty) {
+        const orig = engineUsersOriginal.find(o => o.id === u.id)!;
+        if (u.multi_engine_enabled !== orig.multi_engine_enabled) {
+          const resp = await fetch(`${supabaseUrl}/functions/v1/admin-update-engine-access`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json', 'apikey': anonKey },
+            body: JSON.stringify({ user_id: u.id, field: 'multi_engine_enabled', value: u.multi_engine_enabled }),
+          });
+          const json = await resp.json();
+          if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
+        }
+        if (JSON.stringify([...u.authorized_engines].sort()) !== JSON.stringify([...orig.authorized_engines].sort())) {
+          const resp = await fetch(`${supabaseUrl}/functions/v1/admin-update-engine-access`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json', 'apikey': anonKey },
+            body: JSON.stringify({ user_id: u.id, field: 'authorized_engines', value: u.authorized_engines }),
+          });
+          const json = await resp.json();
+          if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
+        }
+      }
+      setEngineUsersOriginal(engineUsers.map(e => ({ ...e, authorized_engines: [...e.authorized_engines] })));
+      setEngineSaveSuccess(true);
+      setTimeout(() => setEngineSaveSuccess(false), 3000);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setEngineUsersError(msg);
+      Sentry.captureException(err, { extra: { context: 'saveEngineAccess' } });
+    } finally {
+      setEngineSaving(false);
     }
   }
 
@@ -1774,15 +1806,29 @@ export function AdminPage() {
                           <EngineAccessRow
                             key={u.id}
                             user={u}
-                            accessToken={session!.access_token}
-                            onUpdate={(updated) => {
-                              setEngineUsers(prev => prev.map(x => x.id === updated.id ? updated : x));
-                            }}
+                            onToggleMultiEngine={handleToggleMultiEngine}
+                            onToggleEngine={handleToggleEngine}
                           />
                         ))}
                     </tbody>
                   </table>
                 </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={saveEngineAccess}
+                  disabled={engineUsersDirty.length === 0 || engineSaving}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FFD528] hover:bg-[#FFD528]/90 text-[#1F1F21] text-xs font-mono font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <Save className={`h-3.5 w-3.5 ${engineSaving ? 'animate-spin' : ''}`} />
+                  {engineSaving ? 'Saving…' : `Save changes${engineUsersDirty.length > 0 ? ` (${engineUsersDirty.length})` : ''}`}
+                </button>
+                {engineSaveSuccess && (
+                  <span className="flex items-center gap-1.5 text-green-400 text-xs font-mono">
+                    <Check className="h-3.5 w-3.5" />
+                    Changes saved successfully
+                  </span>
+                )}
               </div>
             </>
           )}
