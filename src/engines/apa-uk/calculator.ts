@@ -246,7 +246,8 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
     const breakGivenOnNSD = input.firstBreakGiven;
     const otStartNSD = breakGivenOnNSD ? 9 : 8; // If break given, OT after 9hrs not 8hrs
     const rateMultiplier = isSundayOrBH ? 2 : isSaturday ? 1.5 : 1;
-    const hourlyRate = Math.round(bhr * rateMultiplier);
+    // Derive rate from BDR to avoid double-rounding through bhr
+    const hourlyRate = Math.round(bdr * rateMultiplier / 10);
     const nsdOtStartTime = addHoursToTime(callTime, otStartNSD);
     lineItems.push({
       description: `${dayType === 'build_strike' ? 'Build/Strike' : dayType.charAt(0).toUpperCase() + dayType.slice(1)} Day`,
@@ -261,7 +262,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
     if (!isPMPARunner) {
       const otHours = Math.max(0, dayLength - otStartNSD);
       if (otHours > 0) {
-        const nsdOtRate = isWeekday ? Math.round(bhr * otCoefficient) : Math.round(bhr * rateMultiplier);
+        const nsdOtRate = isWeekday ? Math.round(bhr * otCoefficient) : Math.round(bdr * rateMultiplier / 10);
         lineItems.push({ description: 'Overtime', hours: roundOTHours(otHours), rate: nsdOtRate, total: roundOTHours(otHours) * nsdOtRate, timeFrom: nsdOtStartTime, timeTo: wrapTime });
       }
     }
@@ -271,7 +272,8 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
     // Section 2.4(ix)(x): Weekend rates apply
     const baseHours = 8;
     const rateMultiplier = isSundayOrBH ? 2 : isSaturday ? 1.5 : 1;
-    const hourlyRate = Math.round(bhr * rateMultiplier);
+    // Derive rate from BDR to avoid double-rounding through bhr
+    const hourlyRate = Math.round(bdr * rateMultiplier / 10);
     const plOtStartTime = addHoursToTime(callTime, 9);
     lineItems.push({
       description: 'Pre-light Day',
@@ -290,7 +292,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
     if (!isPMPARunner) {
       const otHours = Math.max(0, dayLength - 9);
       if (otHours > 0) {
-        const plOtRate = isWeekday ? Math.round(bhr * otCoefficient) : Math.round(bhr * rateMultiplier);
+        const plOtRate = isWeekday ? Math.round(bhr * otCoefficient) : Math.round(bdr * rateMultiplier / 10);
         lineItems.push({ description: 'Overtime', hours: roundOTHours(otHours), rate: plOtRate, total: roundOTHours(otHours) * plOtRate, timeFrom: plOtStartTime, timeTo: wrapTime });
       }
     }
@@ -314,7 +316,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
       lineItems.push({ description: 'Saturday Continuous Working Day (1.5x BDR)', hours: 9, rate: satBdr, total: satBdr, timeFrom: callTime, timeTo: contOtStartTime });
       const otHours = Math.max(0, dayLength - 9);
       if (otHours > 0) {
-        const satOtRate = Math.round(bhr * 1.5);
+        const satOtRate = Math.round(bdr * 1.5 / 10);
         // FIX #20: After-midnight triple time on continuous days
         const { regularOT, midnightOT } = splitAfterMidnightOT(roundOTHours(otHours), callTime, wrapTime, dayLength);
         if (regularOT > 0) {
@@ -443,7 +445,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
           }
         } else if (isSaturday) {
           const pmSatBdr = Math.round(bdr * 1.5);
-          const pmSatOtRate = Math.round(bhr * 1.5);
+          const pmSatOtRate = Math.round(bdr * 1.5 / 10);
           const pmSatOtStart = addHoursToTime(callTime, 11);
           lineItems.push({ description: `Early Call Overtime (${callTime}-07:00, 1.5x BHR)`, hours: earlyHours, rate: pmSatOtRate, total: earlyHours * pmSatOtRate, timeFrom: callTime, timeTo: '07:00' });
           lineItems.push({ description: 'Saturday Basic Daily Rate (1.5x BDR)', hours: 11, rate: pmSatBdr, total: pmSatBdr, timeFrom: '07:00', timeTo: pmSatOtStart });
@@ -472,15 +474,21 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
           lineItems.push({ description: 'Sunday/BH After Midnight (3x BHR)', hours: midnightHrs, rate: tripleBhr, total: midnightHrs * tripleBhr, timeFrom: '00:00', timeTo: wrapTime });
         }
       } else if (isSaturday) {
-        const satRate = Math.round(bhr * 1.5);
-        lineItems.push({ description: `Early Call Overtime (${callTime}-07:00, 1.5x BHR)`, hours: earlyHours, rate: satRate, total: earlyHours * satRate, timeFrom: callTime, timeTo: '07:00' });
+        // Section 2.4(i)/4.6: All Saturday hours at 1.5x BDR, min 10 working hrs from 07:00
+        const satDayRate = Math.round(bdr * 1.5);
+        const satOtRate = Math.round(bdr * 1.5 / 10);
+        lineItems.push({ description: `Early Call Overtime (${callTime}-07:00, 1.5x BHR)`, hours: earlyHours, rate: satOtRate, total: earlyHours * satOtRate, timeFrom: callTime, timeTo: '07:00' });
         const workedHours = Math.max(dayLength - earlyHours - 1, 10);
-        const { regularOT: regularHrs, midnightOT: midnightHrs } = splitAfterMidnightOT(workedHours, '07:00', wrapTime, dayLength - earlyHours);
-        if (regularHrs > 0) {
-          lineItems.push({ description: 'Saturday (1.5x BHR)', hours: regularHrs, rate: satRate, total: regularHrs * satRate, timeFrom: '07:00', timeTo: wrapTime });
-        }
-        if (midnightHrs > 0) {
-          lineItems.push({ description: 'Saturday After Midnight (3x BHR)', hours: midnightHrs, rate: tripleBhr, total: midnightHrs * tripleBhr, timeFrom: '00:00', timeTo: wrapTime });
+        const otHours = Math.max(0, workedHours - 10);
+        lineItems.push({ description: 'Saturday Basic Working Day (1.5x BDR)', hours: 1, rate: satDayRate, total: satDayRate, timeFrom: '07:00', timeTo: wrapTime });
+        if (otHours > 0) {
+          const { regularOT, midnightOT } = splitAfterMidnightOT(roundOTHours(otHours), '07:00', wrapTime, dayLength - earlyHours);
+          if (regularOT > 0) {
+            lineItems.push({ description: 'Saturday Overtime (1.5x BHR)', hours: regularOT, rate: satOtRate, total: regularOT * satOtRate, timeFrom: '07:00', timeTo: wrapTime });
+          }
+          if (midnightOT > 0) {
+            lineItems.push({ description: 'Saturday After Midnight (3x BHR)', hours: midnightOT, rate: tripleBhr, total: midnightOT * tripleBhr, timeFrom: '00:00', timeTo: wrapTime });
+          }
         }
       } else {
         // Weekday early call
@@ -504,7 +512,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
 
       if (isPMPARunner) {
         const pmSatBdr = Math.round(bdr * 1.5);
-        const pmSatOtRate = Math.round(bhr * 1.5);
+        const pmSatOtRate = Math.round(bdr * 1.5 / 10);
         const pmSatOtStart = addHoursToTime(callTime, 11);
         lineItems.push({ description: 'Saturday Basic Daily Rate (1.5x BDR)', hours: 1, rate: pmSatBdr, total: pmSatBdr, timeFrom: callTime, timeTo: pmSatOtStart });
         const otHours = Math.max(0, workedHours - 10);
@@ -512,13 +520,19 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
           lineItems.push({ description: 'Overtime (1.5x BHR)', hours: roundOTHours(otHours), rate: pmSatOtRate, total: roundOTHours(otHours) * pmSatOtRate, timeFrom: pmSatOtStart, timeTo: wrapTime });
         }
       } else {
-        const satRate = Math.round(bhr * 1.5);
-        const { regularOT: regularHrs, midnightOT: midnightHrs } = splitAfterMidnightOT(workedHours, callTime, wrapTime, dayLength);
-        if (regularHrs > 0) {
-          lineItems.push({ description: 'Saturday (1.5x BHR)', hours: regularHrs, rate: satRate, total: regularHrs * satRate, timeFrom: callTime, timeTo: wrapTime });
-        }
-        if (midnightHrs > 0) {
-          lineItems.push({ description: 'Saturday After Midnight (3x BHR)', hours: midnightHrs, rate: tripleBhr, total: midnightHrs * tripleBhr, timeFrom: '00:00', timeTo: wrapTime });
+        // Section 2.4(i): Saturday = 1.5x BDR as a day rate, min 10 working hrs
+        const satDayRate = Math.round(bdr * 1.5);
+        const satOtRate = Math.round(bdr * 1.5 / 10);
+        const otHours = Math.max(0, workedHours - 10);
+        lineItems.push({ description: 'Saturday Basic Working Day (1.5x BDR)', hours: 1, rate: satDayRate, total: satDayRate, timeFrom: callTime, timeTo: wrapTime });
+        if (otHours > 0) {
+          const { regularOT, midnightOT } = splitAfterMidnightOT(roundOTHours(otHours), callTime, wrapTime, dayLength);
+          if (regularOT > 0) {
+            lineItems.push({ description: 'Saturday Overtime (1.5x BHR)', hours: regularOT, rate: satOtRate, total: regularOT * satOtRate, timeFrom: callTime, timeTo: wrapTime });
+          }
+          if (midnightOT > 0) {
+            lineItems.push({ description: 'Saturday After Midnight (3x BHR)', hours: midnightOT, rate: tripleBhr, total: midnightOT * tripleBhr, timeFrom: '00:00', timeTo: wrapTime });
+          }
         }
       }
 
