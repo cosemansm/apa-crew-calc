@@ -1412,7 +1412,7 @@ export function CalculatorPage() {
                     </SelectGroup>
                   )}
                   {activeEngine.departments.map(dept => {
-                    const deptRoles = activeEngine.getRolesByDepartment(dept).filter(r => !favouriteRoles.includes(r.role));
+                    const deptRoles = activeEngine.getRolesByDepartment(dept).filter(r => !(activeEngine.meta.features.favourites && favouriteRoles.includes(r.role)));
                     if (deptRoles.length === 0) return null;
                     return (
                       <SelectGroup key={dept}>
