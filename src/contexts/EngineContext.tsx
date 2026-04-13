@@ -56,6 +56,11 @@ export function EngineProvider({ children }: { children: ReactNode }) {
           setAuthorizedEngineIds(data.authorized_engines ?? [DEFAULT_ENGINE_ID])
         }
       })
+      .catch(err => {
+        Sentry.captureException(err, {
+          extra: { context: 'EngineContext profile fetch network error' },
+        })
+      })
   }, [user])
 
   const setJobEngine = useCallback((id: string | null) => {

@@ -963,10 +963,8 @@ function EngineAccessRow({
   onUpdate: (updated: EngineUserEntry) => void;
 }) {
   const allEngines = useMemo(() => getAllEngines(), []);
-  const isAdmin = user.email === ADMIN_EMAIL;
 
   const toggleMultiEngine = async () => {
-    if (isAdmin) return;
     const newValue = !user.multi_engine_enabled;
     const { error } = await supabase
       .from('profiles')
@@ -980,7 +978,6 @@ function EngineAccessRow({
   };
 
   const toggleEngine = async (engineId: string) => {
-    if (isAdmin) return;
     const current = user.authorized_engines;
     const next = current.includes(engineId)
       ? current.filter(id => id !== engineId)
@@ -1006,7 +1003,6 @@ function EngineAccessRow({
         <Switch
           checked={user.multi_engine_enabled}
           onCheckedChange={toggleMultiEngine}
-          disabled={isAdmin}
         />
       </td>
       <td className="px-4 py-2.5">
@@ -1015,9 +1011,8 @@ function EngineAccessRow({
             <label key={e.meta.id} className="flex items-center gap-1 text-xs font-mono text-white/60 cursor-pointer">
               <input
                 type="checkbox"
-                checked={isAdmin || user.authorized_engines.includes(e.meta.id)}
+                checked={user.authorized_engines.includes(e.meta.id)}
                 onChange={() => toggleEngine(e.meta.id)}
-                disabled={isAdmin}
                 className="accent-[#FFD528]"
               />
               {e.meta.shortName} ({e.meta.currencySymbol})
