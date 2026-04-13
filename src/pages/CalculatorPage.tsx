@@ -788,7 +788,7 @@ export function CalculatorPage() {
     if (!selectedRole) return null;
     // SDYM engine derives its own rate; other engines require a positive agreed rate
     const rate = parseInt(agreedRate) || 0;
-    if (activeEngine.meta.id !== 'sdym-be' && (isNaN(rate) || rate <= 0)) return null;
+    if (activeEngine.meta.features.agreedRateInput && (isNaN(rate) || rate <= 0)) return null;
 
     return activeEngine.calculate({
       role: selectedRole,
@@ -810,7 +810,7 @@ export function CalculatorPage() {
       previousWrapTime: autoPreviousWrap || undefined,
       equipmentValue: parseFloat(equipmentValue) || 0,
       equipmentDiscount: parseFloat(equipmentDiscount) || 0,
-      extra: activeEngine.meta.id === 'sdym-be'
+      extra: !activeEngine.meta.features.agreedRateInput
         ? { hasEquipment, kmRate }
         : undefined,
     });
@@ -1396,7 +1396,7 @@ export function CalculatorPage() {
                       ))}
                     </SelectGroup>
                   )}
-                  {favouriteRoles.length > 0 && (
+                  {activeEngine.meta.features.favourites && favouriteRoles.length > 0 && (
                     <SelectGroup>
                       <SelectLabel className="flex items-center gap-1">
                         <Star className="h-3 w-3 fill-amber-500 text-amber-500" /> Favourites
@@ -1427,12 +1427,12 @@ export function CalculatorPage() {
                   })}
                 </SelectContent>
               </Select>
-              {selectedRole && agreedRate && activeEngine.meta.id !== 'sdym-be' && (
+              {selectedRole && agreedRate && activeEngine.meta.features.agreedRateInput && (
                 <div className="flex items-center gap-2 flex-wrap pt-0.5">
                   <span className="inline-flex items-center bg-[#1F1F21] text-[#FFD528] text-xs font-bold px-2.5 py-1 rounded-full font-mono">
                     {activeEngine.meta.currencySymbol}{agreedRate}/day
                   </span>
-                  {!selectedRole.isBuyout && activeEngine.meta.id === 'apa-uk' && (
+                  {!selectedRole.isBuyout && activeEngine.meta.features.bhrOtInfo && (
                     <span className="text-xs text-muted-foreground">
                       BHR {activeEngine.meta.currencySymbol}{(selectedRole.engineData.customBhr as number | undefined) ?? Math.round(parseInt(agreedRate) / 10)}/hr
                       {(selectedRole.engineData.otGrade as string) !== 'N/A' && (
@@ -1547,7 +1547,7 @@ export function CalculatorPage() {
             <Separator />
 
             {/* Breaks */}
-            {activeEngine.meta.id === 'apa-uk' && (dayType === 'basic_working' || dayType === 'continuous_working' || dayType === 'prep' || dayType === 'recce' || dayType === 'build_strike' || dayType === 'pre_light') && (
+            {activeEngine.meta.features.breaksAndPenalties && (dayType === 'basic_working' || dayType === 'continuous_working' || dayType === 'prep' || dayType === 'recce' || dayType === 'build_strike' || dayType === 'pre_light') && (
               <>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -1674,7 +1674,7 @@ export function CalculatorPage() {
                     </div>
                   )}
 
-                  {dayType === 'continuous_working' && activeEngine.meta.id === 'apa-uk' && (
+                  {dayType === 'continuous_working' && activeEngine.meta.features.breaksAndPenalties && (
                     <div className="space-y-3 rounded-md border p-4">
                       <div className="flex items-center gap-3">
                         <Checkbox id="contBreak" checked={continuousFirstBreakGiven} onCheckedChange={v => setContinuousFirstBreakGiven(!!v)} />
@@ -1705,7 +1705,7 @@ export function CalculatorPage() {
                 className="flex items-center gap-2 text-sm font-medium w-full text-left group"
               >
                 <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${showTravel ? 'rotate-90' : ''}`} />
-                <Car className="h-3.5 w-3.5" /> {activeEngine.meta.id === 'sdym-be' ? 'Travel' : 'Travel & Mileage'}
+                <Car className="h-3.5 w-3.5" /> {activeEngine.meta.features.mileage ? 'Travel & Mileage' : 'Travel'}
                 {!showTravel && (parseFloat(travelHours) > 0 || parseFloat(mileage) > 0) && (
                   <span className="text-xs text-muted-foreground font-normal ml-1">
                     {parseFloat(travelHours) > 0 && `${travelHours}h`}{parseFloat(mileage) > 0 && ` · ${mileage}mi`}
@@ -1747,14 +1747,14 @@ export function CalculatorPage() {
                       <p className="text-xs text-muted-foreground">Paid at BHR · travel + work ≥ 11hrs</p>
                     </div>
                   )}
-                  {activeEngine.meta.id === 'apa-uk' && (
+                  {activeEngine.meta.features.mileage && (
                     <div className="space-y-2">
                       <Label htmlFor="mileage" className="text-sm">Miles outside M25</Label>
                       <Input id="mileage" type="number" value={mileage} onChange={e => setMileage(e.target.value)} onWheel={e => e.currentTarget.blur()} min="0" placeholder="0" className="rounded-xl" />
                       <p className="text-xs text-muted-foreground">50p/mile · W1F 9SE to location & back</p>
                     </div>
                   )}
-                  {activeEngine.meta.id === 'sdym-be' && (
+                  {activeEngine.meta.features.equipmentTransport && (
                     <>
                       <div className="flex items-center gap-2">
                         <label className="text-sm font-medium">Transporting equipment?</label>
@@ -1946,7 +1946,7 @@ export function CalculatorPage() {
             </div>
 
             {/* Time Off The Clock — auto-calculated from project days (APA UK only) */}
-            {activeEngine.meta.id === 'apa-uk' && autoPreviousWrap && callTime && (() => {
+            {activeEngine.meta.features.tocWarning && autoPreviousWrap && callTime && (() => {
               let prevMins = parseInt(autoPreviousWrap.split(':')[0]) * 60 + parseInt(autoPreviousWrap.split(':')[1]);
               let callMins = parseInt(callTime.split(':')[0]) * 60 + parseInt(callTime.split(':')[1]);
               let gap = callMins - prevMins;
@@ -2181,7 +2181,7 @@ export function CalculatorPage() {
                               <p className="text-[11px] font-bold uppercase tracking-wide text-[#FFD528] mt-0.5 leading-tight">
                                 {dayLabel}
                               </p>
-                              {day.isCurrent && activeEngine.meta.id === 'apa-uk' && (result.extra?.callType as string | undefined) && (result.extra?.callType as string) !== 'standard' && (
+                              {day.isCurrent && activeEngine.meta.features.callTypeBadges && (result.extra?.callType as string | undefined) && (result.extra?.callType as string) !== 'standard' && (
                                 <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium mt-0.5 ${
                                   (result.extra?.callType as string) === 'early' ? 'bg-yellow-100 text-yellow-800' :
                                   (result.extra?.callType as string) === 'late' ? 'bg-orange-100 text-orange-800' :
