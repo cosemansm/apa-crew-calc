@@ -1670,7 +1670,7 @@ export function CalculatorPage() {
               </>
             )}
 
-            {/* Travel & Mileage — collapsible */}
+            {/* Travel (& Mileage) — collapsible */}
             <div className="space-y-3">
               <button
                 type="button"
@@ -1678,7 +1678,7 @@ export function CalculatorPage() {
                 className="flex items-center gap-2 text-sm font-medium w-full text-left group"
               >
                 <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${showTravel ? 'rotate-90' : ''}`} />
-                <Car className="h-3.5 w-3.5" /> Travel & Mileage
+                <Car className="h-3.5 w-3.5" /> {activeEngine.meta.id === 'sdym-be' ? 'Travel' : 'Travel & Mileage'}
                 {!showTravel && (parseFloat(travelHours) > 0 || parseFloat(mileage) > 0) && (
                   <span className="text-xs text-muted-foreground font-normal ml-1">
                     {parseFloat(travelHours) > 0 && `${travelHours}h`}{parseFloat(mileage) > 0 && ` · ${mileage}mi`}
