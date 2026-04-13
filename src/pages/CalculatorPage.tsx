@@ -1285,7 +1285,7 @@ export function CalculatorPage() {
               <Label htmlFor="project">Job Name</Label>
               <div className="flex gap-2">
                 <Input id="project" placeholder="e.g. Nike Summer Campaign" value={projectName} onChange={e => setProjectName(e.target.value)} className="flex-1" />
-                {/* T&Cs engine selector — only shown when user has access to multiple engines and no project is set yet */}
+                {/* T&Cs engine selector — dropdown for new jobs, read-only badge for existing jobs */}
                 {showEngineSelector && !projectId && (
                   <Select value={selectedCalcEngine} onValueChange={(v) => { setSelectedCalcEngine(v); }}>
                     <SelectTrigger className="w-44">
@@ -1299,6 +1299,11 @@ export function CalculatorPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                )}
+                {showEngineSelector && projectId && (
+                  <span className="inline-flex items-center px-3 h-10 rounded-md border border-border bg-muted text-sm text-muted-foreground whitespace-nowrap">
+                    {activeEngine.meta.shortName} ({activeEngine.meta.currencySymbol})
+                  </span>
                 )}
                 <div className="relative" ref={projectPickerRef}>
                   <Button
