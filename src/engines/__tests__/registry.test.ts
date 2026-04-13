@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 
 // We import after each reset to work around module-level Map state
 // Instead, test the exported functions directly
