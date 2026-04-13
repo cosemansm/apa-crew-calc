@@ -14,6 +14,6 @@ ALTER TABLE public.calculations
   ADD COLUMN IF NOT EXISTS calc_engine text NOT NULL DEFAULT 'apa-uk';
 
 -- Grant SELECT/UPDATE on new profile columns to authenticated users
--- (RLS policies on profiles should already cover this, but be explicit)
-GRANT SELECT, UPDATE (default_engine, signup_country, multi_engine_enabled, authorized_engines)
+GRANT SELECT ON public.profiles TO authenticated;
+GRANT UPDATE (default_engine, signup_country, multi_engine_enabled, authorized_engines)
   ON public.profiles TO authenticated;
