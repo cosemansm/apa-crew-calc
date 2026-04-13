@@ -38,11 +38,13 @@ export function EngineProvider({ children }: { children: ReactNode }) {
       setJobEngineOverride(null)
       return
     }
-    supabase
-      .from('profiles')
-      .select('default_engine, multi_engine_enabled, authorized_engines')
-      .eq('id', user.id)
-      .maybeSingle()
+    Promise.resolve(
+      supabase
+        .from('profiles')
+        .select('default_engine, multi_engine_enabled, authorized_engines')
+        .eq('id', user.id)
+        .maybeSingle()
+    )
       .then(({ data, error }) => {
         if (error) {
           Sentry.captureException(new Error(error.message), {
@@ -56,7 +58,7 @@ export function EngineProvider({ children }: { children: ReactNode }) {
           setAuthorizedEngineIds(data.authorized_engines ?? [DEFAULT_ENGINE_ID])
         }
       })
-      .catch(err => {
+      .catch((err: unknown) => {
         Sentry.captureException(err, {
           extra: { context: 'EngineContext profile fetch network error' },
         })
