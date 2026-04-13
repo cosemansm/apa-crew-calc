@@ -1411,7 +1411,7 @@ export function CalculatorPage() {
                     if (deptRoles.length === 0) return null;
                     return (
                       <SelectGroup key={dept}>
-                        <SelectLabel>{dept}</SelectLabel>
+                        {deptRoles.length > 1 && <SelectLabel>{dept}</SelectLabel>}
                         {deptRoles.map(role => (
                           <SelectItem key={role.role} value={role.role}>
                             {role.role}
