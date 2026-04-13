@@ -38,9 +38,9 @@ export default async function handler(req: any, res: any) {
       return res.status(404).json({ error: 'not_found', debug_reason: 'inactive', debug_is_active: share.is_active });
     }
 
-    // 2. Fetch project name only (not client_name or owner info)
+    // 2. Fetch project name and calc_engine (not client_name or owner info)
     const projectRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/projects?id=eq.${share.project_id}&select=name`,
+      `${SUPABASE_URL}/rest/v1/projects?id=eq.${share.project_id}&select=name,calc_engine`,
       { headers }
     );
     const projects = await projectRes.json();
@@ -104,6 +104,7 @@ export default async function handler(req: any, res: any) {
 
     return res.status(200).json({
       projectName: projects[0].name,
+      calcEngine: projects[0].calc_engine ?? 'apa-uk',
       ownerName,
       includeExpenses: share.include_expenses,
       includeEquipment: share.include_equipment,

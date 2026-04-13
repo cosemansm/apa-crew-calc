@@ -9,9 +9,13 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import * as Sentry from '@sentry/react'
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEngine } from '@/hooks/useEngine';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { getEngine, DEFAULT_ENGINE_ID } from '@/engines/index';
+import type { CalculatorEngine } from '@/engines/types';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek } from '@/data/calculation-engine';
 import logoSrc from '@/assets/logo.png';
@@ -43,6 +47,7 @@ interface SharedDay {
 
 interface ShareData {
   projectName: string;
+  calcEngine: string;
   ownerName: string;
   includeExpenses: boolean;
   includeEquipment: boolean;
@@ -68,12 +73,19 @@ export function SharePage() {
   const { token } = useParams<{ token: string }>();
   const { user, loading: authLoading } = useAuth();
   const { isPremium } = useSubscription();
+  const { authorizedEngines } = useEngine();
   const navigate = useNavigate();
 
   // Data states
   const [shareData, setShareData] = useState<ShareData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [dataLoading, setDataLoading] = useState(true);
+
+  // Engine states
+  const [shareEngine, setShareEngine] = useState<CalculatorEngine | null>(null);
+  const [engineError, setEngineError] = useState<'not_found' | 'mismatch' | null>(null);
+  const [mismatchDismissed, setMismatchDismissed] = useState(false);
+  const [issueReported, setIssueReported] = useState(false);
 
   // User states (populated after auth is known)
   const [isOwner, setIsOwner] = useState(false);
@@ -119,6 +131,38 @@ export function SharePage() {
       .catch(() => setLoadError('Failed to load shared job.'))
       .finally(() => setDataLoading(false));
   }, [token]);
+
+  // Resolve the calculator engine once share data is loaded
+  useEffect(() => {
+    if (!shareData) return;
+    const calcEngineId = shareData.calcEngine ?? DEFAULT_ENGINE_ID;
+    try {
+      const resolved = getEngine(calcEngineId);
+      setShareEngine(resolved);
+    } catch {
+      setEngineError('not_found');
+      Sentry.captureEvent({
+        message: 'Job share engine issue',
+        level: 'warning',
+        tags: { feature: 'job-sharing', scenario: 'engine_not_found', job_engine: calcEngineId },
+      });
+    }
+  }, [shareData]);
+
+  // Detect engine mismatch for logged-in users
+  useEffect(() => {
+    if (!shareEngine || !user) return;
+    const hasAccess = authorizedEngines.some(e => e.meta.id === shareEngine.meta.id);
+    if (!hasAccess) {
+      setEngineError('mismatch');
+      Sentry.captureEvent({
+        message: 'Job share engine issue',
+        level: 'warning',
+        tags: { feature: 'job-sharing', scenario: 'engine_mismatch', job_engine: shareEngine.meta.id },
+        extra: { viewerEngineAccess: authorizedEngines.map(e => e.meta.id) },
+      });
+    }
+  }, [shareEngine, user, authorizedEngines]);
 
   // Set page title to job name for share previews (e.g. WhatsApp/iMessage)
   useEffect(() => {
@@ -262,6 +306,33 @@ export function SharePage() {
     }
   };
 
+  // ── Engine handlers ──────────────────────────────────────────────────────────
+
+  const handleEnableBelgianEngine = async () => {
+    if (!user) return;
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('authorized_engines')
+      .eq('id', user.id)
+      .single();
+    const current = (profile?.authorized_engines as string[]) ?? ['apa-uk'];
+    const updated = Array.from(new Set([...current, 'sdym-be']));
+    await supabase.from('profiles').update({
+      multi_engine_enabled: true,
+      authorized_engines: updated,
+    }).eq('id', user.id);
+    window.location.reload();
+  };
+
+  const handleReportIssue = () => {
+    Sentry.captureEvent({
+      message: 'Job share engine issue — user reported',
+      level: 'warning',
+      tags: { feature: 'job-sharing', scenario: engineError ?? 'unknown', job_engine: shareData?.calcEngine ?? 'unknown' },
+    });
+    setIssueReported(true);
+  };
+
   // ── Render states ────────────────────────────────────────────────────────────
 
   if (authLoading || dataLoading) {
@@ -399,6 +470,36 @@ export function SharePage() {
           )}
         </div>
 
+        {/* Engine error states */}
+        {engineError === 'not_found' && (
+          <div className="text-center space-y-4 py-8">
+            <p className="text-sm text-muted-foreground">
+              This job uses a calculator engine that is no longer available. Saved figures shown below.
+            </p>
+            <Button variant="outline" size="sm" onClick={handleReportIssue}>Report issue</Button>
+          </div>
+        )}
+
+        {engineError === 'mismatch' && shareEngine && !mismatchDismissed && (
+          <div className="rounded-lg border p-4 space-y-3 mb-6">
+            <p className="text-sm">
+              This job uses {shareEngine.meta.name} ({shareEngine.meta.currencySymbol}).
+              Enable the Belgian engine to recalculate.
+            </p>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleEnableBelgianEngine}>Enable Belgian Engine</Button>
+              <Button variant="outline" size="sm" onClick={() => setMismatchDismissed(true)}>View anyway</Button>
+              <Button variant="ghost" size="sm" onClick={handleReportIssue}>Report issue</Button>
+            </div>
+          </div>
+        )}
+
+        {issueReported && (
+          <p className="text-sm text-muted-foreground">
+            Thanks — this has been flagged and we'll look into it.
+          </p>
+        )}
+
         {/* Days */}
         <div className="space-y-3">
           {shareData.days.map((d, i) => (
@@ -427,7 +528,7 @@ export function SharePage() {
                 )}
                 {shareData.includeEquipment && (d.equipmentValue ?? 0) > 0 && (
                   <p className="text-xs text-muted-foreground">
-                    Equipment: £{d.equipmentValue} ({d.equipmentDiscount}% discount)
+                    Equipment: {shareEngine?.meta.currencySymbol ?? '£'}{d.equipmentValue} ({d.equipmentDiscount}% discount)
                   </p>
                 )}
               </CardContent>
@@ -485,7 +586,7 @@ export function SharePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="share-rate">Your agreed daily rate (£)</Label>
+              <Label htmlFor="share-rate">Your agreed daily rate ({shareEngine?.meta.currencySymbol ?? '£'})</Label>
               <Input
                 id="share-rate"
                 type="number"
@@ -512,7 +613,7 @@ export function SharePage() {
             {shareData.includeEquipment && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="share-equip-value">Equipment hire value (£)</Label>
+                  <Label htmlFor="share-equip-value">Equipment hire value ({shareEngine?.meta.currencySymbol ?? '£'})</Label>
                   <Input
                     id="share-equip-value"
                     type="number"
