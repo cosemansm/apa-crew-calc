@@ -18,7 +18,7 @@ import {
 } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { getEngine, DEFAULT_ENGINE_ID } from '@/engines/index';
+import { getCurrencySymbol, groupByCurrency, formatMultiCurrencyTotal } from '@/lib/currency';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
 import { STATUS_CONFIG, StatusBadge, type ProjectStatus } from './ProjectsPage';
 import { TrialBanner } from '@/components/TrialBanner';
@@ -60,28 +60,6 @@ function dayTotal(d: ProjectDay): number {
   return d.result_json?.grandTotal ?? 0;
 }
 
-function getCurrencySymbol(calcEngine: string | null | undefined): string {
-  try {
-    return getEngine(calcEngine ?? DEFAULT_ENGINE_ID).meta.currencySymbol;
-  } catch {
-    return '£';
-  }
-}
-
-function groupByCurrency(rows: Array<{ calc_engine?: string | null; total: number }>) {
-  const totals: Record<string, number> = {};
-  for (const row of rows) {
-    const symbol = getCurrencySymbol(row.calc_engine);
-    totals[symbol] = (totals[symbol] ?? 0) + row.total;
-  }
-  return totals;
-}
-
-function formatMultiCurrencyTotal(totals: Record<string, number>): string {
-  return Object.entries(totals)
-    .map(([symbol, total]) => `${symbol}${total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
-    .join(' · ');
-}
 
 export function DashboardPage() {
   usePageTitle('Dashboard');
@@ -284,18 +262,11 @@ export function DashboardPage() {
     });
   }, [allProjectDays, currentMonth]);
 
-  const monthTotal = monthProjects.reduce((sum, d) => sum + dayTotal(d), 0);
-
   // Total calendar days in the month
   const totalDaysInMonth = calendarDays.length;
 
   // Yearly total
   const currentYear = new Date().getFullYear();
-  const yearTotal = useMemo(() => {
-    return allProjectDays
-      .filter(d => parseISO(d.work_date).getFullYear() === currentYear)
-      .reduce((sum, d) => sum + dayTotal(d), 0);
-  }, [allProjectDays, currentYear]);
 
   // Last 6 months for bar chart — aggregate by yyyy-MM key to avoid new Date() closure issues
   const monthlyTotals = useMemo(() => {
@@ -344,10 +315,10 @@ export function DashboardPage() {
   const barMax = Math.max(...monthlyBreakdown.map(m => m.total), 1);
 
   // Dominant currency symbol for Y-axis tick labels
-  const dominantCurrencySymbol = (() => {
+  const dominantCurrencySymbol = useMemo(() => {
     const symbols = new Set(allProjectDays.map(d => getCurrencySymbol(d.calc_engine)));
     return symbols.size === 1 ? [...symbols][0] : '£';
-  })();
+  }, [allProjectDays]);
 
   // Compute nice reference line step (3 evenly spaced ticks above barMax)
   function niceStep(maxVal: number): number {

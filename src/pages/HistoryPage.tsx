@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { getEngine, DEFAULT_ENGINE_ID } from '@/engines/index';
+import { getCurrencySymbol, groupByCurrency, formatMultiCurrencyTotal } from '@/lib/currency';
 
 interface ProjectDay {
   id: string;
@@ -30,28 +30,6 @@ interface ProjectDay {
   projects: { name: string; client_name: string | null; calc_engine: string | null } | null;
 }
 
-function getCurrencySymbol(calcEngine: string | null | undefined): string {
-  try {
-    return getEngine(calcEngine ?? DEFAULT_ENGINE_ID).meta.currencySymbol;
-  } catch {
-    return '£';
-  }
-}
-
-function groupByCurrency(rows: Array<{ calc_engine?: string | null; total: number }>) {
-  const totals: Record<string, number> = {};
-  for (const row of rows) {
-    const symbol = getCurrencySymbol(row.calc_engine);
-    totals[symbol] = (totals[symbol] ?? 0) + row.total;
-  }
-  return totals;
-}
-
-function formatMultiCurrencyTotal(totals: Record<string, number>): string {
-  return Object.entries(totals)
-    .map(([symbol, total]) => `${symbol}${total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
-    .join(' · ');
-}
 
 export function HistoryPage() {
   const { user } = useAuth();

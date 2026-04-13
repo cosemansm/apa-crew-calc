@@ -15,7 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
-import { getEngine, DEFAULT_ENGINE_ID } from '@/engines/index';
+import { getCurrencySymbol } from '@/lib/currency';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -333,13 +333,7 @@ export function InvoicePage() {
   const vatAmount = vatNumber ? totalAmount * 0.2 : 0;
   const totalWithVat = totalAmount + vatAmount;
 
-  const engineId = selectedProject?.calc_engine ?? DEFAULT_ENGINE_ID;
-  let currencySymbol = '£';
-  try {
-    currencySymbol = getEngine(engineId).meta.currencySymbol;
-  } catch {
-    currencySymbol = '£';
-  }
+  const currencySymbol = getCurrencySymbol(selectedProject?.calc_engine);
 
   // Shared helper — captures the invoice element and builds a jsPDF.
   // scale:2 + PNG for crisp downloads; scale:1 + JPEG for smaller email attachments.
