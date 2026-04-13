@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { Analytics } from '@vercel/analytics/react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
+import { EngineProvider } from '@/contexts/EngineContext';
 import { AppLayout } from '@/components/AppLayout';
 import { LoginPage } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
@@ -57,6 +58,7 @@ export default function App() {
     <>
       <BrowserRouter>
         <AuthProvider>
+          <EngineProvider>
           <SubscriptionProvider>
             <PendingShareRedirect />
             <Routes>
@@ -80,6 +82,7 @@ export default function App() {
             </Routes>
             <ReviewPopupController />
           </SubscriptionProvider>
+          </EngineProvider>
         </AuthProvider>
       </BrowserRouter>
       <Analytics />
