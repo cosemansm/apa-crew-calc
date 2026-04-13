@@ -1,2 +1,17 @@
 [functions.new-user-notification]
 verify_jwt = false
+
+[functions.admin-users]
+verify_jwt = false
+
+[functions.admin-stats]
+verify_jwt = false
+
+[functions.admin-update-engine-access]
+verify_jwt = false
+
+[functions.revoke-lifetime]
+verify_jwt = false
+
+[functions.grant-lifetime]
+verify_jwt = false
