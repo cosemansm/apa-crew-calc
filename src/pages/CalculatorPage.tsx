@@ -1090,7 +1090,6 @@ export function CalculatorPage() {
       expenses_notes: expensesDayNotes.trim(),
       previous_wrap: autoPreviousWrap || null,
       is_bank_holiday: bankHolidays.has(workDate),
-      calc_engine: activeEngine.meta.id,
     };
 
     // Update project name if it has changed
