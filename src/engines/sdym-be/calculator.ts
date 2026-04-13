@@ -71,7 +71,7 @@ function calcNightWorkingMins(
 }
 
 export function calculateBelgian(input: EngineCalculationInput): EngineResult {
-  const rates = input.role.engineData as unknown as SdymRoleData
+  const rates = input.role.engineData as SdymRoleData
   const roleName = input.role.role
 
   // --- Flat day types ---

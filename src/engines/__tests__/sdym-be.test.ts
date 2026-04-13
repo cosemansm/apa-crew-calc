@@ -111,6 +111,6 @@ describe('Belgian SDYM engine', () => {
   })
 
   it('Test 8: LA assigned Recce → throws descriptive error', async () => {
-    expect(() => calcLA({ dayType: 'recce' })).rejects.toThrow('Recce day type is only available for the Gaffer')
+    await expect(calcLA({ dayType: 'recce' })).rejects.toThrow('Recce day type is only available for the Gaffer')
   })
 })
