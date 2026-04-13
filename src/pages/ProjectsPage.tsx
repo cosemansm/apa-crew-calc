@@ -18,8 +18,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { APA_CREW_ROLES } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek } from '@/data/calculation-engine';
+import { useEngine } from '@/hooks/useEngine';
+import { getEngine } from '@/engines/index';
 
 // ── History types ─────────────────────────────────────────────────────────────
 interface HistoryDay {
@@ -65,6 +68,7 @@ interface Project {
   client_name: string | null;
   created_at: string;
   status: ProjectStatus;
+  calc_engine?: string;
 }
 
 interface ProjectDay {
@@ -141,6 +145,7 @@ export function ProjectsPage() {
   const { user } = useAuth();
   const { isPremium } = useSubscription();
   const navigate = useNavigate();
+  const { showEngineSelector, authorizedEngines } = useEngine();
   const [activeTab, setActiveTab] = useState<'jobs' | 'history'>('jobs');
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -164,6 +169,12 @@ export function ProjectsPage() {
   const [shareDialogLoading, setShareDialogLoading] = useState(false);
   const [shareLinkCopied, setShareLinkCopied] = useState(false);
   const [shareDialogError, setShareDialogError] = useState<string | null>(null);
+
+  const [engineSwitchWarning, setEngineSwitchWarning] = useState<{
+    open: boolean;
+    targetId: string;
+    onConfirm: () => void;
+  }>({ open: false, targetId: '', onConfirm: () => {} });
 
   // History state
   const [historyDays, setHistoryDays] = useState<HistoryDay[]>([]);
@@ -680,6 +691,14 @@ export function ProjectsPage() {
                               Shared
                             </span>
                           )}
+                          {showEngineSelector && project.calc_engine && project.calc_engine !== 'apa-uk' && (() => {
+                            try {
+                              const e = getEngine(project.calc_engine!)
+                              return <Badge variant="outline" className="text-xs shrink-0">{e.meta.shortName}</Badge>
+                            } catch {
+                              return null
+                            }
+                          })()}
                         </div>
                         {project.client_name && (
                           <p className="text-sm text-muted-foreground truncate flex items-center gap-1 mt-0.5">
@@ -971,6 +990,34 @@ export function ProjectsPage() {
         onDeleted={id => setProjects(prev => prev.filter(p => p.id !== id))}
         onProceed={() => navigate('/calculator')}
       />
+
+      {/* ── Engine switch warning dialog ─────────────────────────────────── */}
+      <Dialog open={engineSwitchWarning.open} onOpenChange={(open) => setEngineSwitchWarning(s => ({ ...s, open }))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Switching to {authorizedEngines.find(e => e.meta.id === engineSwitchWarning.targetId)?.meta.name}
+            </DialogTitle>
+          </DialogHeader>
+          <ul className="text-sm space-y-1 list-disc pl-4 text-muted-foreground">
+            <li>Rates are fixed — no agreed daily rate input</li>
+            <li>Custom roles not available</li>
+            <li>Some APA-specific fields are hidden</li>
+          </ul>
+          <p className="text-sm mt-2">Your other jobs are not affected.</p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setEngineSwitchWarning(s => ({ ...s, open: false }))}>
+              Cancel
+            </Button>
+            <Button onClick={() => {
+              engineSwitchWarning.onConfirm()
+              setEngineSwitchWarning(s => ({ ...s, open: false }))
+            }}>
+              Switch
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Share dialog ──────────────────────────────────────────────────── */}
       <Dialog
