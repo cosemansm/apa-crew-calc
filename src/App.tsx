@@ -75,7 +75,7 @@ export default function App() {
                   <Route path="/invoices" element={<InvoicePage />} />
                   <Route path="/support/:section?" element={<SupportPage />} />
                   <Route path="/settings/:section?" element={<SettingsPage />} />
-                  <Route path="/admin" element={<AdminPage />} />
+                  <Route path="/admin/:tab?" element={<AdminPage />} />
                 </Route>
                 <Route path="/update-password" element={<UpdatePasswordPage />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />

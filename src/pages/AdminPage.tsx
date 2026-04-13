@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import * as Sentry from '@sentry/react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import {
@@ -1028,6 +1028,11 @@ export function AdminPage() {
   usePageTitle('Admin');
   const { user, session } = useAuth();
   const navigate = useNavigate();
+  const { tab: tabParam } = useParams<{ tab?: string }>();
+  const VALID_TABS = ['dashboard', 'feature-requests', 'notifications', 'engine-access'] as const;
+  type AdminTab = typeof VALID_TABS[number];
+  const adminTab: AdminTab = (VALID_TABS as readonly string[]).includes(tabParam ?? '') ? (tabParam as AdminTab) : 'dashboard';
+  function setAdminTab(id: AdminTab) { navigate(`/admin/${id}`, { replace: true }); }
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1037,7 +1042,6 @@ export function AdminPage() {
   const [userList, setUserList] = useState<UserListEntry[] | null>(null);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState<string | null>(null);
-  const [adminTab, setAdminTab] = useState<'dashboard' | 'feature-requests' | 'notifications' | 'engine-access'>('dashboard');
   const [engineUsers, setEngineUsers] = useState<EngineUserEntry[]>([]);
   const [engineUsersLoading, setEngineUsersLoading] = useState(false);
   const [engineUsersError, setEngineUsersError] = useState<string | null>(null);
