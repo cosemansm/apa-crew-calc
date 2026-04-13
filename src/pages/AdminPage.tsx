@@ -1150,8 +1150,7 @@ export function AdminPage() {
       // Note: email and name are not in profiles — cross-referenced from admin-users edge function
       const { data, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, signup_country, multi_engine_enabled, authorized_engines')
-        .order('created_at', { ascending: false });
+        .select('id, signup_country, multi_engine_enabled, authorized_engines');
       if (profilesError) throw new Error(profilesError.message);
       if (data) {
         setEngineUsers(data.map(row => ({
@@ -1732,7 +1731,7 @@ export function AdminPage() {
             )}
           </div>
           {engineUsersError && (
-            <p className="text-sm text-destructive">{engineUsersError}</p>
+            <p className="text-sm text-red-400">{engineUsersError}</p>
           )}
           {engineUsers.length > 0 && (
             <div className="bg-[#2a2a2c] rounded-2xl border border-white/5 overflow-hidden">
