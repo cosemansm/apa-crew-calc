@@ -698,37 +698,45 @@ export function CalculatorPage() {
       });
   }, [user]);
 
-  // Load project days & auto-load last day when entering a project
+  // Load project engine + days & auto-load last day when entering a project.
+  // Engine must be set BEFORE loading a day so the calculator uses the right engine.
   useEffect(() => {
-    if (projectId) {
-      supabase.from('project_days')
+    if (!projectId) { setJobEngine(null); return; }
+    (async () => {
+      // 1. Set engine first so subsequent calculation uses the correct one
+      const { data: proj } = await supabase.from('projects')
+        .select('calc_engine')
+        .eq('id', projectId)
+        .single();
+      if (proj) setJobEngine(proj.calc_engine ?? null);
+
+      // 2. Load project days
+      const { data } = await supabase.from('project_days')
         .select('id, work_date, role_name, grand_total, day_number, day_type, result_json, wrap_time, call_time, expenses_amount, expenses_notes')
         .eq('project_id', projectId)
-        .order('work_date', { ascending: true })
-        .then(({ data }) => {
-          if (data) {
-            setProjectDays(data as ProjectDaySummary[]);
-            // Sync calendar to the month of the first job day so booked dates are visible
-            if (data.length > 0) {
-              setCalendarMonth(new Date(data[0].work_date + 'T00:00:00'));
-            }
-            // Skip auto-load only if session has meaningful state (role + rate are populated).
-            // If the session is stale/incomplete (e.g. role missing due to a prior race condition),
-            // still trigger auto-load so the form isn't left blank.
-            if (restoredFromSession.current) {
-              restoredFromSession.current = false;
-              const sessionHasRole = !!(sessionRef.current?.selectedRoleName && sessionRef.current?.agreedRate);
-              if (sessionHasRole) return;
-            }
-            // If there are saved days, auto-load the most recent one
-            if (data.length > 0) {
-              const lastDay = data[data.length - 1];
-              loadDayById(lastDay.id);
-            }
-          }
-        });
-    }
-  }, [projectId]);
+        .order('work_date', { ascending: true });
+      if (data) {
+        setProjectDays(data as ProjectDaySummary[]);
+        // Sync calendar to the month of the first job day so booked dates are visible
+        if (data.length > 0) {
+          setCalendarMonth(new Date(data[0].work_date + 'T00:00:00'));
+        }
+        // Skip auto-load only if session has meaningful state (role + rate are populated).
+        // If the session is stale/incomplete (e.g. role missing due to a prior race condition),
+        // still trigger auto-load so the form isn't left blank.
+        if (restoredFromSession.current) {
+          restoredFromSession.current = false;
+          const sessionHasRole = !!(sessionRef.current?.selectedRoleName && sessionRef.current?.agreedRate);
+          if (sessionHasRole) return;
+        }
+        // If there are saved days, auto-load the most recent one
+        if (data.length > 0) {
+          const lastDay = data[data.length - 1];
+          loadDayById(lastDay.id);
+        }
+      }
+    })();
+  }, [projectId, setJobEngine]);
 
   // Load project name (skip if already set from session restore)
   useEffect(() => {
@@ -741,14 +749,6 @@ export function CalculatorPage() {
       });
     }
   }, [projectId, projectNameFromUrl]);
-
-  // Always load the job's engine from DB when projectId changes
-  useEffect(() => {
-    if (!projectId) { setJobEngine(null); return; }
-    supabase.from('projects').select('calc_engine').eq('id', projectId).single().then(({ data }) => {
-      if (data) setJobEngine(data.calc_engine ?? null);
-    });
-  }, [projectId, setJobEngine]);
 
   const dayOfWeek: string = useMemo(() => {
     if (bankHolidays.has(workDate)) return 'bank_holiday';
@@ -2228,7 +2228,7 @@ export function CalculatorPage() {
                                       <p className="text-xs text-muted-foreground leading-tight">{item.description}</p>
                                       {detail && <span className="text-[10px] text-muted-foreground/50 font-mono">{detail}</span>}
                                     </div>
-                                    <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">{activeEngine.meta.currencySymbol}{item.total.toFixed(2)}</span>
+                                    <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">{activeEngine.meta.currencySymbol}{(item.total ?? 0).toFixed(2)}</span>
                                   </Fragment>
                                 );
                               })}
@@ -2250,7 +2250,7 @@ export function CalculatorPage() {
                                           <p className="text-xs text-muted-foreground leading-tight">{p.description}</p>
                                           {pDetail && <span className="text-[10px] text-muted-foreground/50 font-mono">{pDetail}</span>}
                                         </div>
-                                        <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">{activeEngine.meta.currencySymbol}{p.total.toFixed(2)}</span>
+                                        <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">{activeEngine.meta.currencySymbol}{(p.total ?? 0).toFixed(2)}</span>
                                       </Fragment>
                                     );
                                   })}

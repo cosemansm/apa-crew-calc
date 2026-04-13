@@ -144,7 +144,7 @@ export function ProjectsPage() {
   const { user } = useAuth();
   const { isPremium } = useSubscription();
   const navigate = useNavigate();
-  const { showEngineSelector } = useEngine();
+  const { showEngineSelector, defaultEngineId } = useEngine();
   const [activeTab, setActiveTab] = useState<'jobs' | 'history'>('jobs');
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -685,7 +685,7 @@ export function ProjectsPage() {
                               Shared
                             </span>
                           )}
-                          {showEngineSelector && project.calc_engine && project.calc_engine !== 'apa-uk' && (() => {
+                          {showEngineSelector && project.calc_engine && project.calc_engine !== defaultEngineId && (() => {
                             try {
                               const e = getEngine(project.calc_engine!)
                               return <Badge variant="outline" className="text-xs shrink-0">{e.meta.shortName}</Badge>

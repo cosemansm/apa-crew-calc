@@ -19,6 +19,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCurrencySymbol, groupByCurrency, formatMultiCurrencyTotal } from '@/lib/currency';
+import { getEngine } from '@/engines/index';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
 import { STATUS_CONFIG, StatusBadge, type ProjectStatus } from './ProjectsPage';
 import { TrialBanner } from '@/components/TrialBanner';
@@ -65,7 +66,7 @@ function dayTotal(d: ProjectDay): number {
 export function DashboardPage() {
   usePageTitle('Dashboard');
   const { user } = useAuth();
-  const { defaultEngineId } = useEngine();
+  const { defaultEngineId, showEngineSelector } = useEngine();
   const { subscription, isPremium, isTrialing, trialDaysLeft, loading: subLoading } = useSubscription();
   const isLifetime = subscription?.status === 'lifetime';
   const navigate = useNavigate();
@@ -776,6 +777,12 @@ export function DashboardPage() {
                           <Badge variant="outline" className="text-xs">
                             {project.days.length} day{project.days.length !== 1 ? 's' : ''}
                           </Badge>
+                          {showEngineSelector && project.calc_engine && project.calc_engine !== defaultEngineId && (() => {
+                            try {
+                              const e = getEngine(project.calc_engine);
+                              return <Badge variant="outline" className="text-xs">{e.meta.shortName}</Badge>;
+                            } catch { return null; }
+                          })()}
                         </div>
                       </div>
                       <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
