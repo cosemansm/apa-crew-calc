@@ -7,6 +7,16 @@ export interface EngineMeta {
   currencySymbol: string;
   mileageUnit: 'miles' | 'km';
   domain?: string;
+  features: {
+    agreedRateInput: boolean;       // User enters a day rate (false = engine derives its own)
+    bhrOtInfo: boolean;             // BHR / OT grade info shown under role picker
+    breaksAndPenalties: boolean;    // Breaks & penalties section
+    mileage: boolean;               // Mileage input (e.g. miles outside M25)
+    equipmentTransport: boolean;    // Equipment transport km rate toggle
+    favourites: boolean;            // Favourites section in role picker
+    tocWarning: boolean;            // Time Off The Clock rest gap warning
+    callTypeBadges: boolean;        // Early / Late / All Night Call badges on saved days
+  };
 }
 
 export interface EngineRole {
