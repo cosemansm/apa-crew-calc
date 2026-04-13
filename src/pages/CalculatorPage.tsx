@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -15,28 +16,17 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Save, RotateCcw, PoundSterling, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown, Trash2, Receipt, Info, Check, Cloud, Car, Send } from 'lucide-react';
 import { format, getDay, addDays, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { toast } from 'sonner';
-import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
-import { calculateCrewCost, type DayType, type DayOfWeek, type CalculationResult } from '@/data/calculation-engine';
+import { useEngine } from '@/hooks/useEngine';
+import type { EngineRole, EngineResult } from '@/engines/types';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { cn } from '@/lib/utils';
 import { getUKBankHolidays } from '@/lib/bankHolidays';
 
-const DAY_TYPES: { value: DayType; label: string }[] = [
-  { value: 'basic_working', label: 'Basic Working Day (Shoot Day)' },
-  { value: 'continuous_working', label: 'Continuous Working Day' },
-  { value: 'prep', label: 'Prep Day' },
-  { value: 'recce', label: 'Recce Day' },
-  { value: 'build_strike', label: 'Build / Strike Day' },
-  { value: 'pre_light', label: 'Pre-light Day' },
-  { value: 'rest', label: 'Rest Day' },
-  { value: 'travel', label: 'Travel Day' },
-];
+const JS_DAY_TO_DOW = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
 
-const JS_DAY_TO_DOW: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-
-const DAY_LABELS: Record<DayOfWeek, string> = {
+const DAY_LABELS: Record<string, string> = {
   monday: 'Monday',
   tuesday: 'Tuesday',
   wednesday: 'Wednesday',
@@ -47,7 +37,7 @@ const DAY_LABELS: Record<DayOfWeek, string> = {
   bank_holiday: 'Bank Holiday',
 };
 
-function dateToDayOfWeek(dateStr: string): DayOfWeek {
+function dateToDayOfWeek(dateStr: string): string {
   const date = new Date(dateStr + 'T12:00:00');
   return JS_DAY_TO_DOW[getDay(date)];
 }
@@ -61,7 +51,7 @@ function addHoursToTime(time: string, hours: number): string {
 }
 
 // Default day duration for each type, used to auto-set wrap time on day type change
-const DEFAULT_WRAP_HOURS: Partial<Record<DayType, number>> = {
+const DEFAULT_WRAP_HOURS: Record<string, number> = {
   basic_working: 11,     // 10h working + 1h lunch
   continuous_working: 9, // 9h continuous (no lunch)
   prep: 8,               // 8h base
@@ -258,6 +248,7 @@ function ProjectCalendar({
   onMonthChange,
   onSelectDay,
   onAddDate,
+  currency = '£',
 }: {
   projectDays: ProjectDaySummary[];
   selectedDate: string;
@@ -265,6 +256,7 @@ function ProjectCalendar({
   onMonthChange: (d: Date) => void;
   onSelectDay?: (dayId: string) => void;
   onAddDate: (date: string) => void;
+  currency?: string;
 }) {
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
 
@@ -338,7 +330,7 @@ function ProjectCalendar({
                     onAddDate(dateStr);
                   }
                 }}
-                title={isBooked ? `${dayByDate[dateStr].role_name} — £${(dayByDate[dateStr].grand_total || 0).toFixed(0)}` : 'Add day'}
+                title={isBooked ? `${dayByDate[dateStr].role_name} — ${currency}${(dayByDate[dateStr].grand_total || 0).toFixed(0)}` : 'Add day'}
                 className={cn(
                   'relative z-10 w-[26px] h-[26px] flex items-center justify-center text-[11px] transition-all',
                   // Today gets a square-ish highlight
@@ -371,7 +363,7 @@ function ProjectCalendar({
         <div className="mt-2 pt-2 border-t border-border text-xs text-muted-foreground flex justify-between">
           <span>{projectDays.length} day{projectDays.length !== 1 ? 's' : ''} booked</span>
           <span className="font-mono font-medium text-foreground">
-            £{projectDays.reduce((s, d) => s + (d.grand_total || 0), 0).toFixed(0)}
+            {currency}{projectDays.reduce((s, d) => s + (d.grand_total || 0), 0).toFixed(0)}
           </span>
         </div>
       )}
@@ -443,6 +435,7 @@ export function CalculatorPage() {
   usePageTitle('Rate Calculator');
   const { user } = useAuth();
   const { isPremium } = useSubscription();
+  const { activeEngine, setJobEngine, showEngineSelector, authorizedEngines, defaultEngineId } = useEngine();
   const [searchParams, setSearchParams] = useSearchParams();
   const projectId = searchParams.get('project');
   const projectNameFromUrl = searchParams.get('name');
@@ -458,12 +451,9 @@ export function CalculatorPage() {
   const ss = (sessionMatchesUrl && sessionRef.current) ? sessionRef.current : null;
   const restoredFromSession = useRef(!!ss);
 
-  const [selectedRole, setSelectedRole] = useState<CrewRole | null>(() => {
-    const name = ss?.selectedRoleName;
-    return name ? APA_CREW_ROLES.find(r => r.role === name) ?? null : null;
-  });
+  const [selectedRole, setSelectedRole] = useState<EngineRole | null>(null);
   const [agreedRate, setAgreedRate] = useState<string>(ss?.agreedRate ?? '');
-  const [dayType, setDayType] = useState<DayType>((ss?.dayType as DayType) ?? 'basic_working');
+  const [dayType, setDayType] = useState<string>(ss?.dayType ?? 'basic_working');
   const [workDate, setWorkDate] = useState(ss?.workDate ?? dateFromUrl ?? format(new Date(), 'yyyy-MM-dd'));
   const [isBankHoliday, setIsBankHoliday] = useState(ss?.isBankHoliday ?? false);
   const [bankHolidays, setBankHolidays] = useState<Set<string>>(new Set());
@@ -494,7 +484,12 @@ export function CalculatorPage() {
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [favouriteRoles, setFavouriteRoles] = useState<string[]>([]);
-  const [customRoles, setCustomRoles] = useState<CrewRole[]>([]);
+  const [customRoles, setCustomRoles] = useState<EngineRole[]>([]);
+  // Belgian engine state
+  const [hasEquipment, setHasEquipment] = useState(false);
+  const [kmRate, setKmRate] = useState(0.43);
+  // T&Cs engine selector (for new job creation)
+  const [selectedCalcEngine, setSelectedCalcEngine] = useState(defaultEngineId);
 
   // Equipment packages
   const [equipmentPackages, setEquipmentPackages] = useState<{ id: string; name: string; day_rate: number }[]>([]);
@@ -542,6 +537,23 @@ export function CalculatorPage() {
       setSearchParams({ project: ss.projectId }, { replace: true });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Clean up job engine override when leaving this page
+  useEffect(() => {
+    return () => { setJobEngine(null); };
+  }, [setJobEngine]);
+
+  // Restore selected role from session on mount (using engine roles)
+  useEffect(() => {
+    const name = ss?.selectedRoleName;
+    if (name && !selectedRole) {
+      const role = activeEngine.getRole(name);
+      if (role) {
+        suppressDirtyRef.current = true;
+        setSelectedRole(role);
+      }
+    }
+  }, [activeEngine]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Persist form state to sessionStorage whenever it changes
   useEffect(() => {
@@ -647,14 +659,16 @@ export function CalculatorPage() {
       .order('created_at', { ascending: true })
       .then(({ data }) => {
         if (data) {
-          const mapped: CrewRole[] = data.map(r => ({
+          const mapped: EngineRole[] = data.map(r => ({
             role: r.role_name,
             department: 'Custom',
             minRate: r.daily_rate,
             maxRate: r.daily_rate,
-            otGrade: 'N/A' as const,
-            otCoefficient: r.ot_coefficient,
-            customBhr: r.custom_bhr ?? undefined,
+            engineData: {
+              otGrade: 'N/A',
+              otCoefficient: r.ot_coefficient,
+              customBhr: r.custom_bhr ?? undefined,
+            },
             isCustom: true,
             customId: r.id,
             isBuyout: r.is_buyout ?? false,
@@ -728,7 +742,7 @@ export function CalculatorPage() {
     }
   }, [projectId, projectNameFromUrl]);
 
-  const dayOfWeek: DayOfWeek = useMemo(() => {
+  const dayOfWeek: string = useMemo(() => {
     if (bankHolidays.has(workDate)) return 'bank_holiday';
     return dateToDayOfWeek(workDate);
   }, [workDate, bankHolidays]);
@@ -762,12 +776,13 @@ export function CalculatorPage() {
     return `${String(parseInt(h) + 24).padStart(2, '0')}:${m}`;
   }, [wrapTime, wrapNextDay]);
 
-  const result: CalculationResult | null = useMemo(() => {
-    if (!selectedRole || !agreedRate) return null;
-    const rate = parseInt(agreedRate);
-    if (isNaN(rate) || rate <= 0) return null;
+  const result: EngineResult | null = useMemo(() => {
+    if (!selectedRole) return null;
+    // Belgian engine derives its own rate; other engines require a positive agreed rate
+    const rate = parseInt(agreedRate) || 0;
+    if (activeEngine.meta.id !== 'sdym-be' && (isNaN(rate) || rate <= 0)) return null;
 
-    return calculateCrewCost({
+    return activeEngine.calculate({
       role: selectedRole,
       agreedDailyRate: rate,
       dayType,
@@ -783,12 +798,15 @@ export function CalculatorPage() {
       continuousFirstBreakGiven,
       continuousAdditionalBreakGiven,
       travelHours: parseFloat(travelHours) || 0,
-      mileageOutsideM25: parseFloat(mileage) || 0,
+      mileageDistance: parseFloat(mileage) || 0,
       previousWrapTime: autoPreviousWrap || undefined,
       equipmentValue: parseFloat(equipmentValue) || 0,
       equipmentDiscount: parseFloat(equipmentDiscount) || 0,
+      extra: activeEngine.meta.id === 'sdym-be'
+        ? { hasEquipment, kmRate }
+        : undefined,
     });
-  }, [selectedRole, agreedRate, dayType, dayOfWeek, callTime, effectiveWrapTime, firstBreakGiven, firstBreakTime, firstBreakDuration, secondBreakGiven, secondBreakTime, secondBreakDuration, continuousFirstBreakGiven, continuousAdditionalBreakGiven, travelHours, mileage, autoPreviousWrap, workDate, isBankHoliday, equipmentValue, equipmentDiscount]);
+  }, [selectedRole, agreedRate, dayType, dayOfWeek, callTime, effectiveWrapTime, firstBreakGiven, firstBreakTime, firstBreakDuration, secondBreakGiven, secondBreakTime, secondBreakDuration, continuousFirstBreakGiven, continuousAdditionalBreakGiven, travelHours, mileage, autoPreviousWrap, workDate, isBankHoliday, equipmentValue, equipmentDiscount, activeEngine, hasEquipment, kmRate]);
 
   // Mark dirty whenever the calculated result changes (but not during load/reset)
   useEffect(() => {
@@ -817,7 +835,7 @@ export function CalculatorPage() {
 
   // ── Auto-save: fires 1.5s after result changes, when minimum fields are ready ──
   useEffect(() => {
-    if (!result || !user || !selectedRole || !agreedRate || !isDirty) return;
+    if (!result || !user || !selectedRole || !isDirty) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(async () => {
       await handleSave();
@@ -826,21 +844,21 @@ export function CalculatorPage() {
   }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRoleChange = (roleName: string) => {
-    // Search custom roles first, then APA roles
+    // Search custom roles first, then engine roles
     const custom = customRoles.find(r => r.role === roleName);
     if (custom) {
       setSelectedRole(custom);
       if (custom.maxRate) setAgreedRate(custom.maxRate.toString());
       return;
     }
-    const role = APA_CREW_ROLES.find(r => r.role === roleName);
+    const role = activeEngine.getRole(roleName);
     setSelectedRole(role || null);
     if (role?.maxRate) {
       setAgreedRate(role.maxRate.toString());
     }
   };
 
-  const handleDayTypeChange = (newType: DayType) => {
+  const handleDayTypeChange = (newType: string) => {
     setDayType(newType);
     // Auto-set wrap time to the standard duration for the selected day type
     const defaultHours = DEFAULT_WRAP_HOURS[newType];
@@ -857,7 +875,7 @@ export function CalculatorPage() {
     setCurrentDayId(day.id);
     setWorkDate(day.work_date);
     setIsBankHoliday(day.is_bank_holiday ?? false);
-    setDayType(day.day_type as DayType);
+    setDayType(day.day_type);
     setCallTime(day.call_time);
     // Decode next-day wrap: hours ≥ 24 means it was saved as an over-midnight wrap
     const rawWrapHr = parseInt(day.wrap_time.split(':')[0]);
@@ -887,7 +905,7 @@ export function CalculatorPage() {
     setShowEquipmentSection((day.equipment_value ?? 0) > 0);
     setShowExpensesSection((day.expenses_amount ?? 0) > 0);
     setPreviousWrap(day.previous_wrap ?? '');
-    const role = customRoles.find(r => r.role === day.role_name) ?? APA_CREW_ROLES.find(r => r.role === day.role_name);
+    const role = customRoles.find(r => r.role === day.role_name) ?? activeEngine.getRole(day.role_name);
     if (role) {
       setSelectedRole(role);
       setAgreedRate(String(day.agreed_rate));
@@ -1035,6 +1053,7 @@ export function CalculatorPage() {
         user_id: user.id,
         name: projectName || 'Untitled',
         client_name: null,
+        calc_engine: selectedCalcEngine || activeEngine.meta.id,
       }).select().single();
       if (projError || !proj) { setSaving(false); setSaveError(true); return null; }
       resolvedProjectId = proj.id;
@@ -1068,6 +1087,7 @@ export function CalculatorPage() {
       expenses_notes: expensesDayNotes.trim(),
       previous_wrap: autoPreviousWrap || null,
       is_bank_holiday: bankHolidays.has(workDate),
+      calc_engine: activeEngine.meta.id,
     };
 
     // Update project name if it has changed
@@ -1263,6 +1283,21 @@ export function CalculatorPage() {
               <Label htmlFor="project">Job Name</Label>
               <div className="flex gap-2">
                 <Input id="project" placeholder="e.g. Nike Summer Campaign" value={projectName} onChange={e => setProjectName(e.target.value)} className="flex-1" />
+                {/* T&Cs engine selector — only shown when user has access to multiple engines and no project is set yet */}
+                {showEngineSelector && !projectId && (
+                  <Select value={selectedCalcEngine} onValueChange={(v) => { setSelectedCalcEngine(v); }}>
+                    <SelectTrigger className="w-44">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {authorizedEngines.map(e => (
+                        <SelectItem key={e.meta.id} value={e.meta.id}>
+                          {e.meta.shortName} ({e.meta.currencySymbol})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 <div className="relative" ref={projectPickerRef}>
                   <Button
                     variant="outline"
@@ -1338,7 +1373,7 @@ export function CalculatorPage() {
                         <Star className="h-3 w-3 fill-amber-500 text-amber-500" /> Favourites
                       </SelectLabel>
                       {favouriteRoles.map(roleName => {
-                        const role = APA_CREW_ROLES.find(r => r.role === roleName);
+                        const role = activeEngine.getRole(roleName);
                         return role ? (
                           <SelectItem key={`fav-${role.role}`} value={role.role}>
                             {role.role}
@@ -1347,8 +1382,8 @@ export function CalculatorPage() {
                       })}
                     </SelectGroup>
                   )}
-                  {DEPARTMENTS.map(dept => {
-                    const deptRoles = getRolesByDepartment(dept).filter(r => !favouriteRoles.includes(r.role));
+                  {activeEngine.departments.map(dept => {
+                    const deptRoles = activeEngine.getRolesByDepartment(dept).filter(r => !favouriteRoles.includes(r.role));
                     if (deptRoles.length === 0) return null;
                     return (
                       <SelectGroup key={dept}>
@@ -1363,16 +1398,16 @@ export function CalculatorPage() {
                   })}
                 </SelectContent>
               </Select>
-              {selectedRole && agreedRate && (
+              {selectedRole && agreedRate && activeEngine.meta.id !== 'sdym-be' && (
                 <div className="flex items-center gap-2 flex-wrap pt-0.5">
                   <span className="inline-flex items-center bg-[#1F1F21] text-[#FFD528] text-xs font-bold px-2.5 py-1 rounded-full font-mono">
-                    £{agreedRate}/day
+                    {activeEngine.meta.currencySymbol}{agreedRate}/day
                   </span>
-                  {!selectedRole.isBuyout && (
+                  {!selectedRole.isBuyout && activeEngine.meta.id === 'apa-uk' && (
                     <span className="text-xs text-muted-foreground">
-                      BHR £{selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)}/hr
-                      {selectedRole.otGrade !== 'N/A' && (
-                        <> · OT Grade {selectedRole.otGrade} · OT £{Math.round((selectedRole.customBhr ?? Math.round(parseInt(agreedRate) / 10)) * selectedRole.otCoefficient)}/hr</>
+                      BHR {activeEngine.meta.currencySymbol}{(selectedRole.engineData.customBhr as number | undefined) ?? Math.round(parseInt(agreedRate) / 10)}/hr
+                      {(selectedRole.engineData.otGrade as string) !== 'N/A' && (
+                        <> · OT Grade {selectedRole.engineData.otGrade as string} · OT {activeEngine.meta.currencySymbol}{Math.round(((selectedRole.engineData.customBhr as number | undefined) ?? Math.round(parseInt(agreedRate) / 10)) * (selectedRole.engineData.otCoefficient as number))}/hr</>
                       )}
                     </span>
                   )}
@@ -1394,12 +1429,12 @@ export function CalculatorPage() {
 
               <div className="space-y-2">
                 <Label>Day Type</Label>
-                <Select value={dayType} onValueChange={v => handleDayTypeChange(v as DayType)}>
+                <Select value={dayType} onValueChange={handleDayTypeChange}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {DAY_TYPES.map(dt => (
+                    {activeEngine.dayTypes.map(dt => (
                       <SelectItem key={dt.value} value={dt.value}>{dt.label}</SelectItem>
                     ))}
                   </SelectContent>
@@ -1610,7 +1645,7 @@ export function CalculatorPage() {
                     </div>
                   )}
 
-                  {dayType === 'continuous_working' && (
+                  {dayType === 'continuous_working' && activeEngine.meta.id === 'apa-uk' && (
                     <div className="space-y-3 rounded-md border p-4">
                       <div className="flex items-center gap-3">
                         <Checkbox id="contBreak" checked={continuousFirstBreakGiven} onCheckedChange={v => setContinuousFirstBreakGiven(!!v)} />
@@ -1683,11 +1718,52 @@ export function CalculatorPage() {
                       <p className="text-xs text-muted-foreground">Paid at BHR · travel + work ≥ 11hrs</p>
                     </div>
                   )}
-                  <div className="space-y-2">
-                    <Label htmlFor="mileage" className="text-sm">Miles outside M25</Label>
-                    <Input id="mileage" type="number" value={mileage} onChange={e => setMileage(e.target.value)} onWheel={e => e.currentTarget.blur()} min="0" placeholder="0" className="rounded-xl" />
-                    <p className="text-xs text-muted-foreground">50p/mile · W1F 9SE to location & back</p>
-                  </div>
+                  {activeEngine.meta.id === 'apa-uk' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="mileage" className="text-sm">Miles outside M25</Label>
+                      <Input id="mileage" type="number" value={mileage} onChange={e => setMileage(e.target.value)} onWheel={e => e.currentTarget.blur()} min="0" placeholder="0" className="rounded-xl" />
+                      <p className="text-xs text-muted-foreground">50p/mile · W1F 9SE to location & back</p>
+                    </div>
+                  )}
+                  {activeEngine.meta.id === 'sdym-be' && (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm font-medium">Transporting equipment?</label>
+                        <Switch
+                          checked={hasEquipment}
+                          onCheckedChange={(v) => {
+                            setHasEquipment(v);
+                            setKmRate(v ? 0.80 : 0.43);
+                          }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium">
+                          Distance ({activeEngine.meta.mileageUnit})
+                        </label>
+                        <Input
+                          type="number"
+                          value={mileage}
+                          onChange={(e) => setMileage(e.target.value)}
+                          onWheel={e => e.currentTarget.blur()}
+                          min={0}
+                          className="rounded-xl"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-sm font-medium">Rate per km ({activeEngine.meta.currencySymbol})</label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={kmRate}
+                          onChange={(e) => setKmRate(Number(e.target.value))}
+                          onWheel={e => e.currentTarget.blur()}
+                          min={0}
+                          className="rounded-xl"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -1703,7 +1779,7 @@ export function CalculatorPage() {
                   <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${showEquipmentSection ? 'rotate-90' : ''}`} />
                   <Package className="h-3.5 w-3.5" /> Equipment
                   {!showEquipmentSection && parseFloat(equipmentValue) > 0 && (
-                    <span className="text-xs text-muted-foreground font-normal ml-1">£{equipmentValue}</span>
+                    <span className="text-xs text-muted-foreground font-normal ml-1">{activeEngine.meta.currencySymbol}{equipmentValue}</span>
                   )}
                 </button>
                 {showEquipmentSection && (
@@ -1737,7 +1813,7 @@ export function CalculatorPage() {
                                 className="w-full text-left px-4 py-2.5 text-sm hover:bg-primary/5 transition-colors flex items-center justify-between gap-2"
                               >
                                 <span className="font-medium truncate">{pkg.name}</span>
-                                <span className="font-mono text-xs text-muted-foreground shrink-0">£{pkg.day_rate}/day</span>
+                                <span className="font-mono text-xs text-muted-foreground shrink-0">{activeEngine.meta.currencySymbol}{pkg.day_rate}/day</span>
                               </button>
                             ))}
                           </div>
@@ -1750,9 +1826,9 @@ export function CalculatorPage() {
               {showEquipmentSection && (
               <div className="grid grid-cols-2 gap-3 pl-5">
                 <div className="space-y-2">
-                  <Label htmlFor="equipment-value" className="text-sm">Value (£)</Label>
+                  <Label htmlFor="equipment-value" className="text-sm">Value ({activeEngine.meta.currencySymbol})</Label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">£</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{activeEngine.meta.currencySymbol}</span>
                     <Input
                       id="equipment-value"
                       type="number"
@@ -1785,7 +1861,7 @@ export function CalculatorPage() {
                   {parseFloat(equipmentDiscount) > 0 && parseFloat(equipmentValue) > 0 && (
                     <p className="text-xs text-muted-foreground">
                       = <span className="font-mono font-medium text-foreground">
-                        £{(parseFloat(equipmentValue) * (1 - parseFloat(equipmentDiscount) / 100)).toFixed(2)}
+                        {activeEngine.meta.currencySymbol}{(parseFloat(equipmentValue) * (1 - parseFloat(equipmentDiscount) / 100)).toFixed(2)}
                       </span>
                     </p>
                   )}
@@ -1804,15 +1880,15 @@ export function CalculatorPage() {
                 <ChevronRight className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${showExpensesSection ? 'rotate-90' : ''}`} />
                 <Receipt className="h-3.5 w-3.5" /> Expenses
                 {!showExpensesSection && expensesDayAmount && (
-                  <span className="text-xs text-muted-foreground font-normal ml-1">£{expensesDayAmount}</span>
+                  <span className="text-xs text-muted-foreground font-normal ml-1">{activeEngine.meta.currencySymbol}{expensesDayAmount}</span>
                 )}
               </button>
               {showExpensesSection && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pl-5">
                 <div className="space-y-2">
-                  <Label htmlFor="expenses-amount">Amount (£)</Label>
+                  <Label htmlFor="expenses-amount">Amount ({activeEngine.meta.currencySymbol})</Label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">£</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">{activeEngine.meta.currencySymbol}</span>
                     <Input
                       id="expenses-amount"
                       type="number"
@@ -1840,8 +1916,8 @@ export function CalculatorPage() {
               )}
             </div>
 
-            {/* Time Off The Clock — auto-calculated from project days */}
-            {autoPreviousWrap && callTime && (() => {
+            {/* Time Off The Clock — auto-calculated from project days (APA UK only) */}
+            {activeEngine.meta.id === 'apa-uk' && autoPreviousWrap && callTime && (() => {
               let prevMins = parseInt(autoPreviousWrap.split(':')[0]) * 60 + parseInt(autoPreviousWrap.split(':')[1]);
               let callMins = parseInt(callTime.split(':')[0]) * 60 + parseInt(callTime.split(':')[1]);
               let gap = callMins - prevMins;
@@ -1958,6 +2034,7 @@ export function CalculatorPage() {
               onMonthChange={setCalendarMonth}
               onSelectDay={projectId ? loadDayById : undefined}
               onAddDate={handleAddNewDay}
+              currency={activeEngine.meta.currencySymbol}
             />
             {!projectId && (
               <p className="text-xs text-muted-foreground text-center mt-2">
@@ -2017,7 +2094,7 @@ export function CalculatorPage() {
                     subtotal: result.subtotal,
                     travelPay: result.travelPay,
                     mileage: result.mileage,
-                    mileageMiles: result.mileageMiles,
+                    mileageMiles: result.mileageDistance,
                     equipmentValue: result.equipmentValue,
                     equipmentDiscount: result.equipmentDiscount,
                     equipmentTotal: result.equipmentTotal,
@@ -2078,7 +2155,7 @@ export function CalculatorPage() {
                               <p className="text-[10px] text-muted-foreground/60 truncate mt-0.5">{day.role_name}</p>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
-                              <span className="font-mono text-sm font-bold tabular-nums">£{(day.grand_total || 0).toFixed(2)}</span>
+                              <span className="font-mono text-sm font-bold tabular-nums">{activeEngine.meta.currencySymbol}{(day.grand_total || 0).toFixed(2)}</span>
                               {!day.isCurrent && (
                                 <button
                                   onClick={e => { e.stopPropagation(); removeDay(day.key); }}
@@ -2103,8 +2180,8 @@ export function CalculatorPage() {
                                 let ratePart = '';
                                 if (item.rate && item.hours) {
                                   ratePart = isDayRate
-                                    ? `£${item.total} × 1`
-                                    : `£${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
+                                    ? `${activeEngine.meta.currencySymbol}${item.total} × 1`
+                                    : `${activeEngine.meta.currencySymbol}${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
                                 }
                                 const detail = [timePart, ratePart].filter(Boolean).join(' · ');
                                 return (
@@ -2113,7 +2190,7 @@ export function CalculatorPage() {
                                       <p className="text-xs text-muted-foreground leading-tight">{item.description}</p>
                                       {detail && <span className="text-[10px] text-muted-foreground/50 font-mono">{detail}</span>}
                                     </div>
-                                    <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">£{item.total.toFixed(2)}</span>
+                                    <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">{activeEngine.meta.currencySymbol}{item.total.toFixed(2)}</span>
                                   </Fragment>
                                 );
                               })}
@@ -2126,8 +2203,8 @@ export function CalculatorPage() {
                                     let pDetail = '';
                                     if (p.rate && p.hours) {
                                       pDetail = pIsFlatRate
-                                        ? `£${p.rate} × 1`
-                                        : `£${p.rate} × ${parseFloat(p.hours.toFixed(2))}`;
+                                        ? `${activeEngine.meta.currencySymbol}${p.rate} × 1`
+                                        : `${activeEngine.meta.currencySymbol}${p.rate} × ${parseFloat(p.hours.toFixed(2))}`;
                                     }
                                     return (
                                       <Fragment key={`p-${i}`}>
@@ -2135,7 +2212,7 @@ export function CalculatorPage() {
                                           <p className="text-xs text-muted-foreground leading-tight">{p.description}</p>
                                           {pDetail && <span className="text-[10px] text-muted-foreground/50 font-mono">{pDetail}</span>}
                                         </div>
-                                        <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">£{p.total.toFixed(2)}</span>
+                                        <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">{activeEngine.meta.currencySymbol}{p.total.toFixed(2)}</span>
                                       </Fragment>
                                     );
                                   })}
@@ -2145,35 +2222,35 @@ export function CalculatorPage() {
                               {(rj.travelPay ?? 0) > 0 && (
                                 <Fragment key="travel">
                                   <p className="text-xs text-muted-foreground py-[3px]">Travel</p>
-                                  <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">£{(rj.travelPay ?? 0).toFixed(2)}</span>
+                                  <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">{activeEngine.meta.currencySymbol}{(rj.travelPay ?? 0).toFixed(2)}</span>
                                 </Fragment>
                               )}
 
                               {(rj.mileage ?? 0) > 0 && (
                                 <Fragment key="mileage">
-                                  <p className="text-xs text-muted-foreground py-[3px]">Mileage ({rj.mileageMiles} mi)</p>
-                                  <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">£{(rj.mileage ?? 0).toFixed(2)}</span>
+                                  <p className="text-xs text-muted-foreground py-[3px]">Mileage ({rj.mileageMiles} {activeEngine.meta.mileageUnit})</p>
+                                  <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">{activeEngine.meta.currencySymbol}{(rj.mileage ?? 0).toFixed(2)}</span>
                                 </Fragment>
                               )}
 
                               {(rj.equipmentTotal ?? 0) > 0 && (
                                 <Fragment key="equip">
                                   <p className="text-xs text-muted-foreground py-[3px]">Equipment{(rj.equipmentDiscount ?? 0) > 0 ? ` (−${rj.equipmentDiscount}%)` : ''}</p>
-                                  <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">£{(rj.equipmentTotal ?? 0).toFixed(2)}</span>
+                                  <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">{activeEngine.meta.currencySymbol}{(rj.equipmentTotal ?? 0).toFixed(2)}</span>
                                 </Fragment>
                               )}
 
                               {(day.expensesAmount ?? 0) > 0 && (
                                 <Fragment key="expenses">
                                   <p className="text-xs text-muted-foreground py-[3px]">Expenses</p>
-                                  <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">£{(day.expensesAmount ?? 0).toFixed(2)}</span>
+                                  <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">{activeEngine.meta.currencySymbol}{(day.expensesAmount ?? 0).toFixed(2)}</span>
                                 </Fragment>
                               )}
                             </div>
 
                             <div className="border-t border-border/40 mt-1 pt-1.5 flex items-center justify-between">
                               <span className="text-xs font-black uppercase tracking-wide">Day Total</span>
-                              <span className="font-mono text-sm font-black tabular-nums">£{(day.grand_total || 0).toFixed(2)}</span>
+                              <span className="font-mono text-sm font-black tabular-nums">{activeEngine.meta.currencySymbol}{(day.grand_total || 0).toFixed(2)}</span>
                             </div>
                           </div>
                         )}
@@ -2184,7 +2261,7 @@ export function CalculatorPage() {
                   {/* Project / job total */}
                   <div className="flex justify-between text-sm font-bold px-1 pt-1">
                     <span>{isMultiDay ? 'Job Total' : 'Total'}</span>
-                    <span className="font-mono">£{projectTotal.toFixed(2)}</span>
+                    <span className="font-mono">{activeEngine.meta.currencySymbol}{projectTotal.toFixed(2)}</span>
                   </div>
 
                   {currentDayId && (
