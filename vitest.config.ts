@@ -3,7 +3,7 @@ import viteConfig from './vite.config'
 
 export default mergeConfig(viteConfig, defineConfig({
   test: {
-    environment: 'jsdom',
+    environment: 'node',
     include: ['src/**/*.test.ts'],
   },
 }))
