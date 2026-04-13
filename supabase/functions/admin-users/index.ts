@@ -36,23 +36,32 @@ Deno.serve(async (req) => {
       })
     }
 
-    const [usersResult, subscriptionsResult] = await Promise.allSettled([
+    const [usersResult, subscriptionsResult, profilesResult] = await Promise.allSettled([
       db.auth.admin.listUsers({ perPage: 1000, page: 1 }),
       db.from('subscriptions').select('user_id, status, trial_ends_at, current_period_end'),
+      db.from('profiles').select('id, signup_country, multi_engine_enabled, authorized_engines'),
     ])
 
     const users = usersResult.status === 'fulfilled' ? (usersResult.value.data?.users ?? []) : []
     const subscriptions = subscriptionsResult.status === 'fulfilled' ? (subscriptionsResult.value.data ?? []) : []
+    const profiles = profilesResult.status === 'fulfilled' ? (profilesResult.value.data ?? []) : []
 
     const subByUserId = new Map(subscriptions.map(s => [s.user_id, s]))
-    const userList = users.map(u => ({
-      user_id: u.id,
-      email: u.email ?? '',
-      name: (u.user_metadata?.full_name as string | undefined) ?? '',
-      status: subByUserId.get(u.id)?.status ?? 'trialing',
-      trial_ends_at: subByUserId.get(u.id)?.trial_ends_at ?? null,
-      created_at: u.created_at,
-    })).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    const profileByUserId = new Map(profiles.map((p: { id: string; signup_country: string | null; multi_engine_enabled: boolean; authorized_engines: string[] }) => [p.id, p]))
+    const userList = users.map(u => {
+      const profile = profileByUserId.get(u.id)
+      return {
+        user_id: u.id,
+        email: u.email ?? '',
+        name: (u.user_metadata?.full_name as string | undefined) ?? '',
+        status: subByUserId.get(u.id)?.status ?? 'trialing',
+        trial_ends_at: subByUserId.get(u.id)?.trial_ends_at ?? null,
+        created_at: u.created_at,
+        signup_country: profile?.signup_country ?? null,
+        multi_engine_enabled: profile?.multi_engine_enabled ?? false,
+        authorized_engines: profile?.authorized_engines ?? ['apa-uk'],
+      }
+    }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
     return new Response(JSON.stringify({ userList }), {
       status: 200,

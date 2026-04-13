@@ -7,7 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from 'recharts';
-import { Users, Briefcase, CalendarDays, PoundSterling, TrendingUp, Zap, RefreshCw, BarChart2, Lightbulb, ChevronDown, X, Upload, Trash2, Pencil, ArrowRight, Globe } from 'lucide-react';
+import { Users, Briefcase, CalendarDays, PoundSterling, TrendingUp, Zap, RefreshCw, BarChart2, Lightbulb, ChevronDown, X, Upload, Trash2, Pencil, ArrowRight, Globe, Search } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Switch } from '@/components/ui/switch';
 import { getAllEngines } from '@/engines/index';
@@ -957,23 +957,38 @@ interface EngineUserEntry {
 
 function EngineAccessRow({
   user,
+  accessToken,
   onUpdate,
 }: {
   user: EngineUserEntry;
+  accessToken: string;
   onUpdate: (updated: EngineUserEntry) => void;
 }) {
   const allEngines = useMemo(() => getAllEngines(), []);
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+
+  const updateProfile = async (field: 'multi_engine_enabled' | 'authorized_engines', value: boolean | string[]) => {
+    const resp = await fetch(`${supabaseUrl}/functions/v1/admin-update-engine-access`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'apikey': anonKey,
+      },
+      body: JSON.stringify({ user_id: user.id, field, value }),
+    });
+    const json = await resp.json();
+    if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
+  };
 
   const toggleMultiEngine = async () => {
     const newValue = !user.multi_engine_enabled;
-    const { error } = await supabase
-      .from('profiles')
-      .update({ multi_engine_enabled: newValue })
-      .eq('id', user.id);
-    if (error) {
-      Sentry.captureException(new Error(error.message), { extra: { context: 'toggleMultiEngine', userId: user.id } });
-    } else {
+    try {
+      await updateProfile('multi_engine_enabled', newValue);
       onUpdate({ ...user, multi_engine_enabled: newValue });
+    } catch (err) {
+      Sentry.captureException(err, { extra: { context: 'toggleMultiEngine', userId: user.id } });
     }
   };
 
@@ -983,14 +998,11 @@ function EngineAccessRow({
       ? current.filter(id => id !== engineId)
       : [...current, engineId];
     if (next.length === 0) return; // minimum 1 engine
-    const { error } = await supabase
-      .from('profiles')
-      .update({ authorized_engines: next })
-      .eq('id', user.id);
-    if (error) {
-      Sentry.captureException(new Error(error.message), { extra: { context: 'toggleEngine', userId: user.id, engineId } });
-    } else {
+    try {
+      await updateProfile('authorized_engines', next);
       onUpdate({ ...user, authorized_engines: next });
+    } catch (err) {
+      Sentry.captureException(err, { extra: { context: 'toggleEngine', userId: user.id, engineId } });
     }
   };
 
@@ -1045,6 +1057,7 @@ export function AdminPage() {
   const [engineUsers, setEngineUsers] = useState<EngineUserEntry[]>([]);
   const [engineUsersLoading, setEngineUsersLoading] = useState(false);
   const [engineUsersError, setEngineUsersError] = useState<string | null>(null);
+  const [engineUserSearch, setEngineUserSearch] = useState('');
   const [jobsView, setJobsView] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const frReloadRef = useRef<(() => void) | null>(null);
   const [frLoading, setFrLoading] = useState(false);
@@ -1146,21 +1159,16 @@ export function AdminPage() {
         nameMap[u.user_id] = u.name;
       });
 
-      // Note: email and name are not in profiles — cross-referenced from admin-users edge function
-      const { data, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, signup_country, multi_engine_enabled, authorized_engines');
-      if (profilesError) throw new Error(profilesError.message);
-      if (data) {
-        setEngineUsers(data.map(row => ({
-          id: row.id,
-          email: emailMap[row.id] ?? '',
-          display_name: nameMap[row.id] ?? null,
-          signup_country: row.signup_country ?? null,
-          multi_engine_enabled: row.multi_engine_enabled ?? false,
-          authorized_engines: row.authorized_engines ?? ['apa-uk'],
-        })));
-      }
+      // Profile data (multi_engine_enabled, authorized_engines, signup_country) is now
+      // included in the admin-users response, fetched server-side via service role.
+      setEngineUsers((json.userList as UserListEntry[]).map(u => ({
+        id: u.user_id,
+        email: u.email,
+        display_name: u.name || null,
+        signup_country: (u as unknown as { signup_country: string | null }).signup_country ?? null,
+        multi_engine_enabled: (u as unknown as { multi_engine_enabled: boolean }).multi_engine_enabled ?? false,
+        authorized_engines: (u as unknown as { authorized_engines: string[] }).authorized_engines ?? ['apa-uk'],
+      })));
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       setEngineUsersError(msg);
@@ -1733,32 +1741,50 @@ export function AdminPage() {
             <p className="text-sm text-red-400">{engineUsersError}</p>
           )}
           {engineUsers.length > 0 && (
-            <div className="bg-[#2a2a2c] rounded-2xl border border-white/5 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs font-mono">
-                  <thead>
-                    <tr className="border-b border-white/5">
-                      <th className="text-left text-white/30 px-4 py-2 font-normal">Name</th>
-                      <th className="text-left text-white/30 px-4 py-2 font-normal">Email</th>
-                      <th className="text-left text-white/30 px-4 py-2 font-normal">Signup Country</th>
-                      <th className="text-left text-white/30 px-4 py-2 font-normal">Multi-Engine</th>
-                      <th className="text-left text-white/30 px-4 py-2 font-normal">Authorized Engines</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {engineUsers.map(u => (
-                      <EngineAccessRow
-                        key={u.id}
-                        user={u}
-                        onUpdate={(updated) => {
-                          setEngineUsers(prev => prev.map(x => x.id === updated.id ? updated : x));
-                        }}
-                      />
-                    ))}
-                  </tbody>
-                </table>
+            <>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30 pointer-events-none" />
+                <input
+                  type="text"
+                  value={engineUserSearch}
+                  onChange={e => setEngineUserSearch(e.target.value)}
+                  placeholder="Search by name or email…"
+                  className="w-full pl-9 pr-4 py-2 rounded-xl bg-white/5 border border-white/5 text-white/70 placeholder-white/25 text-xs font-mono focus:outline-none focus:border-white/20"
+                />
               </div>
-            </div>
+              <div className="bg-[#2a2a2c] rounded-2xl border border-white/5 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs font-mono">
+                    <thead>
+                      <tr className="border-b border-white/5">
+                        <th className="text-left text-white/30 px-4 py-2 font-normal">Name</th>
+                        <th className="text-left text-white/30 px-4 py-2 font-normal">Email</th>
+                        <th className="text-left text-white/30 px-4 py-2 font-normal">Signup Country</th>
+                        <th className="text-left text-white/30 px-4 py-2 font-normal">Multi-Engine</th>
+                        <th className="text-left text-white/30 px-4 py-2 font-normal">Authorized Engines</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {engineUsers
+                        .filter(u => {
+                          const q = engineUserSearch.toLowerCase();
+                          return !q || u.email.toLowerCase().includes(q) || (u.display_name ?? '').toLowerCase().includes(q);
+                        })
+                        .map(u => (
+                          <EngineAccessRow
+                            key={u.id}
+                            user={u}
+                            accessToken={session!.access_token}
+                            onUpdate={(updated) => {
+                              setEngineUsers(prev => prev.map(x => x.id === updated.id ? updated : x));
+                            }}
+                          />
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
           )}
           {engineUsersLoading && engineUsers.length === 0 && (
             <div className="flex items-center justify-center py-16 text-white/30 text-sm font-mono">
