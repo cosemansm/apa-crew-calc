@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import * as Sentry from '@sentry/react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -962,7 +962,7 @@ function EngineAccessRow({
   user: EngineUserEntry;
   onUpdate: (updated: EngineUserEntry) => void;
 }) {
-  const allEngines = getAllEngines();
+  const allEngines = useMemo(() => getAllEngines(), []);
   const isAdmin = user.email === ADMIN_EMAIL;
 
   const toggleMultiEngine = async () => {
@@ -972,7 +972,11 @@ function EngineAccessRow({
       .from('profiles')
       .update({ multi_engine_enabled: newValue })
       .eq('id', user.id);
-    if (!error) onUpdate({ ...user, multi_engine_enabled: newValue });
+    if (error) {
+      Sentry.captureException(new Error(error.message), { extra: { context: 'toggleMultiEngine', userId: user.id } });
+    } else {
+      onUpdate({ ...user, multi_engine_enabled: newValue });
+    }
   };
 
   const toggleEngine = async (engineId: string) => {
@@ -986,7 +990,11 @@ function EngineAccessRow({
       .from('profiles')
       .update({ authorized_engines: next })
       .eq('id', user.id);
-    if (!error) onUpdate({ ...user, authorized_engines: next });
+    if (error) {
+      Sentry.captureException(new Error(error.message), { extra: { context: 'toggleEngine', userId: user.id, engineId } });
+    } else {
+      onUpdate({ ...user, authorized_engines: next });
+    }
   };
 
   return (
@@ -1037,6 +1045,7 @@ export function AdminPage() {
   const [adminTab, setAdminTab] = useState<'dashboard' | 'feature-requests' | 'notifications' | 'engine-access'>('dashboard');
   const [engineUsers, setEngineUsers] = useState<EngineUserEntry[]>([]);
   const [engineUsersLoading, setEngineUsersLoading] = useState(false);
+  const [engineUsersError, setEngineUsersError] = useState<string | null>(null);
   const [jobsView, setJobsView] = useState<'daily' | 'weekly' | 'monthly'>('daily');
   const frReloadRef = useRef<(() => void) | null>(null);
   const [frLoading, setFrLoading] = useState(false);
@@ -1116,6 +1125,7 @@ export function AdminPage() {
   async function fetchEngineUsers() {
     if (!session?.access_token) return;
     setEngineUsersLoading(true);
+    setEngineUsersError(null);
     try {
       // Fetch email list from admin-users edge function so we can cross-reference by user_id
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
@@ -1149,9 +1159,11 @@ export function AdminPage() {
           authorized_engines: row.authorized_engines ?? ['apa-uk'],
         })));
       }
-    } catch (e) {
-      Sentry.captureException(e, { extra: { context: 'AdminPage fetchEngineUsers' } });
-      console.error('fetchEngineUsers failed:', e);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setEngineUsersError(msg);
+      Sentry.captureException(err, { extra: { context: 'fetchEngineUsers' } });
+      console.error('fetchEngineUsers failed:', err);
     } finally {
       setEngineUsersLoading(false);
     }
@@ -1715,6 +1727,9 @@ export function AdminPage() {
               </button>
             )}
           </div>
+          {engineUsersError && (
+            <p className="text-sm text-destructive">{engineUsersError}</p>
+          )}
           {engineUsers.length > 0 && (
             <div className="bg-[#2a2a2c] rounded-2xl border border-white/5 overflow-hidden">
               <div className="overflow-x-auto">
