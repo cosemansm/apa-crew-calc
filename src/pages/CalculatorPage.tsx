@@ -972,7 +972,7 @@ export function CalculatorPage() {
     setCurrentDayId(null);
     setSelectedRole(null);
     setAgreedRate('');
-    setDayType('basic_working');
+    setDayType(activeEngine.dayTypes[0]?.value ?? 'basic_working');
     wrapManualRef.current = false;
     setShowTravel(false);
     setShowEquipmentSection(false);
@@ -1011,7 +1011,7 @@ export function CalculatorPage() {
     setCurrentDayId(null);
     setWorkDate(date);
     setIsBankHoliday(false);
-    setDayType('basic_working');
+    setDayType(activeEngine.dayTypes[0]?.value ?? 'basic_working');
     setCallTime('08:00');
     setWrapTime('19:00');
     setWrapNextDay(false);
@@ -1111,9 +1111,12 @@ export function CalculatorPage() {
       const { error } = await supabase.from('project_days').update(payload).eq('id', currentDayId);
       if (!error) savedId = currentDayId;
     } else {
-      // Guard: prevent duplicate date within same job
-      const dateAlreadyBooked = projectDays.some(d => d.work_date === workDate);
-      if (dateAlreadyBooked) {
+      // Guard: prevent duplicate date within same job (query DB to avoid stale state)
+      const { count: existingCount } = await supabase.from('project_days')
+        .select('id', { count: 'exact', head: true })
+        .eq('project_id', resolvedProjectId)
+        .eq('work_date', workDate);
+      if (existingCount && existingCount > 0) {
         setSaving(false);
         setSaveError(true);
         return null;
@@ -1150,9 +1153,11 @@ export function CalculatorPage() {
     return savedId;
   };
 
-  // Returns the next date after `fromDate` that is not already booked in this job
-  const nextAvailableDate = (fromDate: string): string => {
+  // Returns the next date after `fromDate` that is not already booked in this job.
+  // `extraBooked` lets callers include dates not yet reflected in `projectDays` state.
+  const nextAvailableDate = (fromDate: string, extraBooked?: string[]): string => {
     const booked = new Set(projectDays.map(d => d.work_date));
+    if (extraBooked) extraBooked.forEach(d => booked.add(d));
     let candidate = parseISO(fromDate);
     do {
       candidate = addDays(candidate, 1);
@@ -1165,7 +1170,7 @@ export function CalculatorPage() {
     const savedId = await handleSave();
     // Only proceed to a fresh form if the save succeeded
     if (!savedId) return;
-    handleAddNewDay(nextAvailableDate(workDate));
+    handleAddNewDay(nextAvailableDate(workDate, [workDate]));
     // After all state updates from handleAddNewDay settle, mark the new day dirty
     // so the "Unsaved changes" banner appears and the day won't be silently lost.
     setTimeout(() => {
