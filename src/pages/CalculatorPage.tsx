@@ -17,6 +17,7 @@ import { Save, RotateCcw, Calculator, CalendarDays, Star, Plus, FileText as Invo
 import { format, getDay, addDays, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { toast } from 'sonner';
 import { useEngine } from '@/hooks/useEngine';
+import { getEngine } from '@/engines/index';
 import type { EngineRole, EngineResult } from '@/engines/types';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -703,6 +704,7 @@ export function CalculatorPage() {
   useEffect(() => {
     if (!projectId) { setJobEngine(null); return; }
     (async () => {
+      try {
       // 1. Set engine first so subsequent calculation uses the correct one
       const { data: proj } = await supabase.from('projects')
         .select('calc_engine')
@@ -734,6 +736,9 @@ export function CalculatorPage() {
           const lastDay = data[data.length - 1];
           loadDayById(lastDay.id);
         }
+      }
+      } catch (err) {
+        console.error('Failed to load project data:', err);
       }
     })();
   }, [projectId, setJobEngine]);
@@ -790,7 +795,7 @@ export function CalculatorPage() {
     const rate = parseInt(agreedRate) || 0;
     if (activeEngine.meta.features.agreedRateInput && (isNaN(rate) || rate <= 0)) return null;
 
-    return activeEngine.calculate({
+    try { return activeEngine.calculate({
       role: selectedRole,
       agreedDailyRate: rate,
       dayType,
@@ -813,7 +818,7 @@ export function CalculatorPage() {
       extra: !activeEngine.meta.features.agreedRateInput
         ? { hasEquipment, kmRate }
         : undefined,
-    });
+    }); } catch { return null; }
   }, [selectedRole, agreedRate, dayType, dayOfWeek, callTime, effectiveWrapTime, firstBreakGiven, firstBreakTime, firstBreakDuration, secondBreakGiven, secondBreakTime, secondBreakDuration, continuousFirstBreakGiven, continuousAdditionalBreakGiven, travelHours, mileage, autoPreviousWrap, workDate, isBankHoliday, equipmentValue, equipmentDiscount, activeEngine, hasEquipment, kmRate]);
 
   // Mark dirty whenever the calculated result changes (but not during load/reset)
@@ -1312,6 +1317,14 @@ export function CalculatorPage() {
                 )}
                 {showEngineSelector && projectId && (
                   <Select value={activeEngine.meta.id} onValueChange={async (v) => {
+                    const newEngine = getEngine(v);
+                    if (!newEngine.dayTypes.some(dt => dt.value === dayType)) {
+                      setDayType(newEngine.dayTypes[0]?.value ?? 'basic_working');
+                    }
+                    if (selectedRole && !newEngine.getRole(selectedRole.role)) {
+                      setSelectedRole(null);
+                      setAgreedRate('');
+                    }
                     setJobEngine(v);
                     await supabase.from('projects').update({ calc_engine: v }).eq('id', projectId);
                   }}>

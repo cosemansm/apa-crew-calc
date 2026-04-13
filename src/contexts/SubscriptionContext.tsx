@@ -43,18 +43,24 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
-    const { data, error: fetchError } = await supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-    if (fetchError) {
-      console.error('Failed to fetch subscription:', fetchError);
-      setError(new Error(fetchError.message));
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+      if (fetchError) {
+        console.error('Failed to fetch subscription:', fetchError);
+        setError(new Error(fetchError.message));
+        setSubscription(null);
+      } else {
+        setError(null);
+        setSubscription(data ?? null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch subscription:', err);
+      setError(err instanceof Error ? err : new Error('Network error'));
       setSubscription(null);
-    } else {
-      setError(null);
-      setSubscription(data ?? null);
     }
     setLoading(false);
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps

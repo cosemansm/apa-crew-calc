@@ -184,11 +184,15 @@ export function ProjectsPage() {
 
   const loadHistory = async () => {
     setHistoryLoading(true);
-    const { data } = await supabase
-      .from('project_days')
-      .select('*, projects(name, client_name)')
-      .order('work_date', { ascending: false });
-    if (data) setHistoryDays(data as HistoryDay[]);
+    try {
+      const { data } = await supabase
+        .from('project_days')
+        .select('*, projects(name, client_name)')
+        .order('work_date', { ascending: false });
+      if (data) setHistoryDays(data as HistoryDay[]);
+    } catch (err) {
+      console.error('Failed to load history:', err);
+    }
     setHistoryLoading(false);
   };
 
@@ -199,52 +203,55 @@ export function ProjectsPage() {
 
   const loadProjects = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('user_id', user!.id)
-      .order('created_at', { ascending: false });
+    try {
+      const { data } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: false });
 
-    let projects: Project[] = (data as Project[]) ?? [];
+      let projects: Project[] = (data as Project[]) ?? [];
 
-    // ── Auto-finish: promote ongoing → finished when all days are in the past ──
-    const today = new Date().toISOString().split('T')[0];
-    const ongoingIds = projects.filter(p => p.status === 'ongoing').map(p => p.id);
-    if (ongoingIds.length > 0) {
-      const { data: dayRows } = await supabase
-        .from('project_days')
-        .select('project_id, work_date')
-        .in('project_id', ongoingIds);
+      // ── Auto-finish: promote ongoing → finished when all days are in the past ──
+      const today = new Date().toISOString().split('T')[0];
+      const ongoingIds = projects.filter(p => p.status === 'ongoing').map(p => p.id);
+      if (ongoingIds.length > 0) {
+        const { data: dayRows } = await supabase
+          .from('project_days')
+          .select('project_id, work_date')
+          .in('project_id', ongoingIds);
 
-      // Find max work_date per project
-      const maxDate: Record<string, string> = {};
-      dayRows?.forEach(d => {
-        if (!maxDate[d.project_id] || d.work_date > maxDate[d.project_id]) {
-          maxDate[d.project_id] = d.work_date;
+        // Find max work_date per project
+        const maxDate: Record<string, string> = {};
+        dayRows?.forEach(d => {
+          if (!maxDate[d.project_id] || d.work_date > maxDate[d.project_id]) {
+            maxDate[d.project_id] = d.work_date;
+          }
+        });
+
+        // Projects whose latest day is strictly before today
+        const toFinish = ongoingIds.filter(id => maxDate[id] && maxDate[id] < today);
+        if (toFinish.length > 0) {
+          await supabase.from('projects').update({ status: 'finished' }).in('id', toFinish);
+          projects = projects.map(p => toFinish.includes(p.id) ? { ...p, status: 'finished' as ProjectStatus } : p);
         }
-      });
-
-      // Projects whose latest day is strictly before today
-      const toFinish = ongoingIds.filter(id => maxDate[id] && maxDate[id] < today);
-      if (toFinish.length > 0) {
-        await supabase.from('projects').update({ status: 'finished' }).in('id', toFinish);
-        projects = projects.map(p => toFinish.includes(p.id) ? { ...p, status: 'finished' as ProjectStatus } : p);
       }
+
+      setProjects(projects);
+
+      // Load which projects have active share links
+      const projectIds = projects.map(p => p.id);
+      if (projectIds.length > 0) {
+        const { data: shareRows } = await supabase
+          .from('shared_jobs')
+          .select('project_id')
+          .in('project_id', projectIds)
+          .eq('is_active', true);
+        if (shareRows) setSharedProjectIds(new Set(shareRows.map((r: any) => r.project_id)));
+      }
+    } catch (err) {
+      console.error('Failed to load projects:', err);
     }
-
-    setProjects(projects);
-
-    // Load which projects have active share links
-    const projectIds = projects.map(p => p.id);
-    if (projectIds.length > 0) {
-      const { data: shareRows } = await supabase
-        .from('shared_jobs')
-        .select('project_id')
-        .in('project_id', projectIds)
-        .eq('is_active', true);
-      if (shareRows) setSharedProjectIds(new Set(shareRows.map((r: any) => r.project_id)));
-    }
-
     setLoading(false);
   };
 
