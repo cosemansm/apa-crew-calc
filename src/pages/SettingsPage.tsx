@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { useEngine } from '@/hooks/useEngine';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { isFreeAgentConnected, disconnectFreeAgent } from '@/services/bookkeeping/freeagent';
 import { isXeroConnected, disconnectXero } from '@/services/bookkeeping/xero';
@@ -191,6 +192,9 @@ const VALID_SETTINGS_SECTIONS = new Set<string>(['my-details', 'custom-rates', '
 
 export function SettingsPage() {
   usePageTitle('Settings');
+  const { activeEngine, showEngineSelector, authorizedEngines, setDefaultEngine, defaultEngineId } = useEngine()
+  const [engineModalOpen, setEngineModalOpen] = useState(false)
+  const [pendingEngineId, setPendingEngineId] = useState(defaultEngineId)
   const { user } = useAuth();
   const { section } = useParams<{ section?: string }>();
   const { subscription, isPremium, isTrialing, trialDaysLeft, trialExtended } = useSubscription();
@@ -752,7 +756,7 @@ export function SettingsPage() {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div>
-                    <CardTitle className="flex items-center gap-2"><Briefcase className="h-5 w-5" /> Custom Rates</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><Briefcase className="h-5 w-5" /> My Rates</CardTitle>
                     <CardDescription>Create your own job roles with custom rates and overtime rules</CardDescription>
                   </div>
                   {!showAddForm && (
@@ -763,48 +767,71 @@ export function SettingsPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                {customRolesError && (
-                  <div className="rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive space-y-1">
-                    <p className="font-medium">Could not load custom grades</p>
-                    <p className="text-xs opacity-80">{customRolesError}</p>
+                {showEngineSelector && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                    <span>Calculator engine: <strong>{activeEngine.meta.name} ({activeEngine.meta.currencySymbol})</strong></span>
+                    <button
+                      onClick={() => {
+                        setPendingEngineId(defaultEngineId)
+                        setEngineModalOpen(true)
+                      }}
+                      className="inline-flex items-center gap-1 text-xs underline underline-offset-2 hover:text-foreground"
+                    >
+                      <Pencil size={12} />
+                      Change
+                    </button>
                   </div>
                 )}
-                {showAddForm && (
-                  <CustomRoleForm onSave={handleAddCustomRole} onCancel={() => setShowAddForm(false)} />
-                )}
-                {customRoles.length === 0 && !showAddForm && !customRolesError && (
-                  <p className="text-sm text-muted-foreground text-center py-8">No custom rates yet. Click "Add Rate" to create one.</p>
-                )}
-                {customRoles.map(role => (
-                  <div key={role.id}>
-                    {editingId === role.id ? (
-                      <CustomRoleForm initial={role} onSave={(r) => handleUpdateCustomRole(role.id, r)} onCancel={() => setEditingId(null)} />
-                    ) : (
-                      <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium text-sm">{role.role_name}</span>
-                            <Badge variant="secondary" className="text-xs">Custom</Badge>
-                            {role.is_buyout && <Badge variant="outline" className="text-xs text-muted-foreground">Buyout</Badge>}
-                          </div>
-                          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-                            <span className="font-mono">£{role.daily_rate}/day</span>
-                            {!role.is_buyout ? (<>
-                              <span>·</span>
-                              <span className="font-mono">BHR £{role.custom_bhr ?? Math.round(role.daily_rate / 10)}/hr</span>
-                              <span>·</span>
-                              <span>OT x{role.ot_coefficient}{role.ot_coefficient > 0 && <span className="font-mono ml-1">(£{Math.round((role.custom_bhr ?? Math.round(role.daily_rate / 10)) * role.ot_coefficient)}/hr)</span>}</span>
-                            </>) : null}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingId(role.id); setShowAddForm(false); }}><Pencil className="h-3.5 w-3.5" /></Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteCustomRole(role.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                        </div>
+                {activeEngine.meta.id !== 'apa-uk' ? (
+                  <p className="text-sm text-muted-foreground py-4">
+                    Custom roles are only available with the APA UK engine.
+                  </p>
+                ) : (
+                  <>
+                    {customRolesError && (
+                      <div className="rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive space-y-1">
+                        <p className="font-medium">Could not load custom grades</p>
+                        <p className="text-xs opacity-80">{customRolesError}</p>
                       </div>
                     )}
-                  </div>
-                ))}
+                    {showAddForm && (
+                      <CustomRoleForm onSave={handleAddCustomRole} onCancel={() => setShowAddForm(false)} />
+                    )}
+                    {customRoles.length === 0 && !showAddForm && !customRolesError && (
+                      <p className="text-sm text-muted-foreground text-center py-8">No custom rates yet. Click "Add Rate" to create one.</p>
+                    )}
+                    {customRoles.map(role => (
+                      <div key={role.id}>
+                        {editingId === role.id ? (
+                          <CustomRoleForm initial={role} onSave={(r) => handleUpdateCustomRole(role.id, r)} onCancel={() => setEditingId(null)} />
+                        ) : (
+                          <div className="flex items-center justify-between gap-3 p-3 rounded-xl border border-border hover:bg-muted/30 transition-colors">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium text-sm">{role.role_name}</span>
+                                <Badge variant="secondary" className="text-xs">Custom</Badge>
+                                {role.is_buyout && <Badge variant="outline" className="text-xs text-muted-foreground">Buyout</Badge>}
+                              </div>
+                              <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
+                                <span className="font-mono">£{role.daily_rate}/day</span>
+                                {!role.is_buyout ? (<>
+                                  <span>·</span>
+                                  <span className="font-mono">BHR £{role.custom_bhr ?? Math.round(role.daily_rate / 10)}/hr</span>
+                                  <span>·</span>
+                                  <span>OT x{role.ot_coefficient}{role.ot_coefficient > 0 && <span className="font-mono ml-1">(£{Math.round((role.custom_bhr ?? Math.round(role.daily_rate / 10)) * role.ot_coefficient)}/hr)</span>}</span>
+                                </>) : null}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingId(role.id); setShowAddForm(false); }}><Pencil className="h-3.5 w-3.5" /></Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteCustomRole(role.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </>
+                )}
               </CardContent>
             </Card>
           )}
@@ -1370,6 +1397,42 @@ export function SettingsPage() {
 
         </div>
       </div>
+
+      {/* Engine change modal */}
+      <Dialog open={engineModalOpen} onOpenChange={setEngineModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Calculator Engine</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <Select value={pendingEngineId} onValueChange={setPendingEngineId}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {authorizedEngines.map(e => (
+                  <SelectItem key={e.meta.id} value={e.meta.id}>
+                    {e.meta.name} ({e.meta.currencySymbol})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-muted-foreground">
+              This will affect all future jobs. Existing jobs keep their current T&Cs.
+              You can also change the engine on individual jobs from the job settings.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setEngineModalOpen(false)}>Cancel</Button>
+            <Button onClick={async () => {
+              await setDefaultEngine(pendingEngineId)
+              setEngineModalOpen(false)
+            }}>
+              Save
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Disconnect confirmation dialog */}
       <Dialog open={disconnectPending !== null} onOpenChange={open => { if (!open) setDisconnectPending(null); }}>
