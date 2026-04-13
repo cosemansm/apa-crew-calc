@@ -153,15 +153,18 @@ export function SharePage() {
   useEffect(() => {
     if (!shareEngine || !user) return;
     const hasAccess = authorizedEngines.some(e => e.meta.id === shareEngine.meta.id);
-    if (!hasAccess) {
-      setEngineError('mismatch');
-      Sentry.captureEvent({
-        message: 'Job share engine issue',
-        level: 'warning',
-        tags: { feature: 'job-sharing', scenario: 'engine_mismatch', job_engine: shareEngine.meta.id },
-        extra: { viewerEngineAccess: authorizedEngines.map(e => e.meta.id) },
-      });
+    if (hasAccess) {
+      // Clear mismatch error if it was set prematurely (EngineContext loads async)
+      setEngineError(prev => prev === 'mismatch' ? null : prev);
+      return;
     }
+    setEngineError('mismatch');
+    Sentry.captureEvent({
+      message: 'Job share engine issue',
+      level: 'warning',
+      tags: { feature: 'job-sharing', scenario: 'engine_mismatch', job_engine: shareEngine.meta.id },
+      extra: { shareToken: token, viewerEngineAccess: authorizedEngines.map(e => e.meta.id) },
+    });
   }, [shareEngine, user, authorizedEngines]);
 
   // Set page title to job name for share previews (e.g. WhatsApp/iMessage)
@@ -310,17 +313,24 @@ export function SharePage() {
 
   const handleEnableBelgianEngine = async () => {
     if (!user) return;
-    const { data: profile } = await supabase
+    const { data: profile, error: selectError } = await supabase
       .from('profiles')
       .select('authorized_engines')
       .eq('id', user.id)
       .single();
-    const current = (profile?.authorized_engines as string[]) ?? ['apa-uk'];
+    if (selectError || !profile) {
+      // Can't safely merge engines without knowing current list
+      return;
+    }
+    const current = (profile.authorized_engines as string[]) ?? ['apa-uk'];
     const updated = Array.from(new Set([...current, 'sdym-be']));
-    await supabase.from('profiles').update({
+    const { error: updateError } = await supabase.from('profiles').update({
       multi_engine_enabled: true,
       authorized_engines: updated,
     }).eq('id', user.id);
+    if (updateError) {
+      return;
+    }
     window.location.reload();
   };
 
