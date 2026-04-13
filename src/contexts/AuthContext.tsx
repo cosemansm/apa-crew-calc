@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import * as Sentry from '@sentry/react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
+import { detectSignupCountry } from '@/lib/detectSignupCountry';
+import { getEngineForCountry } from '@/engines/index';
 
 interface AuthContextType {
   user: User | null;
@@ -55,15 +57,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string, department?: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { full_name: fullName, department: department || null },
         emailRedirectTo: 'https://app.crewdock.app/dashboard',
       },
-    });
-    return { error: error as Error | null };
+    })
+
+    if (!error && data.user) {
+      // Fire-and-forget country detection — failure is silent, defaults remain safe for UK users
+      ;(async () => {
+        try {
+          const country = await detectSignupCountry()
+          const engineId = getEngineForCountry(country)
+          await supabase.from('profiles').upsert({
+            id: data.user!.id,
+            signup_country: country,
+            default_engine: engineId,
+            multi_engine_enabled: country !== 'GB',
+            authorized_engines: country !== 'GB'
+              ? ['apa-uk', engineId]
+              : ['apa-uk'],
+          }, { onConflict: 'id', ignoreDuplicates: false })
+        } catch {
+          // Silent fallback — profile keeps safe defaults (apa-uk, multi_engine_enabled: false)
+        }
+      })()
+    }
+
+    return { error: error as Error | null }
   };
 
   const signIn = async (email: string, password: string) => {
