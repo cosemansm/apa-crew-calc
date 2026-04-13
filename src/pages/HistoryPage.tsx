@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { getEngine, DEFAULT_ENGINE_ID } from '@/engines/index';
 
 interface ProjectDay {
   id: string;
@@ -26,7 +27,30 @@ interface ProjectDay {
     mileage?: number;
     mileageMiles?: number;
   };
-  projects: { name: string; client_name: string | null } | null;
+  projects: { name: string; client_name: string | null; calc_engine: string | null } | null;
+}
+
+function getCurrencySymbol(calcEngine: string | null | undefined): string {
+  try {
+    return getEngine(calcEngine ?? DEFAULT_ENGINE_ID).meta.currencySymbol;
+  } catch {
+    return '£';
+  }
+}
+
+function groupByCurrency(rows: Array<{ calc_engine?: string | null; total: number }>) {
+  const totals: Record<string, number> = {};
+  for (const row of rows) {
+    const symbol = getCurrencySymbol(row.calc_engine);
+    totals[symbol] = (totals[symbol] ?? 0) + row.total;
+  }
+  return totals;
+}
+
+function formatMultiCurrencyTotal(totals: Record<string, number>): string {
+  return Object.entries(totals)
+    .map(([symbol, total]) => `${symbol}${total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+    .join(' · ');
 }
 
 export function HistoryPage() {
@@ -44,7 +68,7 @@ export function HistoryPage() {
     setLoading(true);
     const { data } = await supabase
       .from('project_days')
-      .select('*, projects(name, client_name)')
+      .select('*, projects(name, client_name, calc_engine)')
       .order('work_date', { ascending: false });
     if (data) setDays(data as ProjectDay[]);
     setLoading(false);
@@ -66,7 +90,7 @@ export function HistoryPage() {
         </h1>
         {days.length > 0 && (
           <Badge variant="outline" className="text-base px-4 py-1">
-            Total: £{totalSpend.toFixed(2)}
+            Total: {formatMultiCurrencyTotal(groupByCurrency(days.map(d => ({ calc_engine: d.projects?.calc_engine, total: d.grand_total || 0 }))))}
           </Badge>
         )}
       </div>
@@ -95,12 +119,12 @@ export function HistoryPage() {
                       <Badge variant="outline">{day.day_type.replace(/_/g, ' ')}</Badge>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {day.work_date ? format(parseISO(day.work_date), 'dd MMM yyyy') : '—'} | Call: {day.call_time} – Wrap: {day.wrap_time} | Rate: £{day.agreed_rate}
+                      {day.work_date ? format(parseISO(day.work_date), 'dd MMM yyyy') : '—'} | Call: {day.call_time} – Wrap: {day.wrap_time} | Rate: {getCurrencySymbol(day.projects?.calc_engine)}{day.agreed_rate}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-lg font-bold font-mono text-foreground">
-                      £{(day.grand_total || 0).toFixed(2)}
+                      {getCurrencySymbol(day.projects?.calc_engine)}{(day.grand_total || 0).toFixed(2)}
                     </span>
                     <Button variant="ghost" size="icon" onClick={() => setExpandedId(expandedId === day.id ? null : day.id)}>
                       {expandedId === day.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -116,30 +140,30 @@ export function HistoryPage() {
                     {day.result_json.lineItems?.map((item, i) => (
                       <div key={i} className="flex justify-between">
                         <span className="text-muted-foreground">{item.description}</span>
-                        <span className="font-mono">£{item.total.toFixed(2)}</span>
+                        <span className="font-mono">{getCurrencySymbol(day.projects?.calc_engine)}{item.total.toFixed(2)}</span>
                       </div>
                     ))}
                     {day.result_json.penalties?.map((p, i) => (
                       <div key={i} className="flex justify-between text-orange-600">
                         <span>{p.description}</span>
-                        <span className="font-mono">£{p.total.toFixed(2)}</span>
+                        <span className="font-mono">{getCurrencySymbol(day.projects?.calc_engine)}{p.total.toFixed(2)}</span>
                       </div>
                     ))}
                     {(day.result_json.travelPay ?? 0) > 0 && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Travel</span>
-                        <span className="font-mono">£{(day.result_json.travelPay ?? 0).toFixed(2)}</span>
+                        <span className="font-mono">{getCurrencySymbol(day.projects?.calc_engine)}{(day.result_json.travelPay ?? 0).toFixed(2)}</span>
                       </div>
                     )}
                     {(day.result_json.mileage ?? 0) > 0 && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Mileage ({day.result_json.mileageMiles} miles @ 50p)</span>
-                        <span className="font-mono">£{(day.result_json.mileage ?? 0).toFixed(2)}</span>
+                        <span className="font-mono">{getCurrencySymbol(day.projects?.calc_engine)}{(day.result_json.mileage ?? 0).toFixed(2)}</span>
                       </div>
                     )}
                     <div className="flex justify-between font-bold pt-2 border-t border-border">
                       <span>Total</span>
-                      <span className="font-mono text-foreground">£{(day.grand_total || 0).toFixed(2)}</span>
+                      <span className="font-mono text-foreground">{getCurrencySymbol(day.projects?.calc_engine)}{(day.grand_total || 0).toFixed(2)}</span>
                     </div>
                   </div>
                 )}

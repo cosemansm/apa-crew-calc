@@ -18,6 +18,7 @@ import {
 } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { getEngine, DEFAULT_ENGINE_ID } from '@/engines/index';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
 import { STATUS_CONFIG, StatusBadge, type ProjectStatus } from './ProjectsPage';
 import { TrialBanner } from '@/components/TrialBanner';
@@ -33,6 +34,7 @@ interface Project {
   client_name: string | null;
   created_at: string;
   status: ProjectStatus;
+  calc_engine?: string | null;
   days: ProjectDay[];
 }
 
@@ -56,6 +58,29 @@ interface FavouriteRole {
 function dayTotal(d: ProjectDay): number {
   if (d.grand_total && d.grand_total > 0) return d.grand_total;
   return d.result_json?.grandTotal ?? 0;
+}
+
+function getCurrencySymbol(calcEngine: string | null | undefined): string {
+  try {
+    return getEngine(calcEngine ?? DEFAULT_ENGINE_ID).meta.currencySymbol;
+  } catch {
+    return '£';
+  }
+}
+
+function groupByCurrency(rows: Array<{ calc_engine?: string | null; total: number }>) {
+  const totals: Record<string, number> = {};
+  for (const row of rows) {
+    const symbol = getCurrencySymbol(row.calc_engine);
+    totals[symbol] = (totals[symbol] ?? 0) + row.total;
+  }
+  return totals;
+}
+
+function formatMultiCurrencyTotal(totals: Record<string, number>): string {
+  return Object.entries(totals)
+    .map(([symbol, total]) => `${symbol}${total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+    .join(' · ');
 }
 
 export function DashboardPage() {
@@ -214,6 +239,7 @@ export function DashboardPage() {
       ...d,
       projectName: p.name,
       projectStatus: (p.status ?? 'ongoing') as ProjectStatus,
+      calc_engine: p.calc_engine ?? null,
     })));
   }, [projects]);
 
@@ -504,7 +530,7 @@ export function DashboardPage() {
                               {dp.role_name ? ` · ${dp.role_name}` : ''}
                             </p>
                             <p className="text-lg font-bold tracking-tight mb-3">
-                              £{dayTotal(dp).toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                              {getCurrencySymbol(dp.calc_engine)}{dayTotal(dp).toLocaleString('en-GB', { maximumFractionDigits: 0 })}
                             </p>
                             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Project status</p>
                             <div className="grid grid-cols-2 gap-1 mb-3">
@@ -615,7 +641,9 @@ export function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-[11px] text-muted-foreground">Monthly earnings</p>
-                  <p className="text-2xl font-bold tracking-tight">£{monthTotal.toLocaleString('en-GB', { maximumFractionDigits: 0 })}</p>
+                  <p className="text-2xl font-bold tracking-tight">
+                    {formatMultiCurrencyTotal(groupByCurrency(monthProjects.map(d => ({ calc_engine: d.calc_engine, total: dayTotal(d) }))))}
+                  </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {monthProjects.length} day{monthProjects.length !== 1 ? 's' : ''} booked
                   </p>
@@ -633,7 +661,11 @@ export function DashboardPage() {
                     {currentYear} Total
                   </p>
                   <p className="text-2xl font-bold tracking-tight mt-1">
-                    £{yearTotal.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                    {formatMultiCurrencyTotal(groupByCurrency(
+                      allProjectDays
+                        .filter(d => parseISO(d.work_date).getFullYear() === currentYear)
+                        .map(d => ({ calc_engine: d.calc_engine, total: dayTotal(d) }))
+                    ))}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {allProjectDays.filter(d => parseISO(d.work_date).getFullYear() === currentYear).length} days worked
@@ -760,7 +792,7 @@ export function DashboardPage() {
                         </span>
                         <span className="flex items-center gap-1 font-medium text-foreground">
                           <PoundSterling className="h-3.5 w-3.5" />
-                          {totalCost > 0 ? `£${totalCost.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '—'}
+                          {totalCost > 0 ? `${getCurrencySymbol(project.calc_engine)}${totalCost.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '—'}
                         </span>
                       </div>
                     </CardContent>
