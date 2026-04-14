@@ -102,8 +102,7 @@ export function DashboardPage() {
         .then(({ data }) => {
           if (data?.display_name) setDisplayName(data.display_name);
           if (data?.department) setUserDepartment(data.department);
-        })
-        .catch(() => {});
+        }, () => {});
     }
   }, [user, location.key]);
 

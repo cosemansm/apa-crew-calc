@@ -306,11 +306,9 @@ export function AIInputPage() {
   useEffect(() => {
     if (!user) return;
     supabase.from('favourite_roles').select('role_name').eq('user_id', user.id)
-      .then(({ data }) => { if (data) setFavouriteRoles(data.map(r => r.role_name)); })
-      .catch(() => {});
+      .then(({ data }) => { if (data) setFavouriteRoles(data.map(r => r.role_name)); }, () => {});
     supabase.from('user_settings').select('department').eq('user_id', user.id).single()
-      .then(({ data }) => { if (data?.department) setUserDepartment(data.department); })
-      .catch(() => {});
+      .then(({ data }) => { if (data?.department) setUserDepartment(data.department); }, () => {});
   }, [user]);
 
   // ── Parse ──────────────────────────────────────────────────────────────────
@@ -759,13 +757,13 @@ export function AIInputPage() {
                     {result.lineItems.filter(Boolean).map((item, j) => (
                       <div key={j} className="flex justify-between text-xs text-muted-foreground">
                         <span>{item.description}</span>
-                        <span className="font-medium text-foreground">{(item.total ?? 0).toFixed(2)}</span>
+                        <span className="font-medium text-foreground">£{(item.total ?? 0).toFixed(2)}</span>
                       </div>
                     ))}
                     {result.penalties.filter(Boolean).map((item, j) => (
                       <div key={`pen-${j}`} className="flex justify-between text-xs text-orange-600">
                         <span>{item.description}</span>
-                        <span className="font-medium">{(item.total ?? 0).toFixed(2)}</span>
+                        <span className="font-medium">£{(item.total ?? 0).toFixed(2)}</span>
                       </div>
                     ))}
                   </div>

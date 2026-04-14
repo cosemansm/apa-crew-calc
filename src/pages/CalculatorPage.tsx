@@ -611,8 +611,7 @@ export function CalculatorPage() {
       supabase.from('projects').select('id, name, client_name')
         .eq('user_id', user.id)
         .order('updated_at', { ascending: false })
-        .then(({ data }) => { if (data) setAllProjects(data); })
-        .catch(() => {});
+        .then(({ data }) => { if (data) setAllProjects(data); }, () => {});
     }
   }, [user]);
 
@@ -664,12 +663,10 @@ export function CalculatorPage() {
   useEffect(() => {
     if (!user) return;
     supabase.from('favourite_roles').select('role_name').eq('user_id', user.id)
-      .then(({ data }) => { if (data) setFavouriteRoles(data.map(f => f.role_name)); })
-      .catch(() => {});
+      .then(({ data }) => { if (data) setFavouriteRoles(data.map(f => f.role_name)); }, () => {});
     supabase.from('equipment_packages').select('id, name, day_rate').eq('user_id', user.id)
       .order('name', { ascending: true })
-      .then(({ data }) => { if (data) setEquipmentPackages(data); })
-      .catch(() => {});
+      .then(({ data }) => { if (data) setEquipmentPackages(data); }, () => {});
     supabase.from('custom_roles').select('*').eq('user_id', user.id)
       .order('created_at', { ascending: true })
       .then(({ data }) => {
@@ -710,8 +707,7 @@ export function CalculatorPage() {
             }
           }
         }
-      })
-      .catch(() => {});
+      }, () => {});
   }, [user]);
 
   // Load project engine + days & auto-load last day when entering a project.

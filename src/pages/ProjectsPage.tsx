@@ -60,6 +60,7 @@ interface ProjectDay {
   wrap_time: string;
   grand_total: number;
   agreed_rate: number;
+  calc_engine?: string;
   result_json?: {
     lineItems?: { description: string; hours?: number; rate?: number; total: number; timeFrom?: string; timeTo?: string; isDayRate?: boolean }[];
     penalties?: { description: string; hours?: number; rate?: number; total: number }[];
