@@ -5,9 +5,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  FolderOpen, Plus, Clock, ChevronRight,
+  FolderOpen, Plus, Clock, PoundSterling, ChevronRight,
   Calendar, User, Edit3, X, Sparkles, Trash2, Copy,
-  Search, FileText, Send, Check, Lock,
+  History, ChevronDown, ChevronUp, Search, FileText, Send, Check, Lock,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { supabase } from '@/lib/supabase';
@@ -22,7 +22,27 @@ import { APA_CREW_ROLES } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek } from '@/data/calculation-engine';
 import { useEngine } from '@/hooks/useEngine';
 import { getEngine } from '@/engines/index';
-import { getCurrencySymbol } from '@/lib/currency';
+
+// ── History types ─────────────────────────────────────────────────────────────
+interface HistoryDay {
+  id: string;
+  created_at: string;
+  work_date: string;
+  role_name: string;
+  day_type: string;
+  call_time: string;
+  wrap_time: string;
+  agreed_rate: number;
+  grand_total: number;
+  result_json: {
+    lineItems?: { description: string; hours?: number; rate?: number; total: number; timeFrom?: string; timeTo?: string; isDayRate?: boolean }[];
+    penalties?: { description: string; hours?: number; rate?: number; total: number }[];
+    travelPay?: number;
+    mileage?: number;
+    mileageMiles?: number;
+  };
+  projects: { name: string; client_name: string | null } | null;
+}
 
 // ── Status config ────────────────────────────────────────────────────────────
 export type ProjectStatus = 'ongoing' | 'finished' | 'invoiced' | 'paid';
@@ -125,6 +145,7 @@ export function ProjectsPage() {
   const { isPremium } = useSubscription();
   const navigate = useNavigate();
   const { showEngineSelector, defaultEngineId } = useEngine();
+  const [activeTab, setActiveTab] = useState<'jobs' | 'history'>('jobs');
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -148,9 +169,37 @@ export function ProjectsPage() {
   const [shareLinkCopied, setShareLinkCopied] = useState(false);
   const [shareDialogError, setShareDialogError] = useState<string | null>(null);
 
+  // History state
+  const [historyDays, setHistoryDays] = useState<HistoryDay[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
+
   useEffect(() => {
     if (user) loadProjects();
   }, [user]);
+
+  useEffect(() => {
+    if (user && activeTab === 'history' && historyDays.length === 0) loadHistory();
+  }, [activeTab, user]);
+
+  const loadHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const { data } = await supabase
+        .from('project_days')
+        .select('*, projects(name, client_name)')
+        .order('work_date', { ascending: false });
+      if (data) setHistoryDays(data as HistoryDay[]);
+    } catch (err) {
+      console.error('Failed to load history:', err);
+    }
+    setHistoryLoading(false);
+  };
+
+  const deleteHistoryDay = async (id: string) => {
+    await supabase.from('project_days').delete().eq('id', id);
+    setHistoryDays(prev => prev.filter(d => d.id !== id));
+  };
 
   const loadProjects = async () => {
     setLoading(true);
@@ -445,6 +494,8 @@ export function ProjectsPage() {
       }`
     : null;
 
+  const historyTotal = historyDays.reduce((sum, d) => sum + (d.grand_total || 0), 0);
+
   const filteredProjects = jobSearch.trim()
     ? projects.filter(p =>
         p.name.toLowerCase().includes(jobSearch.toLowerCase()) ||
@@ -470,7 +521,126 @@ export function ProjectsPage() {
         </div>
       </div>
 
-      {loading ? (
+      {/* Tab bar */}
+      <div className="flex gap-1 p-1 bg-muted rounded-xl w-fit">
+        <button
+          onClick={() => setActiveTab('jobs')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeTab === 'jobs' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <FolderOpen className="h-4 w-4" /> Jobs
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeTab === 'history' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <History className="h-4 w-4" /> History
+        </button>
+      </div>
+
+      {/* ── History tab ── */}
+      {activeTab === 'history' && (
+        <div className="space-y-4">
+          {historyDays.length > 0 && (
+            <div className="flex justify-end">
+              <Badge variant="outline" className="text-base px-4 py-1">
+                Total: £{historyTotal.toFixed(2)}
+              </Badge>
+            </div>
+          )}
+          {historyLoading ? (
+            <div className="text-center py-12 text-muted-foreground text-sm">Loading…</div>
+          ) : historyDays.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center text-muted-foreground">
+                No saved calculations yet. Use the calculator to create and save your first one.
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {historyDays.map(day => (
+                <Card key={day.id}>
+                  <CardContent className="py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium">{day.projects?.name ?? 'Untitled'}</span>
+                          {day.projects?.client_name && (
+                            <span className="text-sm text-muted-foreground">— {day.projects.client_name}</span>
+                          )}
+                          <Badge variant="secondary">{day.role_name}</Badge>
+                          <Badge variant="outline">{day.day_type.replace(/_/g, ' ')}</Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {day.work_date ? format(parseISO(day.work_date), 'dd MMM yyyy') : '—'} | Call: {day.call_time} – Wrap: {day.wrap_time} | Rate: £{day.agreed_rate}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg font-bold font-mono">£{(day.grand_total || 0).toFixed(2)}</span>
+                        <Button variant="ghost" size="icon" onClick={() => setExpandedHistoryId(expandedHistoryId === day.id ? null : day.id)}>
+                          {expandedHistoryId === day.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => deleteHistoryDay(day.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                    {expandedHistoryId === day.id && day.result_json && (
+                      <div className="mt-4 p-4 bg-muted/40 rounded-xl space-y-1 text-sm">
+                        {day.result_json.lineItems?.filter(Boolean).map((item, i) => (
+                          <div key={i} className="flex justify-between gap-2">
+                            <div className="min-w-0">
+                              <span className="text-muted-foreground">{item.description}</span>
+                              {(item.timeFrom && item.timeTo) || (item.rate && item.hours) ? (
+                                <p className="text-xs text-muted-foreground/60 font-mono">
+                                  {item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : ''}
+                                  {item.rate && item.hours ? ` · £${item.rate} × ${Math.abs(item.rate - item.total) < 1 ? '1' : item.hours % 1 === 0 ? `${item.hours}h` : `${item.hours.toFixed(2)}h`}` : ''}
+                                </p>
+                              ) : null}
+                            </div>
+                            <span className="font-mono shrink-0">£{item.total.toFixed(2)}</span>
+                          </div>
+                        ))}
+                        {day.result_json.penalties?.filter(Boolean).map((p, i) => (
+                          <div key={i} className="flex justify-between gap-2">
+                            <span className="text-muted-foreground">{p.description}</span>
+                            <span className="font-mono shrink-0">£{p.total.toFixed(2)}</span>
+                          </div>
+                        ))}
+                        {(day.result_json.travelPay ?? 0) > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Travel</span>
+                            <span className="font-mono">£{(day.result_json.travelPay ?? 0).toFixed(2)}</span>
+                          </div>
+                        )}
+                        {(day.result_json.mileage ?? 0) > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Mileage ({day.result_json.mileageMiles} miles @ 50p)</span>
+                            <span className="font-mono">£{(day.result_json.mileage ?? 0).toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between font-bold pt-2 border-t border-border">
+                          <span>Total</span>
+                          <span className="font-mono">£{(day.grand_total || 0).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground text-center">
+            Data is retained for 1 year from creation date, in compliance with our data retention policy.
+          </p>
+        </div>
+      )}
+
+      {/* ── Jobs tab ── */}
+      {activeTab === 'jobs' && (loading ? (
         <div className="text-muted-foreground text-sm">Loading jobs…</div>
       ) : projects.length === 0 ? (
         <Card>
@@ -780,9 +950,12 @@ export function ProjectsPage() {
 
                       {/* Project total */}
                       <div className="flex items-center justify-between rounded-xl bg-[#1F1F21] px-4 py-3 mt-2">
-                        <span className="text-sm font-bold text-white">Job Total</span>
+                        <div className="flex items-center gap-2">
+                          <PoundSterling className="h-4 w-4 text-[#FFD528]" />
+                          <span className="text-sm font-bold text-white">Job Total</span>
+                        </div>
                         <span className="text-lg font-bold text-[#FFD528]">
-                          {getCurrencySymbol(selectedProject?.calc_engine)}{projectTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          £{projectTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
 
@@ -810,12 +983,7 @@ export function ProjectsPage() {
             </div>
           )}
         </div>
-      )}
-
-      <p className="text-xs text-muted-foreground text-center">
-        Data is retained for 6 months (free) or 3 years (Pro) of inactivity, in compliance with our data retention policy.
-      </p>
-
+      ))}
       <JobLimitDialog
         open={jobLimitOpen}
         onOpenChange={setJobLimitOpen}

@@ -19,7 +19,7 @@ const sections = [
   },
   {
     title: '5. Data Retention',
-    body: 'Free tier accounts: data is retained for 6 months of inactivity, then deleted. Pro accounts: data is retained for 3 years of inactivity. You may delete your account and all data at any time via Settings → Danger Zone. Deleted data is removed from live systems immediately; backups are purged within 30 days.',
+    body: 'Free tier accounts: data is retained for 6 months, then deleted. Pro accounts: data is retained for 3 years. You may delete your account and all data at any time via Settings → Danger Zone. Deleted data is removed from live systems immediately; backups are purged within 30 days.',
   },
   {
     title: '6. Data Sharing',
