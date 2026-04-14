@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
   Plus, FolderOpen, Star, StarOff, ChevronLeft, ChevronRight,
-  Calendar, PoundSterling, Clock, X, TrendingUp, Sparkles, ExternalLink, Bell
+  Calendar, Clock, X, TrendingUp, Sparkles, ExternalLink, Bell
 } from 'lucide-react';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, getDay,
@@ -790,8 +790,7 @@ export function DashboardPage() {
                           <Clock className="h-3.5 w-3.5" />
                           {dateRange}
                         </span>
-                        <span className="flex items-center gap-1 font-medium text-foreground">
-                          <PoundSterling className="h-3.5 w-3.5" />
+                        <span className="font-medium text-foreground">
                           {totalCost > 0 ? `${getCurrencySymbol(project.calc_engine)}${totalCost.toLocaleString('en-GB', { maximumFractionDigits: 0 })}` : '—'}
                         </span>
                       </div>

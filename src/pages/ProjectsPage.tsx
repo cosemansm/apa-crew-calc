@@ -5,9 +5,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  FolderOpen, Plus, Clock, PoundSterling, ChevronRight,
+  FolderOpen, Plus, Clock, ChevronRight,
   Calendar, User, Edit3, X, Sparkles, Trash2, Copy,
-  History, ChevronDown, ChevronUp, Search, FileText, Send, Check, Lock,
+  Search, FileText, Send, Check, Lock,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { supabase } from '@/lib/supabase';
@@ -22,27 +22,7 @@ import { APA_CREW_ROLES } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek } from '@/data/calculation-engine';
 import { useEngine } from '@/hooks/useEngine';
 import { getEngine } from '@/engines/index';
-
-// ── History types ─────────────────────────────────────────────────────────────
-interface HistoryDay {
-  id: string;
-  created_at: string;
-  work_date: string;
-  role_name: string;
-  day_type: string;
-  call_time: string;
-  wrap_time: string;
-  agreed_rate: number;
-  grand_total: number;
-  result_json: {
-    lineItems?: { description: string; hours?: number; rate?: number; total: number; timeFrom?: string; timeTo?: string; isDayRate?: boolean }[];
-    penalties?: { description: string; hours?: number; rate?: number; total: number }[];
-    travelPay?: number;
-    mileage?: number;
-    mileageMiles?: number;
-  };
-  projects: { name: string; client_name: string | null } | null;
-}
+import { getCurrencySymbol } from '@/lib/currency';
 
 // ── Status config ────────────────────────────────────────────────────────────
 export type ProjectStatus = 'ongoing' | 'finished' | 'invoiced' | 'paid';
@@ -145,7 +125,6 @@ export function ProjectsPage() {
   const { isPremium } = useSubscription();
   const navigate = useNavigate();
   const { showEngineSelector, defaultEngineId } = useEngine();
-  const [activeTab, setActiveTab] = useState<'jobs' | 'history'>('jobs');
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -169,37 +148,9 @@ export function ProjectsPage() {
   const [shareLinkCopied, setShareLinkCopied] = useState(false);
   const [shareDialogError, setShareDialogError] = useState<string | null>(null);
 
-  // History state
-  const [historyDays, setHistoryDays] = useState<HistoryDay[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
-
   useEffect(() => {
     if (user) loadProjects();
   }, [user]);
-
-  useEffect(() => {
-    if (user && activeTab === 'history' && historyDays.length === 0) loadHistory();
-  }, [activeTab, user]);
-
-  const loadHistory = async () => {
-    setHistoryLoading(true);
-    try {
-      const { data } = await supabase
-        .from('project_days')
-        .select('*, projects(name, client_name)')
-        .order('work_date', { ascending: false });
-      if (data) setHistoryDays(data as HistoryDay[]);
-    } catch (err) {
-      console.error('Failed to load history:', err);
-    }
-    setHistoryLoading(false);
-  };
-
-  const deleteHistoryDay = async (id: string) => {
-    await supabase.from('project_days').delete().eq('id', id);
-    setHistoryDays(prev => prev.filter(d => d.id !== id));
-  };
 
   const loadProjects = async () => {
     setLoading(true);
@@ -493,8 +444,6 @@ export function ProjectsPage() {
           : ''
       }`
     : null;
-
-  const historyTotal = historyDays.reduce((sum, d) => sum + (d.grand_total || 0), 0);
 
   const filteredProjects = jobSearch.trim()
     ? projects.filter(p =>
@@ -950,12 +899,9 @@ export function ProjectsPage() {
 
                       {/* Project total */}
                       <div className="flex items-center justify-between rounded-xl bg-[#1F1F21] px-4 py-3 mt-2">
-                        <div className="flex items-center gap-2">
-                          <PoundSterling className="h-4 w-4 text-[#FFD528]" />
-                          <span className="text-sm font-bold text-white">Job Total</span>
-                        </div>
+                        <span className="text-sm font-bold text-white">Job Total</span>
                         <span className="text-lg font-bold text-[#FFD528]">
-                          £{projectTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {getCurrencySymbol(selectedProject?.calc_engine)}{projectTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
 
