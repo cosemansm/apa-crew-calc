@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
-  FolderOpen, Plus, Clock, PoundSterling, ChevronRight,
+  FolderOpen, Plus, Clock, ChevronRight,
   Calendar, User, Edit3, X, Sparkles, Trash2, Copy,
   History, ChevronDown, ChevronUp, Search, FileText, Send, Check, Lock,
 } from 'lucide-react';
@@ -22,6 +22,7 @@ import { APA_CREW_ROLES } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek } from '@/data/calculation-engine';
 import { useEngine } from '@/hooks/useEngine';
 import { getEngine } from '@/engines/index';
+import { getCurrencySymbol } from '@/lib/currency';
 
 // ── History types ─────────────────────────────────────────────────────────────
 interface HistoryDay {
@@ -950,12 +951,9 @@ export function ProjectsPage() {
 
                       {/* Project total */}
                       <div className="flex items-center justify-between rounded-xl bg-[#1F1F21] px-4 py-3 mt-2">
-                        <div className="flex items-center gap-2">
-                          <PoundSterling className="h-4 w-4 text-[#FFD528]" />
-                          <span className="text-sm font-bold text-white">Job Total</span>
-                        </div>
+                        <span className="text-sm font-bold text-white">Job Total</span>
                         <span className="text-lg font-bold text-[#FFD528]">
-                          £{projectTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {getCurrencySymbol(selectedProject?.calc_engine)}{projectTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
                       </div>
 
