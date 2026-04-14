@@ -470,126 +470,7 @@ export function ProjectsPage() {
         </div>
       </div>
 
-      {/* Tab bar */}
-      <div className="flex gap-1 p-1 bg-muted rounded-xl w-fit">
-        <button
-          onClick={() => setActiveTab('jobs')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-            activeTab === 'jobs' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <FolderOpen className="h-4 w-4" /> Jobs
-        </button>
-        <button
-          onClick={() => setActiveTab('history')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-            activeTab === 'history' ? 'bg-white shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <History className="h-4 w-4" /> History
-        </button>
-      </div>
-
-      {/* ── History tab ── */}
-      {activeTab === 'history' && (
-        <div className="space-y-4">
-          {historyDays.length > 0 && (
-            <div className="flex justify-end">
-              <Badge variant="outline" className="text-base px-4 py-1">
-                Total: £{historyTotal.toFixed(2)}
-              </Badge>
-            </div>
-          )}
-          {historyLoading ? (
-            <div className="text-center py-12 text-muted-foreground text-sm">Loading…</div>
-          ) : historyDays.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                No saved calculations yet. Use the calculator to create and save your first one.
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {historyDays.map(day => (
-                <Card key={day.id}>
-                  <CardContent className="py-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium">{day.projects?.name ?? 'Untitled'}</span>
-                          {day.projects?.client_name && (
-                            <span className="text-sm text-muted-foreground">— {day.projects.client_name}</span>
-                          )}
-                          <Badge variant="secondary">{day.role_name}</Badge>
-                          <Badge variant="outline">{day.day_type.replace(/_/g, ' ')}</Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {day.work_date ? format(parseISO(day.work_date), 'dd MMM yyyy') : '—'} | Call: {day.call_time} – Wrap: {day.wrap_time} | Rate: £{day.agreed_rate}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg font-bold font-mono">£{(day.grand_total || 0).toFixed(2)}</span>
-                        <Button variant="ghost" size="icon" onClick={() => setExpandedHistoryId(expandedHistoryId === day.id ? null : day.id)}>
-                          {expandedHistoryId === day.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => deleteHistoryDay(day.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </div>
-                    {expandedHistoryId === day.id && day.result_json && (
-                      <div className="mt-4 p-4 bg-muted/40 rounded-xl space-y-1 text-sm">
-                        {day.result_json.lineItems?.filter(Boolean).map((item, i) => (
-                          <div key={i} className="flex justify-between gap-2">
-                            <div className="min-w-0">
-                              <span className="text-muted-foreground">{item.description}</span>
-                              {(item.timeFrom && item.timeTo) || (item.rate && item.hours) ? (
-                                <p className="text-xs text-muted-foreground/60 font-mono">
-                                  {item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : ''}
-                                  {item.rate && item.hours ? ` · £${item.rate} × ${Math.abs(item.rate - item.total) < 1 ? '1' : item.hours % 1 === 0 ? `${item.hours}h` : `${item.hours.toFixed(2)}h`}` : ''}
-                                </p>
-                              ) : null}
-                            </div>
-                            <span className="font-mono shrink-0">£{item.total.toFixed(2)}</span>
-                          </div>
-                        ))}
-                        {day.result_json.penalties?.filter(Boolean).map((p, i) => (
-                          <div key={i} className="flex justify-between gap-2">
-                            <span className="text-muted-foreground">{p.description}</span>
-                            <span className="font-mono shrink-0">£{p.total.toFixed(2)}</span>
-                          </div>
-                        ))}
-                        {(day.result_json.travelPay ?? 0) > 0 && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Travel</span>
-                            <span className="font-mono">£{(day.result_json.travelPay ?? 0).toFixed(2)}</span>
-                          </div>
-                        )}
-                        {(day.result_json.mileage ?? 0) > 0 && (
-                          <div className="flex justify-between">
-                            <span className="text-muted-foreground">Mileage ({day.result_json.mileageMiles} miles @ 50p)</span>
-                            <span className="font-mono">£{(day.result_json.mileage ?? 0).toFixed(2)}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between font-bold pt-2 border-t border-border">
-                          <span>Total</span>
-                          <span className="font-mono">£{(day.grand_total || 0).toFixed(2)}</span>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-          <p className="text-xs text-muted-foreground text-center">
-            Data is retained for 1 year from creation date, in compliance with our data retention policy.
-          </p>
-        </div>
-      )}
-
-      {/* ── Jobs tab ── */}
-      {activeTab === 'jobs' && (loading ? (
+      {loading ? (
         <div className="text-muted-foreground text-sm">Loading jobs…</div>
       ) : projects.length === 0 ? (
         <Card>
@@ -929,7 +810,12 @@ export function ProjectsPage() {
             </div>
           )}
         </div>
-      ))}
+      )}
+
+      <p className="text-xs text-muted-foreground text-center">
+        Data is retained for 6 months (free) or 3 years (Pro) of inactivity, in compliance with our data retention policy.
+      </p>
+
       <JobLimitDialog
         open={jobLimitOpen}
         onOpenChange={setJobLimitOpen}
