@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Calculator, FileText, LogOut, Sparkles, Menu, X, LayoutDashboard, Settings, User, ChevronLeft, ChevronRight, FolderOpen, LifeBuoy, BarChart2 } from 'lucide-react';
+import { FileText, LogOut, Sparkles, Menu, X, LayoutDashboard, Settings, User, ChevronLeft, ChevronRight, FolderOpen, LifeBuoy, BarChart2 } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
@@ -8,7 +8,6 @@ import logoSrc from '@/assets/logo.png';
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/calculator', label: 'Calculator', icon: Calculator },
   { path: '/projects', label: 'Jobs', icon: FolderOpen },
   { path: '/ai-input', label: 'AI Input', icon: Sparkles },
   { path: '/invoices', label: 'Timesheets', icon: FileText },
