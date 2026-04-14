@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
   Plus, FolderOpen, Star, StarOff, ChevronLeft, ChevronRight,
-  Calendar, Clock, X, TrendingUp, Sparkles, ExternalLink, Bell
+  Calendar, Clock, X, TrendingUp, Sparkles, ExternalLink, Bell, Info
 } from 'lucide-react';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, getDay,
@@ -29,6 +29,8 @@ import { BookkeepingSection } from '@/components/BookkeepingSection';
 import { cn } from '@/lib/utils';
 import { WhatsNewDrawer, useUnreadCount } from '@/components/WhatsNewDrawer';
 import { useEngine } from '@/hooks/useEngine';
+import { useConvertedTotals } from '@/hooks/useConvertedTotals';
+import { getEngineCurrency } from '@/lib/exchangeRate';
 
 interface Project {
   id: string;
@@ -277,12 +279,16 @@ export function DashboardPage() {
     const totals: Record<string, number> = {};
     allProjectDays.forEach(d => {
       const key = format(parseISO(d.work_date), 'yyyy-MM');
-      totals[key] = (totals[key] || 0) + dayTotal(d);
+      const cur = getEngineCurrency(d.calc_engine);
+      const rate = convertedMonth.isConverting && !convertedMonth.failed && convertedMonth.rates[cur] != null
+        ? convertedMonth.rates[cur]
+        : 1;
+      totals[key] = (totals[key] || 0) + dayTotal(d) * rate;
     });
     return totals;
-  }, [allProjectDays]);
+  }, [allProjectDays, convertedMonth.isConverting, convertedMonth.failed, convertedMonth.rates]);
 
-  // Per-month currency groupings for multi-currency bar tooltips
+  // Per-month currency groupings for multi-currency bar tooltips (fallback only)
   const monthlyCurrencyGroups = useMemo(() => {
     const groups: Record<string, Record<string, number>> = {};
     allProjectDays.forEach(d => {
@@ -318,11 +324,26 @@ export function DashboardPage() {
   // Bar chart maths
   const barMax = Math.max(...monthlyBreakdown.map(m => m.total), 1);
 
-  // Dominant currency symbol for Y-axis tick labels
+  // Currency conversion for dashboard totals
+  const monthDayTotals = useMemo(() =>
+    monthProjects.map(d => ({ calc_engine: d.calc_engine, total: dayTotal(d) })),
+    [monthProjects],
+  );
+  const yearDayTotals = useMemo(() =>
+    allProjectDays
+      .filter(d => parseISO(d.work_date).getFullYear() === currentYear)
+      .map(d => ({ calc_engine: d.calc_engine, total: dayTotal(d) })),
+    [allProjectDays, currentYear],
+  );
+  const convertedMonth = useConvertedTotals(monthDayTotals, defaultEngineId);
+  const convertedYear = useConvertedTotals(yearDayTotals, defaultEngineId);
+
+  // Dominant currency symbol for Y-axis tick labels (use global engine when converting)
   const dominantCurrencySymbol = useMemo(() => {
+    if (convertedMonth.isConverting && !convertedMonth.failed) return convertedMonth.targetSymbol;
     const symbols = new Set(allProjectDays.map(d => getCurrencySymbol(d.calc_engine)));
     return symbols.size === 1 ? [...symbols][0] : '£';
-  }, [allProjectDays]);
+  }, [allProjectDays, convertedMonth.isConverting, convertedMonth.failed, convertedMonth.targetSymbol]);
 
   // Compute nice reference line step (3 evenly spaced ticks above barMax)
   function niceStep(maxVal: number): number {
@@ -635,8 +656,23 @@ export function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-[11px] text-muted-foreground">Monthly earnings</p>
-                  <p className="text-2xl font-bold tracking-tight">
-                    {formatMultiCurrencyTotal(groupByCurrency(monthProjects.map(d => ({ calc_engine: d.calc_engine, total: dayTotal(d) }))))}
+                  <p className="text-2xl font-bold tracking-tight flex items-center gap-1.5">
+                    {convertedMonth.isConverting && !convertedMonth.failed && convertedMonth.total != null
+                      ? `${convertedMonth.targetSymbol}${convertedMonth.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      : formatMultiCurrencyTotal(groupByCurrency(monthProjects.map(d => ({ calc_engine: d.calc_engine, total: dayTotal(d) }))))
+                    }
+                    {convertedMonth.isConverting && !convertedMonth.failed && (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Currency conversion info">
+                            <Info className="h-3.5 w-3.5" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="text-xs max-w-[260px]" side="top">
+                          Your account uses multiple currencies. Totals are converted to {convertedMonth.targetSymbol} using daily ECB exchange rates and may differ slightly from actual values.
+                        </PopoverContent>
+                      </Popover>
+                    )}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {monthProjects.length} day{monthProjects.length !== 1 ? 's' : ''} booked
@@ -654,12 +690,27 @@ export function DashboardPage() {
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                     {currentYear} Total
                   </p>
-                  <p className="text-2xl font-bold tracking-tight mt-1">
-                    {formatMultiCurrencyTotal(groupByCurrency(
-                      allProjectDays
-                        .filter(d => parseISO(d.work_date).getFullYear() === currentYear)
-                        .map(d => ({ calc_engine: d.calc_engine, total: dayTotal(d) }))
-                    ))}
+                  <p className="text-2xl font-bold tracking-tight mt-1 flex items-center gap-1.5">
+                    {convertedYear.isConverting && !convertedYear.failed && convertedYear.total != null
+                      ? `${convertedYear.targetSymbol}${convertedYear.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                      : formatMultiCurrencyTotal(groupByCurrency(
+                          allProjectDays
+                            .filter(d => parseISO(d.work_date).getFullYear() === currentYear)
+                            .map(d => ({ calc_engine: d.calc_engine, total: dayTotal(d) }))
+                        ))
+                    }
+                    {convertedYear.isConverting && !convertedYear.failed && (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Currency conversion info">
+                            <Info className="h-3.5 w-3.5" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="text-xs max-w-[260px]" side="top">
+                          Your account uses multiple currencies. Totals are converted to {convertedYear.targetSymbol} using daily ECB exchange rates and may differ slightly from actual values.
+                        </PopoverContent>
+                      </Popover>
+                    )}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {allProjectDays.filter(d => parseISO(d.work_date).getFullYear() === currentYear).length} days worked
@@ -709,7 +760,11 @@ export function DashboardPage() {
                             background: m.isCurrent ? '#FFD528' : '#1F1F21',
                             opacity: m.isCurrent ? 1 : 0.15 + (idx / monthlyBreakdown.length) * 0.55,
                           }}
-                          title={Object.keys(m.currencyGroups).length > 0 ? formatMultiCurrencyTotal(m.currencyGroups) : '—'}
+                          title={m.total > 0
+                            ? (convertedMonth.isConverting && !convertedMonth.failed
+                              ? `${convertedMonth.targetSymbol}${m.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                              : (Object.keys(m.currencyGroups).length > 0 ? formatMultiCurrencyTotal(m.currencyGroups) : '—'))
+                            : '—'}
                         />
                         <span className="text-[10px] text-muted-foreground font-medium font-mono">{m.label}</span>
                       </div>
