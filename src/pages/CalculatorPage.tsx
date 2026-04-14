@@ -488,7 +488,7 @@ export function CalculatorPage() {
   const [customRoles, setCustomRoles] = useState<EngineRole[]>([]);
   // SDYM engine state
   const [hasEquipment, setHasEquipment] = useState(false);
-  const [kmRate, setKmRate] = useState(0.43);
+  const [kmRate, setKmRate] = useState(0.45);
   // T&Cs engine selector (for new job creation)
   const [selectedCalcEngine, setSelectedCalcEngine] = useState(defaultEngineId);
 
@@ -1321,9 +1321,14 @@ export function CalculatorPage() {
                     if (!newEngine.dayTypes.some(dt => dt.value === dayType)) {
                       setDayType(newEngine.dayTypes[0]?.value ?? 'basic_working');
                     }
-                    if (selectedRole && !newEngine.getRole(selectedRole.role)) {
-                      setSelectedRole(null);
-                      setAgreedRate('');
+                    if (selectedRole) {
+                      const resolved = newEngine.getRole(selectedRole.role);
+                      if (resolved) {
+                        setSelectedRole(resolved);
+                      } else {
+                        setSelectedRole(null);
+                        setAgreedRate('');
+                      }
                     }
                     setJobEngine(v);
                     await supabase.from('projects').update({ calc_engine: v }).eq('id', projectId);
@@ -1775,7 +1780,7 @@ export function CalculatorPage() {
                           checked={hasEquipment}
                           onCheckedChange={(v) => {
                             setHasEquipment(v);
-                            setKmRate(v ? 0.80 : 0.43);
+                            setKmRate(v ? 0.85 : 0.45);
                           }}
                         />
                       </div>

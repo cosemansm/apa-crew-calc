@@ -92,22 +92,22 @@ describe('Sodyum Deal Memo 2026 engine', () => {
     expect(result.grandTotal).toBe(637)
   })
 
-  it('Test 7a: Mileage 50km no equipment → €21.50', async () => {
+  it('Test 7a: Mileage 50km no equipment → €22.50', async () => {
     const result = await calc({
       mileageDistance: 50,
-      extra: { hasEquipment: false, kmRate: 0.43 },
+      extra: { hasEquipment: false, kmRate: 0.45 },
     })
-    expect(result.mileage).toBeCloseTo(21.5, 2)
-    expect(result.grandTotal).toBe(615.5) // 594 + 21.50
+    expect(result.mileage).toBeCloseTo(22.5, 2)
+    expect(result.grandTotal).toBe(616.5) // 594 + 22.50
   })
 
-  it('Test 7b: Mileage 50km with equipment → €40.00', async () => {
+  it('Test 7b: Mileage 50km with equipment → €42.50', async () => {
     const result = await calc({
       mileageDistance: 50,
-      extra: { hasEquipment: true, kmRate: 0.80 },
+      extra: { hasEquipment: true, kmRate: 0.85 },
     })
-    expect(result.mileage).toBeCloseTo(40, 2)
-    expect(result.grandTotal).toBe(634) // 594 + 40
+    expect(result.mileage).toBeCloseTo(42.5, 2)
+    expect(result.grandTotal).toBe(636.5) // 594 + 42.50
   })
 
   it('Test 8: LA assigned Recce → throws descriptive error', async () => {
