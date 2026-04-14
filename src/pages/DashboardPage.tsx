@@ -460,7 +460,7 @@ export function DashboardPage() {
             </div>
             {projectError && <p className="text-sm text-red-500 mt-3">{projectError}</p>}
             <div className="flex gap-2 mt-4">
-              <Button onClick={createProject} disabled={!newProjectName.trim()}>Create & Open Calculator</Button>
+              <Button onClick={createProject} disabled={!newProjectName.trim()}>Create</Button>
               <Button variant="outline" onClick={() => { setShowNewProject(false); setCalendarNewJobDate(null); }}>Cancel</Button>
             </div>
           </CardContent>
