@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
       .sort((a, b) => b.count - a.count)
 
     // ── Subscriptions ───────────────────────────────────────────────────────
-    let trialing = 0, free = 0, active = 0, lifetime = 0, pastDue = 0, canceled = 0, trialExtended = 0
+    let trialing = 0, free = 0, active = 0, lifetime = 0, pastDue = 0, canceled = 0, resubscribed = 0, trialExtended = 0
 
     subscriptions.forEach(s => {
       if (s.status === 'trialing') {
@@ -185,7 +185,11 @@ Deno.serve(async (req) => {
           free++ // trial expired, never converted
         }
       } else if (s.status === 'active') {
-        active++
+        if (s.previously_canceled) {
+          resubscribed++
+        } else {
+          active++
+        }
       } else if (s.status === 'lifetime') {
         lifetime++
       } else if (s.status === 'past_due' || s.status === 'unpaid') {
@@ -196,7 +200,7 @@ Deno.serve(async (req) => {
       if (s.trial_extended) trialExtended++
     })
 
-    const paidUsers = active + lifetime
+    const paidUsers = active + resubscribed + lifetime
     const everConverted = subscriptions.filter(s => s.status === 'active' || s.status === 'lifetime' || s.status === 'past_due' || s.status === 'canceled').length
     const conversionRate = users.length > 0 ? Math.round((everConverted / users.length) * 100) : 0
 
@@ -276,6 +280,7 @@ Deno.serve(async (req) => {
         lifetime,
         pastDue,
         canceled,
+        resubscribed,
         trialExtended,
         conversionRate,
         paidUsers,

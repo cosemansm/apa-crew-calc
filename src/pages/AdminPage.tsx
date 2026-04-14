@@ -24,6 +24,7 @@ const PIE_COLORS: Record<string, string> = {
   lifetime: '#c084fc',
   pastDue: '#f97316',
   canceled: '#D45B5B',
+  resubscribed: '#38bdf8',
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -113,6 +114,7 @@ interface AdminStats {
     lifetime: number;
     pastDue: number;
     canceled: number;
+    resubscribed: number;
     trialExtended: number;
     conversionRate: number;
     paidUsers: number;
@@ -1454,11 +1456,12 @@ export function AdminPage() {
                   <Pie
                     data={[
                       { name: 'Trial (active)', value: stats.subscriptions.trialing, key: 'trialing' },
-                      { name: 'Free (expired)', value: stats.subscriptions.free, key: 'free' },
+                      { name: 'Free churned', value: stats.subscriptions.free, key: 'free' },
                       { name: 'Pro', value: stats.subscriptions.active, key: 'active' },
                       { name: 'Lifetime', value: stats.subscriptions.lifetime, key: 'lifetime' },
-                      { name: 'At Risk', value: stats.subscriptions.pastDue, key: 'pastDue' },
+                      { name: 'Past Due', value: stats.subscriptions.pastDue, key: 'pastDue' },
                       { name: 'Churned', value: stats.subscriptions.canceled, key: 'canceled' },
+                      { name: 'Re-subscribed', value: stats.subscriptions.resubscribed, key: 'resubscribed' },
                     ].filter(d => d.value > 0)}
                     cx="50%"
                     cy="50%"
@@ -1469,9 +1472,9 @@ export function AdminPage() {
                   >
                     {[
                       { key: 'trialing' }, { key: 'free' }, { key: 'active' },
-                      { key: 'lifetime' }, { key: 'pastDue' }, { key: 'canceled' }
+                      { key: 'lifetime' }, { key: 'pastDue' }, { key: 'canceled' }, { key: 'resubscribed' }
                     ].filter((_, i) => {
-                      const vals = [stats.subscriptions.trialing, stats.subscriptions.free, stats.subscriptions.active, stats.subscriptions.lifetime, stats.subscriptions.pastDue, stats.subscriptions.canceled];
+                      const vals = [stats.subscriptions.trialing, stats.subscriptions.free, stats.subscriptions.active, stats.subscriptions.lifetime, stats.subscriptions.pastDue, stats.subscriptions.canceled, stats.subscriptions.resubscribed];
                       return vals[i] > 0;
                     }).map((entry) => (
                       <Cell key={entry.key} fill={PIE_COLORS[entry.key]} />
@@ -1487,11 +1490,12 @@ export function AdminPage() {
             <div className="grid grid-cols-2 gap-2 content-start">
               {[
                 { label: 'Trial (active)', value: stats.subscriptions.trialing, color: '#FFD528' },
-                { label: 'Free (expired)', value: stats.subscriptions.free, color: '#6b7280' },
+                { label: 'Free churned', value: stats.subscriptions.free, color: '#6b7280' },
                 { label: 'Pro', value: stats.subscriptions.active, color: '#4ade80' },
                 { label: 'Lifetime', value: stats.subscriptions.lifetime, color: '#c084fc' },
-                { label: 'At Risk', value: stats.subscriptions.pastDue, color: '#f97316' },
+                { label: 'Past Due', value: stats.subscriptions.pastDue, color: '#f97316' },
                 { label: 'Churned', value: stats.subscriptions.canceled, color: '#D45B5B' },
+                { label: 'Re-subscribed', value: stats.subscriptions.resubscribed, color: '#38bdf8' },
               ].map(({ label, value, color }) => (
                 <div key={label} className="bg-[#1F1F21] rounded-xl p-3 border border-white/5">
                   <div className="flex items-center gap-1.5 mb-1">

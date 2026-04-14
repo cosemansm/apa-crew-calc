@@ -99,6 +99,7 @@ export default async function handler(req: any, res: any) {
     case 'customer.subscription.deleted':
       await updateSubscription(customerId, {
         status: 'canceled',
+        previously_canceled: true,
         current_period_end: null,
       });
       break;
