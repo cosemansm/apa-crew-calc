@@ -216,7 +216,57 @@ export function ProjectsPage() {
         .select('*')
         .eq('project_id', project.id)
         .order('work_date', { ascending: true });
-      setProjectDays(data || []);
+      let days = (data || []) as ProjectDay[];
+
+      // Heal stale zero-total days: recalculate using the project's engine
+      if (project.calc_engine) {
+        const engine = getEngine(project.calc_engine);
+        const healed: ProjectDay[] = [];
+        for (const day of days) {
+          if (day.grand_total === 0 && day.role_name) {
+            const role = engine.getRole(day.role_name);
+            if (role) {
+              try {
+                const result = engine.calculate({
+                  role,
+                  agreedDailyRate: day.agreed_rate || 0,
+                  dayType: day.day_type,
+                  dayOfWeek: (day as any).day_of_week ?? '',
+                  callTime: day.call_time,
+                  wrapTime: day.wrap_time,
+                  firstBreakGiven: (day as any).first_break_given ?? true,
+                  firstBreakTime: (day as any).first_break_time ?? undefined,
+                  firstBreakDurationMins: (day as any).first_break_duration ?? 60,
+                  secondBreakGiven: (day as any).second_break_given ?? true,
+                  secondBreakTime: (day as any).second_break_time ?? undefined,
+                  secondBreakDurationMins: (day as any).second_break_duration ?? 30,
+                  continuousFirstBreakGiven: (day as any).continuous_first_break_given ?? true,
+                  continuousAdditionalBreakGiven: (day as any).continuous_additional_break_given ?? true,
+                  travelHours: (day as any).travel_hours ?? 0,
+                  mileageDistance: (day as any).mileage ?? 0,
+                  previousWrapTime: (day as any).previous_wrap ?? undefined,
+                  equipmentValue: (day as any).equipment_value ?? 0,
+                  equipmentDiscount: (day as any).equipment_discount ?? 0,
+                });
+                if (result.grandTotal > 0) {
+                  const newTotal = result.grandTotal + ((day as any).expenses_amount ?? 0);
+                  healed.push({ ...day, grand_total: newTotal, result_json: result as any });
+                  // Fire-and-forget DB update
+                  supabase.from('project_days')
+                    .update({ grand_total: newTotal, result_json: result })
+                    .eq('id', day.id)
+                    .then();
+                }
+              } catch { /* engine error — skip heal */ }
+            }
+          }
+        }
+        if (healed.length > 0) {
+          days = days.map(d => healed.find(h => h.id === d.id) ?? d);
+        }
+      }
+
+      setProjectDays(days);
     } catch { /* network error */ }
     setDaysLoading(false);
   };
