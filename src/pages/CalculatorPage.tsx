@@ -480,6 +480,7 @@ export function CalculatorPage() {
   const [previousWrap, setPreviousWrap] = useState(ss?.previousWrap ?? '');
   const [projectName, setProjectName] = useState(ss?.projectName ?? '');
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false); // Ref-based guard against concurrent saves
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
@@ -967,6 +968,7 @@ export function CalculatorPage() {
       .eq('project_id', projId)
       .order('work_date', { ascending: true });
     if (data) setProjectDays(data as ProjectDaySummary[]);
+    return (data ?? []) as ProjectDaySummary[];
   };
 
   const removeDay = async (dayId: string) => {
@@ -1053,6 +1055,9 @@ export function CalculatorPage() {
 
   const handleSave = async (): Promise<string | null> => {
     if (!result || !user || !selectedRole) return null;
+    // Ref-based guard: prevent concurrent saves (React state updates are async)
+    if (savingRef.current) return null;
+    savingRef.current = true;
     setSaving(true);
     setSaveSuccess(false);
     setSaveError(false);
@@ -1067,6 +1072,7 @@ export function CalculatorPage() {
           .select('*', { count: 'exact', head: true })
           .eq('user_id', user.id);
         if ((count ?? 0) >= 10) {
+          savingRef.current = false;
           setSaving(false);
           toast.error('Free plan limit reached — upgrade to Pro for unlimited jobs, or delete an existing job to free a slot.');
           return null;
@@ -1079,8 +1085,10 @@ export function CalculatorPage() {
         client_name: null,
         calc_engine: selectedCalcEngine || activeEngine.meta.id,
       }).select().single();
-      if (projError || !proj) { setSaving(false); setSaveError(true); return null; }
+      if (projError || !proj) { savingRef.current = false; setSaving(false); setSaveError(true); return null; }
       resolvedProjectId = proj.id;
+      // Update the URL so projectId is available for subsequent saves and engine loading
+      setSearchParams({ project: proj.id }, { replace: true });
     }
 
     const payload = {
@@ -1133,6 +1141,7 @@ export function CalculatorPage() {
         .eq('project_id', resolvedProjectId)
         .eq('work_date', workDate);
       if (existingCount && existingCount > 0) {
+        savingRef.current = false;
         setSaving(false);
         setSaveError(true);
         return null;
@@ -1156,6 +1165,7 @@ export function CalculatorPage() {
       }
     }
 
+    savingRef.current = false;
     setSaving(false);
     if (savedId && resolvedProjectId) {
       setSaveSuccess(true);
@@ -1170,10 +1180,9 @@ export function CalculatorPage() {
   };
 
   // Returns the next date after `fromDate` that is not already booked in this job.
-  // `extraBooked` lets callers include dates not yet reflected in `projectDays` state.
-  const nextAvailableDate = (fromDate: string, extraBooked?: string[]): string => {
-    const booked = new Set(projectDays.map(d => d.work_date));
-    if (extraBooked) extraBooked.forEach(d => booked.add(d));
+  // Accepts an explicit list of booked dates to avoid relying on stale React state.
+  const nextAvailableDate = (fromDate: string, bookedDates: string[]): string => {
+    const booked = new Set(bookedDates);
     let candidate = parseISO(fromDate);
     do {
       candidate = addDays(candidate, 1);
@@ -1183,10 +1192,15 @@ export function CalculatorPage() {
 
   const handleAddDay = async () => {
     if (!result || !user || !selectedRole) return;
+    // Cancel any pending auto-save to prevent concurrent save race
+    if (autoSaveTimer.current) { clearTimeout(autoSaveTimer.current); autoSaveTimer.current = null; }
     const savedId = await handleSave();
     // Only proceed to a fresh form if the save succeeded
     if (!savedId) return;
-    handleAddNewDay(nextAvailableDate(workDate, [workDate]));
+    // Use fresh project days from DB (not stale React state) to pick next date
+    const freshDays = await refreshProjectDays(searchParams.get('project') ?? '');
+    const bookedDates = freshDays.map(d => d.work_date);
+    handleAddNewDay(nextAvailableDate(workDate, bookedDates));
     // After all state updates from handleAddNewDay settle, mark the new day dirty
     // so the "Unsaved changes" banner appears and the day won't be silently lost.
     setTimeout(() => {
@@ -1313,7 +1327,24 @@ export function CalculatorPage() {
                 <Input id="project" placeholder="e.g. Nike Summer Campaign" value={projectName} onChange={e => setProjectName(e.target.value)} className="flex-1" />
                 {/* T&Cs engine selector — dropdown for both new and existing jobs */}
                 {showEngineSelector && !projectId && (
-                  <Select value={selectedCalcEngine} onValueChange={(v) => { setSelectedCalcEngine(v); }}>
+                  <Select value={selectedCalcEngine} onValueChange={(v) => {
+                    setSelectedCalcEngine(v);
+                    const newEngine = getEngine(v);
+                    // Sync active engine so roles, day types, and calculator all use the new engine
+                    if (!newEngine.dayTypes.some(dt => dt.value === dayType)) {
+                      setDayType(newEngine.dayTypes[0]?.value ?? 'basic_working');
+                    }
+                    if (selectedRole) {
+                      const resolved = newEngine.getRole(selectedRole.role);
+                      if (resolved) {
+                        setSelectedRole(resolved);
+                      } else {
+                        setSelectedRole(null);
+                        setAgreedRate('');
+                      }
+                    }
+                    setJobEngine(v);
+                  }}>
                     <SelectTrigger className="w-44">
                       <SelectValue />
                     </SelectTrigger>
