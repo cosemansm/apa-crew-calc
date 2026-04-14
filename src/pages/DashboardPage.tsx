@@ -369,7 +369,7 @@ export function DashboardPage() {
           <Info className="h-3.5 w-3.5" />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="text-xs max-w-[260px]" side="top">
+      <PopoverContent className="text-xs text-muted-foreground leading-relaxed max-w-[240px] p-3" side="bottom" align="center" collisionPadding={16}>
         Your account uses multiple currencies. Totals are converted to {targetSymbol} using daily ECB exchange rates and may differ slightly from actual values.
       </PopoverContent>
     </Popover>
@@ -635,10 +635,13 @@ export function DashboardPage() {
 
           {/* Monthly donut */}
           <Card>
-            <CardContent className="p-5">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">
-                {format(currentMonth, 'MMMM yyyy')}
-              </p>
+            <CardContent className="p-5 relative">
+              <div className="flex items-start justify-between mb-4">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  {format(currentMonth, 'MMMM yyyy')}
+                </p>
+                {convertedMonth.isConverting && !convertedMonth.failed && !convertedMonth.loading && conversionInfoPopover(convertedMonth.targetSymbol)}
+              </div>
               <div className="flex items-center gap-5">
                 {/* SVG Donut ring */}
                 <div className="relative shrink-0">
@@ -673,12 +676,11 @@ export function DashboardPage() {
                 </div>
                 <div>
                   <p className="text-[11px] text-muted-foreground">Monthly earnings</p>
-                  <p className="text-2xl font-bold tracking-tight flex items-center gap-1.5">
+                  <p className="text-2xl font-bold tracking-tight">
                     {convertedMonth.isConverting && !convertedMonth.failed && convertedMonth.total != null
                       ? formatConverted(convertedMonth.targetSymbol, convertedMonth.total)
                       : formatMultiCurrencyTotal(groupByCurrency(monthProjects.map(d => ({ calc_engine: d.calc_engine, total: dayTotal(d) }))))
                     }
-                    {convertedMonth.isConverting && !convertedMonth.failed && !convertedMonth.loading && conversionInfoPopover(convertedMonth.targetSymbol)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {monthProjects.length} day{monthProjects.length !== 1 ? 's' : ''} booked
@@ -691,12 +693,17 @@ export function DashboardPage() {
           {/* Year total */}
           <Card>
             <CardContent className="p-5">
+              {convertedYear.isConverting && !convertedYear.failed && !convertedYear.loading && (
+                <div className="flex justify-end mb-1">
+                  {conversionInfoPopover(convertedYear.targetSymbol)}
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                     {currentYear} Total
                   </p>
-                  <p className="text-2xl font-bold tracking-tight mt-1 flex items-center gap-1.5">
+                  <p className="text-2xl font-bold tracking-tight mt-1">
                     {convertedYear.isConverting && !convertedYear.failed && convertedYear.total != null
                       ? formatConverted(convertedYear.targetSymbol, convertedYear.total)
                       : formatMultiCurrencyTotal(groupByCurrency(
@@ -705,7 +712,6 @@ export function DashboardPage() {
                             .map(d => ({ calc_engine: d.calc_engine, total: dayTotal(d) }))
                         ))
                     }
-                    {convertedYear.isConverting && !convertedYear.failed && !convertedYear.loading && conversionInfoPopover(convertedYear.targetSymbol)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {allProjectDays.filter(d => parseISO(d.work_date).getFullYear() === currentYear).length} days worked
