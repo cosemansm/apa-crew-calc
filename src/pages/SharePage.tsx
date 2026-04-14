@@ -204,7 +204,7 @@ export function SharePage() {
       setProjectCount(count ?? 0);
     };
 
-    checkUserState();
+    checkUserState().catch(() => {});
   }, [user, token, shareData]);
 
   // ── Add to my jobs ──────────────────────────────────────────────────────────

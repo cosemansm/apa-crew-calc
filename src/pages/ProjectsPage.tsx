@@ -209,12 +209,14 @@ export function ProjectsPage() {
   const selectProject = async (project: Project) => {
     setSelectedProject(project);
     setDaysLoading(true);
-    const { data } = await supabase
-      .from('project_days')
-      .select('*')
-      .eq('project_id', project.id)
-      .order('work_date', { ascending: true });
-    setProjectDays(data || []);
+    try {
+      const { data } = await supabase
+        .from('project_days')
+        .select('*')
+        .eq('project_id', project.id)
+        .order('work_date', { ascending: true });
+      setProjectDays(data || []);
+    } catch { /* network error */ }
     setDaysLoading(false);
   };
 
@@ -682,6 +684,7 @@ export function ProjectsPage() {
                         const penalties = day.result_json?.penalties || [];
                         const travelPay = day.result_json?.travelPay || 0;
                         const mileagePay = day.result_json?.mileage || 0;
+                        const sym = getCurrencySymbol(day.calc_engine || selectedProject?.calc_engine);
                         return (
                           <div key={day.id} className="rounded-xl border border-border overflow-hidden">
                             {/* Day header */}
@@ -702,7 +705,7 @@ export function ProjectsPage() {
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 shrink-0 ml-3">
-                                <p className="text-sm font-bold tabular-nums">£{(day.grand_total || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                <p className="text-sm font-bold tabular-nums">{sym}{(day.grand_total || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                                 <button
                                   onClick={() => removeDay(day.id)}
                                   disabled={deletingDayId === day.id}
@@ -725,15 +728,15 @@ export function ProjectsPage() {
                                     let ratePart = '';
                                     if (item.rate && item.hours) {
                                       ratePart = isDayRate
-                                        ? `£${item.total} × 1`
-                                        : `£${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
+                                        ? `${sym}${item.total} × 1`
+                                        : `${sym}${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
                                     }
                                     const detail = [timePart, ratePart].filter(Boolean).join(' · ');
                                     return (
                                       <Fragment key={i}>
                                         <p className="text-xs text-muted-foreground leading-tight py-[3px] self-center">{item.description}</p>
                                         <span className="text-[10px] text-muted-foreground/50 font-mono text-right self-center py-[3px]">{detail}</span>
-                                        <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{item.total.toFixed(2)}</span>
+                                        <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">{sym}{item.total.toFixed(2)}</span>
                                       </Fragment>
                                     );
                                   })}
@@ -745,14 +748,14 @@ export function ProjectsPage() {
                                         let pDetail = '';
                                         if (item.rate && item.hours) {
                                           pDetail = pIsFlatRate
-                                            ? `£${item.rate} × 1`
-                                            : `£${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
+                                            ? `${sym}${item.rate} × 1`
+                                            : `${sym}${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
                                         }
                                         return (
                                           <Fragment key={`pen-${i}`}>
                                             <p className="text-xs text-muted-foreground leading-tight py-[3px] self-center">{item.description}</p>
                                             <span className="text-[10px] text-muted-foreground/50 font-mono text-right self-center py-[3px]">{pDetail}</span>
-                                            <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{item.total.toFixed(2)}</span>
+                                            <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">{sym}{item.total.toFixed(2)}</span>
                                           </Fragment>
                                         );
                                       })}
@@ -762,14 +765,14 @@ export function ProjectsPage() {
                                     <Fragment key="travel">
                                       <p className="text-xs text-muted-foreground py-[3px] self-center">Travel pay</p>
                                       <span />
-                                      <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{travelPay.toFixed(2)}</span>
+                                      <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">{sym}{travelPay.toFixed(2)}</span>
                                     </Fragment>
                                   )}
                                   {mileagePay > 0 && (
                                     <Fragment key="mileage">
                                       <p className="text-xs text-muted-foreground py-[3px] self-center">Mileage ({day.result_json?.mileageMiles || 0} mi)</p>
                                       <span />
-                                      <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">£{mileagePay.toFixed(2)}</span>
+                                      <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">{sym}{mileagePay.toFixed(2)}</span>
                                     </Fragment>
                                   )}
                                 </div>

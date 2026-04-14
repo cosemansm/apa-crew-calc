@@ -102,7 +102,8 @@ export function DashboardPage() {
         .then(({ data }) => {
           if (data?.display_name) setDisplayName(data.display_name);
           if (data?.department) setUserDepartment(data.department);
-        });
+        })
+        .catch(() => {});
     }
   }, [user, location.key]);
 
@@ -114,7 +115,7 @@ export function DashboardPage() {
         .order('published_at', { ascending: false });
       if (data) setNotifications(data);
     }
-    if (user) fetchBadge();
+    if (user) fetchBadge().catch(() => {});
   }, [user]);
 
   useEffect(() => { setBadgeCount(unreadCount); }, [unreadCount]);

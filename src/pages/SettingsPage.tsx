@@ -302,7 +302,8 @@ export function SettingsPage() {
           );
         }
       }
-    });
+    })
+    .catch(() => {});
     loadCustomRoles();
     loadEquipmentPackages();
   }, [user]);

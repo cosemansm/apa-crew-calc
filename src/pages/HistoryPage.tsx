@@ -44,17 +44,21 @@ export function HistoryPage() {
 
   const loadDays = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('project_days')
-      .select('*, projects(name, client_name, calc_engine)')
-      .order('work_date', { ascending: false });
-    if (data) setDays(data as ProjectDay[]);
+    try {
+      const { data } = await supabase
+        .from('project_days')
+        .select('*, projects(name, client_name, calc_engine)')
+        .order('work_date', { ascending: false });
+      if (data) setDays(data as ProjectDay[]);
+    } catch { /* network error — leave existing state */ }
     setLoading(false);
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from('project_days').delete().eq('id', id);
-    setDays(prev => prev.filter(d => d.id !== id));
+    try {
+      await supabase.from('project_days').delete().eq('id', id);
+      setDays(prev => prev.filter(d => d.id !== id));
+    } catch { /* network error */ }
   };
 
   const totalSpend = days.reduce((sum, d) => sum + (d.grand_total || 0), 0);

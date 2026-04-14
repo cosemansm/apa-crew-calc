@@ -306,9 +306,11 @@ export function AIInputPage() {
   useEffect(() => {
     if (!user) return;
     supabase.from('favourite_roles').select('role_name').eq('user_id', user.id)
-      .then(({ data }) => { if (data) setFavouriteRoles(data.map(r => r.role_name)); });
+      .then(({ data }) => { if (data) setFavouriteRoles(data.map(r => r.role_name)); })
+      .catch(() => {});
     supabase.from('user_settings').select('department').eq('user_id', user.id).single()
-      .then(({ data }) => { if (data?.department) setUserDepartment(data.department); });
+      .then(({ data }) => { if (data?.department) setUserDepartment(data.department); })
+      .catch(() => {});
   }, [user]);
 
   // ── Parse ──────────────────────────────────────────────────────────────────

@@ -544,14 +544,25 @@ export function CalculatorPage() {
     return () => { setJobEngine(null); };
   }, [setJobEngine]);
 
-  // Restore selected role from session on mount (using engine roles)
+  // Re-resolve selected role when engine changes (e.g. after loading a project
+  // whose engine differs from the default — the role object may carry stale engineData)
   useEffect(() => {
-    const name = ss?.selectedRoleName;
-    if (name && !selectedRole) {
-      const role = activeEngine.getRole(name);
-      if (role) {
+    if (selectedRole) {
+      const resolved = customRoles.find(r => r.role === selectedRole.role)
+        ?? activeEngine.getRole(selectedRole.role);
+      if (resolved && resolved !== selectedRole) {
         suppressDirtyRef.current = true;
-        setSelectedRole(role);
+        setSelectedRole(resolved);
+      }
+    } else {
+      // Restore selected role from session on mount
+      const name = ss?.selectedRoleName;
+      if (name) {
+        const role = activeEngine.getRole(name);
+        if (role) {
+          suppressDirtyRef.current = true;
+          setSelectedRole(role);
+        }
       }
     }
   }, [activeEngine]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -600,7 +611,8 @@ export function CalculatorPage() {
       supabase.from('projects').select('id, name, client_name')
         .eq('user_id', user.id)
         .order('updated_at', { ascending: false })
-        .then(({ data }) => { if (data) setAllProjects(data); });
+        .then(({ data }) => { if (data) setAllProjects(data); })
+        .catch(() => {});
     }
   }, [user]);
 
@@ -652,10 +664,12 @@ export function CalculatorPage() {
   useEffect(() => {
     if (!user) return;
     supabase.from('favourite_roles').select('role_name').eq('user_id', user.id)
-      .then(({ data }) => { if (data) setFavouriteRoles(data.map(f => f.role_name)); });
+      .then(({ data }) => { if (data) setFavouriteRoles(data.map(f => f.role_name)); })
+      .catch(() => {});
     supabase.from('equipment_packages').select('id, name, day_rate').eq('user_id', user.id)
       .order('name', { ascending: true })
-      .then(({ data }) => { if (data) setEquipmentPackages(data); });
+      .then(({ data }) => { if (data) setEquipmentPackages(data); })
+      .catch(() => {});
     supabase.from('custom_roles').select('*').eq('user_id', user.id)
       .order('created_at', { ascending: true })
       .then(({ data }) => {
@@ -696,7 +710,8 @@ export function CalculatorPage() {
             }
           }
         }
-      });
+      })
+      .catch(() => {});
   }, [user]);
 
   // Load project engine + days & auto-load last day when entering a project.
