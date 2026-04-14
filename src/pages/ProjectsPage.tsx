@@ -670,7 +670,7 @@ export function ProjectsPage() {
                       className="gap-1.5"
                     >
                       <Edit3 className="h-3.5 w-3.5" />
-                      Edit in Calculator
+                      Edit
                     </Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={closeDetail}>
                       <X className="h-4 w-4" />
@@ -854,7 +854,7 @@ export function ProjectsPage() {
                           onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
                         >
                           <Edit3 className="h-4 w-4" />
-                          Edit in Calculator
+                          Edit
                         </Button>
                       </div>
                     </div>
