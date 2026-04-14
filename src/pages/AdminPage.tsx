@@ -1568,7 +1568,7 @@ export function AdminPage() {
                 <XAxis type="number" allowDecimals={false} tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11, fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="department" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11, fontFamily: 'monospace' }} axisLine={false} tickLine={false} width={100} />
                 <Tooltip contentStyle={{ background: CHARCOAL, border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, fontFamily: 'monospace', fontSize: 12 }} itemStyle={{ color: YELLOW }} />
-                <Bar dataKey="count" fill={YELLOW} radius={[0, 4, 4, 0]} name="Users" />
+                <Bar dataKey="count" fill={YELLOW} radius={[0, 4, 4, 0]} name="Users" barSize={16} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -1584,7 +1584,7 @@ export function AdminPage() {
                     <XAxis type="number" allowDecimals={false} tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11, fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
                     <YAxis type="category" dataKey="dayType" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11, fontFamily: 'monospace' }} axisLine={false} tickLine={false} width={80} />
                     <Tooltip contentStyle={{ background: CHARCOAL, border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, fontFamily: 'monospace', fontSize: 12 }} itemStyle={{ color: '#c084fc' }} />
-                    <Bar dataKey="count" fill="#c084fc" radius={[0, 4, 4, 0]} name="Days" />
+                    <Bar dataKey="count" fill="#c084fc" radius={[0, 4, 4, 0]} name="Days" barSize={16} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -1599,7 +1599,7 @@ export function AdminPage() {
                     <XAxis type="number" allowDecimals={false} tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11, fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
                     <YAxis type="category" dataKey="roleName" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11, fontFamily: 'monospace' }} axisLine={false} tickLine={false} width={120} />
                     <Tooltip contentStyle={{ background: CHARCOAL, border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, fontFamily: 'monospace', fontSize: 12 }} itemStyle={{ color: '#f97316' }} />
-                    <Bar dataKey="count" fill="#f97316" radius={[0, 4, 4, 0]} name="Days" />
+                    <Bar dataKey="count" fill="#f97316" radius={[0, 4, 4, 0]} name="Days" barSize={16} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
