@@ -773,10 +773,12 @@ export function DashboardPage() {
                           )}
                         </div>
                         <div className="flex flex-col items-end gap-1 shrink-0">
-                          <StatusBadge status={project.status ?? 'ongoing'} />
-                          <Badge variant="outline" className="text-xs">
-                            {project.days.length} day{project.days.length !== 1 ? 's' : ''}
-                          </Badge>
+                          <div className="flex items-center gap-1.5">
+                            <StatusBadge status={project.status ?? 'ongoing'} />
+                            <Badge variant="outline" className="text-xs">
+                              {project.days.length} day{project.days.length !== 1 ? 's' : ''}
+                            </Badge>
+                          </div>
                           {showEngineSelector && project.calc_engine && project.calc_engine !== defaultEngineId && (() => {
                             try {
                               const e = getEngine(project.calc_engine);
