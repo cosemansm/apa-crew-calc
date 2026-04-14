@@ -103,6 +103,12 @@ export function calculateSdym(input: EngineCalculationInput): EngineResult {
     return buildFlatResult(total, 'Travel Day', input)
   }
 
+  // --- Guard: reject day types that belong to other engines ---
+  const KNOWN_DAY_TYPES = ['standard', 'journee_continue', 'saturday', 'sunday_ph', 'recce', 'travel']
+  if (!KNOWN_DAY_TYPES.includes(input.dayType)) {
+    throw new Error(`Unknown day type for sdym-be engine: ${input.dayType}`)
+  }
+
   // --- Standard / Journée Continue ---
   const callMins = timeToMinutes(input.callTime)
   let wrapMins = timeToMinutes(input.wrapTime)
@@ -169,7 +175,7 @@ export function calculateSdym(input: EngineCalculationInput): EngineResult {
   const subtotal = Math.round((rates.dayRate + otTotal + nightSurchargeTotal) * 100) / 100
   const grandTotal = Math.round((subtotal + mileage) * 100) / 100
 
-  const dayLabel = input.dayType === 'journee_continue' ? 'Journée Continue' : 'Standard Day'
+  const dayLabel = input.dayType === 'journee_continue' ? 'Continuous Workday' : 'Standard Day'
 
   return {
     lineItems,

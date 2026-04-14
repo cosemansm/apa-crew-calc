@@ -86,7 +86,10 @@ src/engines/<engine-id>/
 
 - [ ] Create `src/engines/__tests__/<engine-id>.test.ts`
 - [ ] Cover at least: basic working day, travel day, overtime, any flat-rate day types
+- [ ] Add cross-engine isolation cases to `src/engines/__tests__/engine-switch.test.ts`
 - [ ] Run `npm test` — all tests pass before merging
+
+See `docs/reference/new-engine-test-checklist.md` for the full test checklist (automated + UI smoke tests).
 
 ---
 
