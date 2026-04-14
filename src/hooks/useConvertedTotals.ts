@@ -18,7 +18,7 @@ interface ConvertedTotals {
   targetSymbol: string
   /** Converted total, or null if not ready / failed */
   total: number | null
-  /** Loaded exchange rates keyed by source currency code → multiplier */
+  /** Loaded exchange rates keyed by source currency code -> multiplier */
   rates: Record<string, number>
 }
 
@@ -37,22 +37,25 @@ export function useConvertedTotals(
   const targetCurrency = getEngineCurrency(globalEngineId)
   const targetSymbol = getCurrencySymbol(globalEngineId)
 
-  // Determine distinct currencies present in the data
-  const currencies = useMemo(() => {
+  // Stable string key for distinct currencies (avoids Set referential instability)
+  const currencyKey = useMemo(() => {
     const set = new Set<string>()
-    for (const d of days) {
-      set.add(getEngineCurrency(d.calc_engine))
-    }
-    return set
+    for (const d of days) set.add(getEngineCurrency(d.calc_engine))
+    return [...set].sort().join(',')
   }, [days])
 
-  const needsConversion = currencies.size > 1
+  const foreignCurrencies = useMemo(() =>
+    currencyKey.split(',').filter(c => c && c !== targetCurrency),
+    [currencyKey, targetCurrency],
+  )
+
+  const needsConversion = foreignCurrencies.length > 0
 
   const [rates, setRates] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(false)
 
-  // Fetch rates for all foreign currencies
+  // Fetch rates for all foreign currencies in parallel
   useEffect(() => {
     if (!needsConversion) {
       setRates({})
@@ -65,29 +68,32 @@ export function useConvertedTotals(
     setLoading(true)
     setFailed(false)
 
-    async function fetchRates() {
-      const newRates: Record<string, number> = {}
-      for (const cur of currencies) {
-        if (cur === targetCurrency) {
-          newRates[cur] = 1
-          continue
-        }
-        const rate = await getExchangeRate(cur, targetCurrency)
+    Promise.all(
+      foreignCurrencies.map(cur =>
+        getExchangeRate(cur, targetCurrency).then(rate => [cur, rate] as const)
+      )
+    ).then(results => {
+      if (cancelled) return
+      const newRates: Record<string, number> = { [targetCurrency]: 1 }
+      for (const [cur, rate] of results) {
         if (rate == null) {
-          if (!cancelled) { setFailed(true); setLoading(false) }
+          setFailed(true)
+          setLoading(false)
           return
         }
         newRates[cur] = rate
       }
+      setRates(newRates)
+      setLoading(false)
+    }).catch(() => {
       if (!cancelled) {
-        setRates(newRates)
+        setFailed(true)
         setLoading(false)
       }
-    }
+    })
 
-    fetchRates()
     return () => { cancelled = true }
-  }, [needsConversion, targetCurrency, currencies])
+  }, [needsConversion, targetCurrency, currencyKey])
 
   // Compute converted total
   const total = useMemo(() => {

@@ -1,28 +1,28 @@
 import { getEngine, DEFAULT_ENGINE_ID } from '@/engines/index'
 
 interface CachedRates {
-  base: string
   rates: Record<string, number>
   fetchedAt: number
 }
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
-let cache: CachedRates | null = null
+const cache = new Map<string, CachedRates>()
 
 /**
  * Fetch latest exchange rates from frankfurter.app (ECB data, updated daily).
- * Caches in memory for 24 hours.
+ * Caches per base currency in memory for 24 hours.
  */
 async function fetchRates(base: string): Promise<Record<string, number> | null> {
-  if (cache && cache.base === base && Date.now() - cache.fetchedAt < CACHE_TTL_MS) {
-    return cache.rates
+  const cached = cache.get(base)
+  if (cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS) {
+    return cached.rates
   }
 
   try {
     const res = await fetch(`https://api.frankfurter.app/latest?from=${base}`)
     if (!res.ok) return null
     const data = await res.json()
-    cache = { base, rates: data.rates, fetchedAt: Date.now() }
+    cache.set(base, { rates: data.rates, fetchedAt: Date.now() })
     return data.rates
   } catch {
     return null
