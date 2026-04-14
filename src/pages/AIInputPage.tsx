@@ -524,11 +524,11 @@ export function AIInputPage() {
               <Button onClick={handleParse} disabled={loading || !input.trim()}>
                 {loading
                   ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Parsing…</>
-                  : <><Send className="h-4 w-4 mr-1" /> Parse & Review</>
+                  : <><Send className="h-4 w-4 mr-1" /> Review</>
                 }
               </Button>
               <Button variant="outline" onClick={() => navigate('/calculator')}>Manual Calculator</Button>
-              <span className="text-xs text-muted-foreground ml-auto hidden sm:block">⌘ + Enter to parse</span>
+              <span className="text-xs text-muted-foreground ml-auto hidden sm:block">⌘ + Enter to review</span>
             </div>
             {error && (
               <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-xl text-sm flex items-start gap-2">

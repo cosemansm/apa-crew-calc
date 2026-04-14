@@ -24,7 +24,7 @@
   <text x="184" y="166" fill="#9A9A9A" font-size="9">"Saturday night shoot as Sound Mixer. Called 6pm, wrapped 5am."</text>
   <!-- Buttons -->
   <rect x="168" y="238" width="130" height="32" rx="16" fill="#FFD528"/>
-  <text x="233" y="259" text-anchor="middle" fill="#1F1F21" font-size="10" font-weight="600">✦ Parse &amp; Review</text>
+  <text x="233" y="259" text-anchor="middle" fill="#1F1F21" font-size="10" font-weight="600">✦ Review</text>
   <rect x="308" y="238" width="140" height="32" rx="16" fill="white" stroke="#E5E5E5" stroke-width="1"/>
   <text x="378" y="259" text-anchor="middle" fill="#555" font-size="10">Manual Calculator</text>
   <!-- Examples section -->
