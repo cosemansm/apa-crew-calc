@@ -561,9 +561,25 @@ export function DashboardPage() {
                               {format(parseISO(dp.work_date), 'EEE d MMM yyyy')}
                               {dp.role_name ? ` · ${dp.role_name}` : ''}
                             </p>
-                            <p className="text-lg font-bold tracking-tight mb-3">
-                              {getCurrencySymbol(dp.calc_engine)}{dayTotal(dp).toLocaleString('en-GB', { maximumFractionDigits: 0 })}
-                            </p>
+                            {(() => {
+                              const projectDays = allProjectDays.filter(d => d.project_id === dp.project_id);
+                              const isMultiDay = projectDays.length > 1;
+                              const jobTotal = isMultiDay
+                                ? projectDays.reduce((sum, d) => sum + dayTotal(d), 0)
+                                : dayTotal(dp);
+                              return (
+                                <div className="mb-3">
+                                  {isMultiDay && (
+                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">
+                                      Job total ({projectDays.length} days)
+                                    </p>
+                                  )}
+                                  <p className="text-lg font-bold tracking-tight">
+                                    {getCurrencySymbol(dp.calc_engine)}{jobTotal.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                                  </p>
+                                </div>
+                              );
+                            })()}
                             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Project status</p>
                             <div className="grid grid-cols-2 gap-1 mb-3">
                               {(Object.keys(STATUS_CONFIG) as ProjectStatus[]).map(s => {
