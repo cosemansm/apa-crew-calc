@@ -19,7 +19,7 @@ async function fetchRates(base: string): Promise<Record<string, number> | null> 
   }
 
   try {
-    const res = await fetch(`https://api.frankfurter.app/latest?from=${base}`)
+    const res = await fetch(`https://api.frankfurter.dev/v1/latest?from=${base}`)
     if (!res.ok) return null
     const data = await res.json()
     cache.set(base, { rates: data.rates, fetchedAt: Date.now() })
