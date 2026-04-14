@@ -481,6 +481,7 @@ export function CalculatorPage() {
   const [projectName, setProjectName] = useState(ss?.projectName ?? '');
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false); // Ref-based guard against concurrent saves
+  const lastProjectIdRef = useRef<string | null>(null); // Track resolved project ID across async boundaries
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
@@ -715,6 +716,7 @@ export function CalculatorPage() {
   // Engine must be set BEFORE loading a day so the calculator uses the right engine.
   useEffect(() => {
     if (!projectId) { setJobEngine(null); return; }
+    lastProjectIdRef.current = projectId;
     (async () => {
       try {
       // 1. Set engine first so subsequent calculation uses the correct one
@@ -1090,6 +1092,7 @@ export function CalculatorPage() {
       // Update the URL so projectId is available for subsequent saves and engine loading
       setSearchParams({ project: proj.id }, { replace: true });
     }
+    lastProjectIdRef.current = resolvedProjectId;
 
     const payload = {
       project_id: resolvedProjectId,
@@ -1198,7 +1201,7 @@ export function CalculatorPage() {
     // Only proceed to a fresh form if the save succeeded
     if (!savedId) return;
     // Use fresh project days from DB (not stale React state) to pick next date
-    const freshDays = await refreshProjectDays(searchParams.get('project') ?? '');
+    const freshDays = await refreshProjectDays(lastProjectIdRef.current ?? '');
     const bookedDates = freshDays.map(d => d.work_date);
     handleAddNewDay(nextAvailableDate(workDate, bookedDates));
     // After all state updates from handleAddNewDay settle, mark the new day dirty
