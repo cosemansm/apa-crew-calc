@@ -161,9 +161,10 @@ function buildDayItems(day: InvoiceDay, taxRate: string, detailed: boolean): Inv
     // Use a 5% relative tolerance to handle rounding in the calculator (e.g. 4.5h × £67
     // stored as £302 rather than £301.50). Day-rate items fail by hundreds of percent so
     // the 5% band correctly separates them.
-    const isHourlyItem = (hours: number | undefined, rate: number | undefined, total: number) =>
+    const isHourlyItem = (hours: number | undefined, rate: number | undefined, total: number | undefined) =>
       hours != null &&
       rate != null &&
+      total != null &&
       total > 0 &&
       Math.abs(hours * rate - total) / total < 0.05;
 
@@ -174,7 +175,7 @@ function buildDayItems(day: InvoiceDay, taxRate: string, detailed: boolean): Inv
         description: `${li.description}${timeStr} | ${day.work_date}`,
         item_type: hourly ? 'Hours' : 'Days',
         quantity: hourly ? li.hours!.toFixed(2) : '1.0',
-        price: hourly ? li.rate!.toFixed(2) : li.total.toFixed(2),
+        price: hourly ? li.rate!.toFixed(2) : (li.total ?? 0).toFixed(2),
         sales_tax_rate: taxRate,
       });
     }
@@ -185,7 +186,7 @@ function buildDayItems(day: InvoiceDay, taxRate: string, detailed: boolean): Inv
         description: `${p.description} | ${day.work_date}`,
         item_type: hourly ? 'Hours' : 'Days',
         quantity: hourly ? p.hours!.toFixed(2) : '1.0',
-        price: hourly ? p.rate!.toFixed(2) : p.total.toFixed(2),
+        price: hourly ? p.rate!.toFixed(2) : (p.total ?? 0).toFixed(2),
         sales_tax_rate: taxRate,
       });
     }

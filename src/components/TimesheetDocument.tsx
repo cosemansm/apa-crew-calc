@@ -147,7 +147,7 @@ export function TimesheetDocument({ userName, projectName, clientName, selectedD
                       desc={`${dayLabel} — ${day.role_name}`}
                       qty="1 day"
                       rate={lineItems[0].rate ? `${fmtAmount(lineItems[0].rate)}/day` : ''}
-                      amount={fmtAmount(lineItems[0].total)}
+                      amount={fmtAmount(lineItems[0].total ?? 0)}
                     />
                     {lineItems.slice(1).map((item, j) => (
                       <Row
@@ -155,7 +155,7 @@ export function TimesheetDocument({ userName, projectName, clientName, selectedD
                         desc={item.description}
                         qty={item.hours != null ? `${item.hours} hrs` : '—'}
                         rate={item.rate != null ? `£${item.rate.toFixed(2)}/hr` : '—'}
-                        amount={fmtAmount(item.total)}
+                        amount={fmtAmount(item.total ?? 0)}
                       />
                     ))}
                   </>
@@ -173,7 +173,7 @@ export function TimesheetDocument({ userName, projectName, clientName, selectedD
                 <div style={{ paddingTop: 12 }}>
                   <div style={{ fontSize: 9, color: '#bbb', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 5 }}>Penalties &amp; Allowances</div>
                   {penalties.map((p, j) => (
-                    <Row key={j} desc={p.description} qty={p.hours != null ? `${p.hours} hrs` : '—'} rate="—" amount={fmtAmount(p.total)} />
+                    <Row key={j} desc={p.description} qty={p.hours != null ? `${p.hours} hrs` : '—'} rate="—" amount={fmtAmount(p.total ?? 0)} />
                   ))}
                   {rj.travelPay ? <Row desc="Travel pay" qty="—" rate="—" amount={fmtAmount(rj.travelPay)} /> : null}
                   {rj.mileage   ? <Row desc={`Mileage (${rj.mileageMiles ?? 0} mi)`} qty={`${rj.mileageMiles ?? 0} mi`} rate="—" amount={fmtAmount(rj.mileage)} /> : null}

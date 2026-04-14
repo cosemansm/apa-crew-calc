@@ -2241,13 +2241,13 @@ export function CalculatorPage() {
                           <div className="border-t border-[#FFD528]/25 bg-background px-3 pt-2 pb-3">
                             <div className="grid gap-x-3 items-center" style={{ gridTemplateColumns: '1fr auto' }}>
                               {rj.lineItems?.filter(Boolean).map((item, i) => {
-                                const isFlatRate = !!(item.rate && Math.abs(item.total - item.rate) < 1);
+                                const isFlatRate = !!(item.rate && Math.abs((item.total ?? 0) - item.rate) < 1);
                                 const isDayRate = item.isDayRate || isFlatRate;
                                 const timePart = item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : '';
                                 let ratePart = '';
                                 if (item.rate && item.hours) {
                                   ratePart = isDayRate
-                                    ? `${activeEngine.meta.currencySymbol}${item.total} × 1`
+                                    ? `${activeEngine.meta.currencySymbol}${item.total ?? 0} × 1`
                                     : `${activeEngine.meta.currencySymbol}${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
                                 }
                                 const detail = [timePart, ratePart].filter(Boolean).join(' · ');
@@ -2266,7 +2266,7 @@ export function CalculatorPage() {
                                 <>
                                   <div className="col-span-2 border-t border-border/40 my-1" />
                                   {rj.penalties!.filter(Boolean).map((p, i) => {
-                                    const pIsFlatRate = !!(p.rate && Math.abs(p.total - p.rate) < 1);
+                                    const pIsFlatRate = !!(p.rate && Math.abs((p.total ?? 0) - p.rate) < 1);
                                     let pDetail = '';
                                     if (p.rate && p.hours) {
                                       pDetail = pIsFlatRate

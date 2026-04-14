@@ -718,8 +718,8 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
   const equipmentDiscount = input.equipmentDiscount ?? 0;
   const equipmentTotal = Math.round(equipmentValue * (1 - equipmentDiscount / 100) * 100) / 100;
 
-  const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
-  const penaltiesTotal = penalties.reduce((sum, item) => sum + item.total, 0);
+  const subtotal = lineItems.reduce((sum, item) => sum + (item.total ?? 0), 0);
+  const penaltiesTotal = penalties.reduce((sum, item) => sum + (item.total ?? 0), 0);
 
   const grandTotal = subtotal + penaltiesTotal + travelPay + mileage + equipmentTotal;
 
