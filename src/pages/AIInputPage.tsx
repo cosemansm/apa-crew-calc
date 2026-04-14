@@ -528,7 +528,6 @@ export function AIInputPage() {
                 }
               </Button>
               <Button variant="outline" onClick={() => navigate('/calculator')}>Manual Calculator</Button>
-              <span className="text-xs text-muted-foreground ml-auto hidden sm:block">⌘ + Enter to review</span>
             </div>
             {error && (
               <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-xl text-sm flex items-start gap-2">
