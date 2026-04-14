@@ -1145,10 +1145,10 @@ export function InvoicePage() {
                                     {item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : ''}
                                   </td>
                                   <td style={{ padding: '3px 14px', color: '#9A9A9A', fontSize: '11px', whiteSpace: 'nowrap', fontFamily: 'monospace' }}>
-                                    {item.rate && item.hours ? `${currencySymbol}${item.rate.toFixed(0)} × ${Math.abs(item.rate - item.total) < 1 ? '1' : item.hours % 1 === 0 ? `${item.hours}h` : `${item.hours.toFixed(2)}h`}` : ''}
+                                    {item.rate && item.hours ? `${currencySymbol}${item.rate.toFixed(0)} × ${Math.abs(item.rate - (item.total ?? 0)) < 1 ? '1' : item.hours % 1 === 0 ? `${item.hours}h` : `${item.hours.toFixed(2)}h`}` : ''}
                                   </td>
                                   <td style={{ padding: '3px 14px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace' }}>
-                                    {currencySymbol}{item.total.toFixed(2)}
+                                    {currencySymbol}{(item.total ?? 0).toFixed(2)}
                                   </td>
                                 </tr>
                               ))}
@@ -1162,7 +1162,7 @@ export function InvoicePage() {
                                     {p.rate && p.hours && p.hours > 0 ? `${currencySymbol}${p.rate.toFixed(0)} × ${p.hours.toFixed(2)}h` : ''}
                                   </td>
                                   <td style={{ padding: '3px 14px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace' }}>
-                                    {currencySymbol}{p.total.toFixed(2)}
+                                    {currencySymbol}{(p.total ?? 0).toFixed(2)}
                                   </td>
                                 </tr>
                               ))}

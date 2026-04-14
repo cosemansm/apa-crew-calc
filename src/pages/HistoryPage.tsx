@@ -122,13 +122,13 @@ export function HistoryPage() {
                     {day.result_json.lineItems?.filter(Boolean).map((item, i) => (
                       <div key={i} className="flex justify-between">
                         <span className="text-muted-foreground">{item.description}</span>
-                        <span className="font-mono">{getCurrencySymbol(day.projects?.calc_engine)}{item.total.toFixed(2)}</span>
+                        <span className="font-mono">{getCurrencySymbol(day.projects?.calc_engine)}{(item.total ?? 0).toFixed(2)}</span>
                       </div>
                     ))}
                     {day.result_json.penalties?.filter(Boolean).map((p, i) => (
                       <div key={i} className="flex justify-between text-orange-600">
                         <span>{p.description}</span>
-                        <span className="font-mono">{getCurrencySymbol(day.projects?.calc_engine)}{p.total.toFixed(2)}</span>
+                        <span className="font-mono">{getCurrencySymbol(day.projects?.calc_engine)}{(p.total ?? 0).toFixed(2)}</span>
                       </div>
                     ))}
                     {(day.result_json.travelPay ?? 0) > 0 && (

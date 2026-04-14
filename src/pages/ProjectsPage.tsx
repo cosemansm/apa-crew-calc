@@ -722,13 +722,13 @@ export function ProjectsPage() {
                               <div className="px-4 py-2">
                                 <div className="grid gap-x-3" style={{ gridTemplateColumns: '1fr auto auto' }}>
                                   {lineItems.filter(Boolean).map((item, i) => {
-                                    const isFlatRate = !!(item.rate && Math.abs(item.total - item.rate) < 1);
+                                    const isFlatRate = !!(item.rate && Math.abs((item.total ?? 0) - item.rate) < 1);
                                     const isDayRate = item.isDayRate || isFlatRate;
                                     const timePart = item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : '';
                                     let ratePart = '';
                                     if (item.rate && item.hours) {
                                       ratePart = isDayRate
-                                        ? `${sym}${item.total} × 1`
+                                        ? `${sym}${item.total ?? 0} × 1`
                                         : `${sym}${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
                                     }
                                     const detail = [timePart, ratePart].filter(Boolean).join(' · ');
@@ -736,7 +736,7 @@ export function ProjectsPage() {
                                       <Fragment key={i}>
                                         <p className="text-xs text-muted-foreground leading-tight py-[3px] self-center">{item.description}</p>
                                         <span className="text-[10px] text-muted-foreground/50 font-mono text-right self-center py-[3px]">{detail}</span>
-                                        <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">{sym}{item.total.toFixed(2)}</span>
+                                        <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">{sym}{(item.total ?? 0).toFixed(2)}</span>
                                       </Fragment>
                                     );
                                   })}
@@ -744,7 +744,7 @@ export function ProjectsPage() {
                                     <>
                                       <div className="col-span-3 border-t border-border/40 my-1" />
                                       {penalties.filter(Boolean).map((item, i) => {
-                                        const pIsFlatRate = !!(item.rate && Math.abs(item.total - item.rate) < 1);
+                                        const pIsFlatRate = !!(item.rate && Math.abs((item.total ?? 0) - item.rate) < 1);
                                         let pDetail = '';
                                         if (item.rate && item.hours) {
                                           pDetail = pIsFlatRate
@@ -755,7 +755,7 @@ export function ProjectsPage() {
                                           <Fragment key={`pen-${i}`}>
                                             <p className="text-xs text-muted-foreground leading-tight py-[3px] self-center">{item.description}</p>
                                             <span className="text-[10px] text-muted-foreground/50 font-mono text-right self-center py-[3px]">{pDetail}</span>
-                                            <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">{sym}{item.total.toFixed(2)}</span>
+                                            <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">{sym}{(item.total ?? 0).toFixed(2)}</span>
                                           </Fragment>
                                         );
                                       })}
