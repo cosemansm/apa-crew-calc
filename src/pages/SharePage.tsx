@@ -362,7 +362,7 @@ export function SharePage() {
             <p className="font-semibold">{loadError}</p>
             <p className="text-sm text-muted-foreground">The link may have been revoked or the job deleted.</p>
             {user ? (
-              <Button className="mt-4 w-full" onClick={() => navigate('/projects')}>Go to My Jobs</Button>
+              <Button className="mt-4 w-full" onClick={() => navigate('/projects')}>Go to My Projects</Button>
             ) : (
               <Button className="mt-4 w-full" asChild><Link to="/login">Sign In</Link></Button>
             )}
@@ -450,8 +450,8 @@ export function SharePage() {
           <CardContent className="py-12 text-center space-y-2">
             <CheckCircle className="h-12 w-12 mx-auto text-[#FFD528] mb-2" />
             <p className="font-semibold">This is your own shared job</p>
-            <p className="text-sm text-muted-foreground">You created this link. Manage it from your Jobs page.</p>
-            <Button className="mt-4 w-full" onClick={() => navigate('/projects')}>Go to My Jobs</Button>
+            <p className="text-sm text-muted-foreground">You created this link. Manage it from your Projects page.</p>
+            <Button className="mt-4 w-full" onClick={() => navigate('/projects')}>Go to My Projects</Button>
           </CardContent>
         </Card>
       </div>
@@ -549,25 +549,25 @@ export function SharePage() {
         {/* CTA */}
         {alreadyImported ? (
           <Button disabled className="w-full gap-2">
-            <Check className="h-4 w-4" /> Already in your jobs
+            <Check className="h-4 w-4" /> Already in your projects
           </Button>
         ) : (
           <Button
             className="w-full bg-[#FFD528] hover:bg-[#FFD528]/90 text-[#1F1F21] font-semibold"
             onClick={() => setAddDialogOpen(true)}
           >
-            Add to my jobs
+            Add to my projects
           </Button>
         )}
       </div>
 
-      {/* Add to my jobs dialog */}
+      {/* Add to my projects dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add to my jobs</DialogTitle>
+            <DialogTitle>Add to my projects</DialogTitle>
             <DialogDescription>
-              Select your role and rate. The schedule will be pre-filled from the shared job.
+              Select your role and rate. The schedule will be pre-filled from the shared project.
             </DialogDescription>
           </DialogHeader>
 
@@ -654,7 +654,7 @@ export function SharePage() {
               onClick={handleAddToJobs}
               disabled={importing || !selectedRole || !agreedRate}
             >
-              {importing ? 'Adding…' : 'Add to my jobs'}
+              {importing ? 'Adding…' : 'Add to my projects'}
             </Button>
           </div>
         </DialogContent>

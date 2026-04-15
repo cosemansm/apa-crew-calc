@@ -798,7 +798,7 @@ export function DashboardPage() {
       {/* Projects */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Recent Jobs</h2>
+          <h2 className="text-lg font-semibold">Recent Projects</h2>
           {projects.length > 0 && (
             <button
               onClick={() => navigate('/projects')}
@@ -809,14 +809,14 @@ export function DashboardPage() {
           )}
         </div>
         {loading ? (
-          <div className="text-muted-foreground text-sm">Loading jobs...</div>
+          <div className="text-muted-foreground text-sm">Loading projects...</div>
         ) : projects.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
               <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
-              <p className="text-muted-foreground">No jobs yet. Create your first job to get started.</p>
+              <p className="text-muted-foreground">No projects yet. Create your first project to get started.</p>
               <Button className="mt-4" onClick={() => setShowNewProject(true)}>
-                <Plus className="h-4 w-4 mr-1" /> Create Job
+                <Plus className="h-4 w-4 mr-1" /> Create Project
               </Button>
             </CardContent>
           </Card>

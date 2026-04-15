@@ -327,11 +327,9 @@ function ProjectCalendar({
                 onClick={() => {
                   if (isBooked) {
                     onSelectDay?.(dayByDate[dateStr].id);
-                  } else {
-                    onAddDate(dateStr);
                   }
                 }}
-                title={isBooked ? `${dayByDate[dateStr].role_name} — ${currency}${(dayByDate[dateStr].grand_total || 0).toFixed(0)}` : 'Add day'}
+                title={isBooked ? `${dayByDate[dateStr].role_name} — ${currency}${(dayByDate[dateStr].grand_total || 0).toFixed(0)}` : undefined}
                 className={cn(
                   'relative z-10 w-[26px] h-[26px] flex items-center justify-center text-[11px] transition-all',
                   // Today gets a square-ish highlight
@@ -342,15 +340,11 @@ function ProjectCalendar({
                     ? 'bg-[#1F1F21] text-white font-semibold rounded-full'
                     : isSelected
                     ? 'bg-muted font-semibold'
-                    : isHovered
-                    ? 'bg-muted/70'
                     : '',
                 )}
               >
                 {isBooked && isHovered ? (
                   <Pencil className="h-2.5 w-2.5" />
-                ) : !isBooked && isHovered ? (
-                  <Plus className="h-3 w-3 text-[#1F1F21]" />
                 ) : (
                   format(day, 'd')
                 )}
@@ -1076,7 +1070,7 @@ export function CalculatorPage() {
         if ((count ?? 0) >= 10) {
           savingRef.current = false;
           setSaving(false);
-          toast.error('Free plan limit reached — upgrade to Pro for unlimited jobs, or delete an existing job to free a slot.');
+          toast.error('Free plan limit reached — upgrade to Pro for unlimited projects, or delete an existing project to free a slot.');
           return null;
         }
       }
@@ -1403,10 +1397,10 @@ export function CalculatorPage() {
                   {showProjectPicker && (
                     <div className="absolute right-0 top-11 w-72 rounded-2xl border border-border bg-white shadow-xl z-50 overflow-hidden">
                       <div className="px-4 py-2.5 border-b border-border/40">
-                        <p className="text-xs font-semibold text-muted-foreground">Switch to job</p>
+                        <p className="text-xs font-semibold text-muted-foreground">Switch to project</p>
                       </div>
                       {allProjects.length === 0 ? (
-                        <div className="px-4 py-6 text-sm text-muted-foreground text-center">No jobs yet</div>
+                        <div className="px-4 py-6 text-sm text-muted-foreground text-center">No projects yet</div>
                       ) : (
                         <div className="max-h-60 overflow-y-auto py-1">
                           {allProjects.map(proj => (

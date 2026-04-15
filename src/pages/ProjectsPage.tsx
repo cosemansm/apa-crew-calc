@@ -121,7 +121,7 @@ export function StatusBadge({ status }: { status: ProjectStatus }) {
 
 // ── Main component ───────────────────────────────────────────────────────────
 export function ProjectsPage() {
-  usePageTitle('Jobs');
+  usePageTitle('Projects');
   const { user } = useAuth();
   const { isPremium } = useSubscription();
   const navigate = useNavigate();
@@ -509,30 +509,30 @@ export function ProjectsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Jobs</h1>
-          <p className="text-muted-foreground mt-1">All your crew booking jobs</p>
+          <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
+          <p className="text-muted-foreground mt-1">All your crew booking projects</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => navigate('/ai-input')} className="gap-2">
             <Sparkles className="h-4 w-4" /> AI Input
           </Button>
           <Button onClick={handleNewJob} className="gap-2">
-            <Plus className="h-4 w-4" /> New Job
+            <Plus className="h-4 w-4" /> New Project
           </Button>
         </div>
       </div>
 
 
       {loading ? (
-        <div className="text-muted-foreground text-sm">Loading jobs…</div>
+        <div className="text-muted-foreground text-sm">Loading projects…</div>
       ) : projects.length === 0 ? (
         <Card>
           <CardContent className="py-16 text-center">
             <FolderOpen className="h-14 w-14 mx-auto text-muted-foreground/30 mb-4" />
-            <p className="text-muted-foreground font-medium">No jobs yet</p>
-            <p className="text-sm text-muted-foreground mt-1 mb-4">Create your first job to get started</p>
+            <p className="text-muted-foreground font-medium">No projects yet</p>
+            <p className="text-sm text-muted-foreground mt-1 mb-4">Create your first project to get started</p>
             <Button onClick={handleNewJob}>
-              <Plus className="h-4 w-4 mr-1" /> Create Job
+              <Plus className="h-4 w-4 mr-1" /> Create Project
             </Button>
           </CardContent>
         </Card>
@@ -545,7 +545,7 @@ export function ProjectsPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search jobs…"
+                placeholder="Search projects…"
                 value={jobSearch}
                 onChange={e => setJobSearch(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 rounded-xl border border-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[#FFD528]/50"
@@ -553,7 +553,7 @@ export function ProjectsPage() {
             </div>
             <div className={`grid gap-3 ${selectedProject ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'}`}>
               {filteredProjects.length === 0 ? (
-                <p className="text-sm text-muted-foreground col-span-full py-4 text-center">No jobs match your search.</p>
+                <p className="text-sm text-muted-foreground col-span-full py-4 text-center">No projects match your search.</p>
               ) : filteredProjects.map(project => {
                 const isSelected = selectedProject?.id === project.id;
                 return (
@@ -599,7 +599,7 @@ export function ProjectsPage() {
                               ? 'text-green-600 hover:bg-green-50'
                               : 'text-muted-foreground/40 hover:text-blue-500 hover:bg-blue-50'
                           }`}
-                          title={isPremium ? 'Share job' : 'Upgrade to Pro to share jobs'}
+                          title={isPremium ? 'Share project' : 'Upgrade to Pro to share projects'}
                         >
                           {isPremium ? <Send className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
                         </button>
