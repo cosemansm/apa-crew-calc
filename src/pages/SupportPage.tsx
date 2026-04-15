@@ -43,7 +43,7 @@ const FEATURE_TAGS = [
   'Calculator',
   'Invoices',
   'AI Input',
-  'Jobs',
+  'Projects',
   'Integrations',
   'Equipment',
   'Expenses',
@@ -104,8 +104,8 @@ const HELP_SECTIONS: {
     icon: LayoutDashboard,
     screenshot: helpDashboard,
     items: [
-      { heading: 'Sign up & log in', body: 'Create an account with your email. You\'ll land on the Dashboard where you can see recent jobs and quick stats.' },
-      { heading: 'Creating your first job', body: 'Click "New Job" on the Dashboard. Give it a name (e.g. the commercial title) and you\'re ready to add days.' },
+      { heading: 'Sign up & log in', body: 'Create an account with your email. You\'ll land on the Dashboard where you can see recent projects and quick stats.' },
+      { heading: 'Creating your first project', body: 'Click "New Project" on the Dashboard. Give it a name (e.g. the commercial title) and you\'re ready to add days.' },
       { heading: 'Navigation', body: 'Use the sidebar on the left to move between pages. On mobile, tap the menu icon in the top-right.' },
     ],
   },
@@ -134,13 +134,13 @@ const HELP_SECTIONS: {
   },
   {
     id: 'jobs',
-    title: 'Jobs',
+    title: 'Projects',
     icon: FolderOpen,
     screenshot: helpJobs,
     items: [
-      { heading: 'Managing jobs', body: 'The Jobs page shows all your booking jobs. Each job can have multiple days. Click into a job to see all its days and the running total.' },
-      { heading: 'Adding days', body: 'From the Calculator, select a job and fill in the day details. Hit "Save Day" to add it to the job. You can edit or delete days later.' },
-      { heading: 'Job totals', body: 'The job total includes all day rates, overtime, penalties, equipment, and expenses across every day in the job.' },
+      { heading: 'Managing projects', body: 'The Projects page shows all your booking projects. Each project can have multiple days. Click into a project to see all its days and the running total.' },
+      { heading: 'Adding days', body: 'From the Calculator, select a project and fill in the day details. Hit "Save Day" to add it to the project. You can edit or delete days later.' },
+      { heading: 'Project totals', body: 'The project total includes all day rates, overtime, penalties, equipment, and expenses across every day in the project.' },
     ],
   },
   {

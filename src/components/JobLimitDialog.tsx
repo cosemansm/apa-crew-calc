@@ -74,7 +74,7 @@ export function JobLimitDialog({
           >
             {localProjects.length} / 10
           </span>
-          <span className="text-muted-foreground">jobs used</span>
+          <span className="text-muted-foreground">projects used</span>
         </div>
 
         {/* Job list */}

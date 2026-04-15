@@ -65,14 +65,14 @@ interface AdminNotification {
 }
 
 const NOTIFICATION_CATEGORIES = [
-  'General', 'Dashboard', 'Calculator', 'Jobs', 'Invoices',
+  'General', 'Dashboard', 'Calculator', 'Projects', 'Invoices',
   'Timesheets', 'Bookkeeping', 'AI Input', 'Integrations',
   'Projects', 'Equipment', 'Expenses', 'PDF / Export',
   'Feature Requests', 'Settings', 'Subscription', 'Mobile',
 ];
 
 const FEATURE_TAGS = [
-  'General', 'Bug Report', 'Calculator', 'Invoices', 'AI Input', 'Jobs',
+  'General', 'Bug Report', 'Calculator', 'Invoices', 'AI Input', 'Projects',
   'Integrations', 'Equipment', 'Expenses', 'Mobile', 'Settings',
   'Custom Rates', 'PDF / Export', 'Performance',
 ];
@@ -1338,7 +1338,7 @@ export function AdminPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatCard label="Total Users" value={stats.users.total} sub={`+${stats.users.last30Days} this month`} icon={Users} accent />
             <StatCard label="Pro + Lifetime" value={stats.subscriptions.paidUsers} sub={`${stats.subscriptions.conversionRate}% conversion`} icon={Zap} accent />
-            <StatCard label="Total Jobs" value={stats.jobs.total} sub={`avg ${stats.jobs.avgPerUser} per user`} icon={Briefcase} />
+            <StatCard label="Total Projects" value={stats.jobs.total} sub={`avg ${stats.jobs.avgPerUser} per user`} icon={Briefcase} />
             <StatCard label="Days Logged" value={stats.days.total.toLocaleString()} sub={`+${stats.days.last30Days} last 30d`} icon={CalendarDays} />
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
@@ -1350,7 +1350,7 @@ export function AdminPage() {
 
           {/* ── Jobs Chart (tabbed: 30d / 52w / 12m) ───────────────────── */}
           <SectionTitle>
-            {jobsView === 'daily' ? 'Jobs Added — Last 30 Days' : jobsView === 'weekly' ? 'Jobs Added — Last 52 Weeks' : 'Jobs Added — Last 12 Months'}
+            {jobsView === 'daily' ? 'Projects Added — Last 30 Days' : jobsView === 'weekly' ? 'Projects Added — Last 52 Weeks' : 'Projects Added — Last 12 Months'}
           </SectionTitle>
           <div className="bg-[#2a2a2c] rounded-2xl p-4 border border-white/5">
             {/* View tabs */}
@@ -1421,7 +1421,7 @@ export function AdminPage() {
                     );
                   }}
                 />
-                <Bar dataKey="count" fill={YELLOW} radius={[3, 3, 0, 0]} name="Jobs added" />
+                <Bar dataKey="count" fill={YELLOW} radius={[3, 3, 0, 0]} name="Projects added" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -1509,7 +1509,7 @@ export function AdminPage() {
           </div>
 
           {/* ── Jobs by month ───────────────────────────────────────────── */}
-          <SectionTitle>Jobs Created — Last 12 Months</SectionTitle>
+          <SectionTitle>Projects Created — Last 12 Months</SectionTitle>
           <div className="bg-[#2a2a2c] rounded-2xl p-4 border border-white/5">
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={stats.jobs.byMonth.map(d => ({ ...d, month: shortMonth(d.month) }))}>
@@ -1517,7 +1517,7 @@ export function AdminPage() {
                 <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11, fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
                 <YAxis allowDecimals={false} tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11, fontFamily: 'monospace' }} axisLine={false} tickLine={false} width={24} />
                 <Tooltip contentStyle={{ background: CHARCOAL, border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, fontFamily: 'monospace', fontSize: 12 }} labelStyle={{ color: 'rgba(255,255,255,0.6)' }} itemStyle={{ color: '#60a5fa' }} />
-                <Bar dataKey="count" fill="#60a5fa" radius={[4, 4, 0, 0]} name="Jobs" />
+                <Bar dataKey="count" fill="#60a5fa" radius={[4, 4, 0, 0]} name="Projects" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -1525,7 +1525,7 @@ export function AdminPage() {
           {/* ── Jobs by Status + Days by month ─────────────────────────── */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <SectionTitle>Jobs by Status</SectionTitle>
+              <SectionTitle>Projects by Status</SectionTitle>
               <div className="bg-[#2a2a2c] rounded-2xl p-4 border border-white/5">
                 <ResponsiveContainer width="100%" height={180}>
                   <BarChart data={stats.jobs.byStatus} layout="vertical">
@@ -1533,7 +1533,7 @@ export function AdminPage() {
                     <XAxis type="number" allowDecimals={false} tick={{ fill: 'rgba(255,255,255,0.35)', fontSize: 11, fontFamily: 'monospace' }} axisLine={false} tickLine={false} />
                     <YAxis type="category" dataKey="status" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11, fontFamily: 'monospace' }} axisLine={false} tickLine={false} width={65} />
                     <Tooltip contentStyle={{ background: CHARCOAL, border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, fontFamily: 'monospace', fontSize: 12 }} />
-                    <Bar dataKey="count" radius={[0, 4, 4, 0]} name="Jobs">
+                    <Bar dataKey="count" radius={[0, 4, 4, 0]} name="Projects">
                       {stats.jobs.byStatus.map(entry => (
                         <Cell key={entry.status} fill={STATUS_COLORS[entry.status] ?? '#60a5fa'} />
                       ))}
@@ -1614,7 +1614,7 @@ export function AdminPage() {
               { label: 'Custom Roles Created', value: stats.features.customRoles, sub: 'users with ≥1 custom role' },
               { label: 'Equipment Packages', value: stats.features.equipmentPackages, sub: 'users with ≥1 package' },
               { label: 'Favourite Roles', value: stats.features.favouriteRoles, sub: 'users with favourites set' },
-              { label: 'Shared Job Links', value: stats.features.sharedJobsTotal, sub: 'total links created' },
+              { label: 'Shared Project Links', value: stats.features.sharedJobsTotal, sub: 'total links created' },
               { label: 'Feature Requests', value: stats.features.featureRequests, sub: 'total submitted' },
             ].map(({ label, value, sub }) => (
               <div key={label} className="bg-[#2a2a2c] rounded-2xl p-4 border border-white/5">

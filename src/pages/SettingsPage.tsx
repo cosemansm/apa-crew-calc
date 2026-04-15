@@ -1307,7 +1307,7 @@ export function SettingsPage() {
                     <div>
                       <p className="font-semibold text-red-700">Delete Account</p>
                       <p className="text-sm text-red-600/80 mt-1">
-                        Permanently delete your account and all associated data including jobs, days, invoices, and settings.
+                        Permanently delete your account and all associated data including projects, days, invoices, and settings.
                         This action <strong>cannot be undone</strong>.
                       </p>
                     </div>
@@ -1345,7 +1345,7 @@ export function SettingsPage() {
                 <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-700 space-y-1">
                   <p className="font-semibold">You will permanently lose:</p>
                   <ul className="list-disc list-inside space-y-0.5 text-red-600/90 mt-1">
-                    <li>All your jobs and booking days</li>
+                    <li>All your projects and booking days</li>
                     <li>All invoice history</li>
                     <li>All custom rates and equipment packages</li>
                     <li>All settings and account data</li>
@@ -1418,8 +1418,8 @@ export function SettingsPage() {
               </SelectContent>
             </Select>
             <p className="text-sm text-muted-foreground">
-              This will affect all future jobs. Existing jobs keep their current T&Cs.
-              You can also change the engine on individual jobs from the job settings.
+              This will affect all future projects. Existing projects keep their current T&Cs.
+              You can also change the engine on individual projects from the project settings.
             </p>
           </div>
           <div className="flex justify-end gap-2 mt-4">
