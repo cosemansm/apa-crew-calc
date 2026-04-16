@@ -704,8 +704,6 @@ export function ProjectsPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {!isImpersonating && (
-                      <>
                         <Button
                           size="sm"
                           variant="outline"
@@ -723,8 +721,6 @@ export function ProjectsPage() {
                           <Edit3 className="h-3.5 w-3.5" />
                           Edit
                         </Button>
-                      </>
-                    )}
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={closeDetail}>
                       <X className="h-4 w-4" />
                     </Button>
@@ -771,7 +767,6 @@ export function ProjectsPage() {
                     <div className="text-center py-8">
                       <Clock className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
                       <p className="text-sm text-muted-foreground">No days saved yet</p>
-                      {!isImpersonating && (
                         <Button
                           size="sm"
                           className="mt-3 gap-1.5"
@@ -780,7 +775,6 @@ export function ProjectsPage() {
                           <Edit3 className="h-3.5 w-3.5" />
                           Open in Calculator
                         </Button>
-                      )}
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -897,7 +891,6 @@ export function ProjectsPage() {
                         </span>
                       </div>
 
-                      {!isImpersonating && (
                         <div className="flex gap-2 mt-1">
                           <Button
                             variant="outline"
@@ -915,7 +908,6 @@ export function ProjectsPage() {
                             Edit
                           </Button>
                         </div>
-                      )}
                     </div>
                   )}
                 </CardContent>
