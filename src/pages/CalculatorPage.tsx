@@ -22,6 +22,7 @@ import type { EngineRole, EngineResult } from '@/engines/types';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { cn } from '@/lib/utils';
 import { getUKBankHolidays } from '@/lib/bankHolidays';
 
@@ -430,6 +431,7 @@ export function CalculatorPage() {
   usePageTitle('Rate Calculator');
   const { user } = useAuth();
   const { isPremium } = useSubscription();
+  const { isImpersonating, impersonatedData } = useImpersonation();
   const { activeEngine, setJobEngine, showEngineSelector, authorizedEngines, defaultEngineId } = useEngine();
   const [searchParams, setSearchParams] = useSearchParams();
   const projectId = searchParams.get('project');
@@ -565,6 +567,7 @@ export function CalculatorPage() {
 
   // Persist form state to sessionStorage whenever it changes
   useEffect(() => {
+    if (isImpersonating) return;
     saveSession({
       projectId,
       projectName,
@@ -603,13 +606,21 @@ export function CalculatorPage() {
 
   // Load projects list for the picker
   useEffect(() => {
+    if (isImpersonating && impersonatedData) {
+      setAllProjects(impersonatedData.projects.map(p => ({
+        id: p.id,
+        name: p.name,
+        client_name: p.client_name,
+      })));
+      return;
+    }
     if (user) {
       supabase.from('projects').select('id, name, client_name')
         .eq('user_id', user.id)
         .order('updated_at', { ascending: false })
         .then(({ data }) => { if (data) setAllProjects(data); }, () => {});
     }
-  }, [user]);
+  }, [user, isImpersonating, impersonatedData]);
 
   // Close project picker on outside click
   useEffect(() => {
@@ -657,6 +668,30 @@ export function CalculatorPage() {
 
   // Load favourites and custom roles
   useEffect(() => {
+    if (isImpersonating && impersonatedData) {
+      setFavouriteRoles(impersonatedData.favouriteRoles.map(f => f.role_name));
+      setEquipmentPackages(impersonatedData.equipmentPackages.map(p => ({
+        id: p.id,
+        name: p.name,
+        day_rate: p.day_rate,
+      })));
+      const mapped: EngineRole[] = impersonatedData.customRoles.map(r => ({
+        role: r.role_name,
+        department: 'Custom',
+        minRate: r.daily_rate,
+        maxRate: r.daily_rate,
+        engineData: {
+          otGrade: 'N/A',
+          otCoefficient: r.ot_coefficient,
+          customBhr: r.custom_bhr ?? undefined,
+        },
+        isCustom: true,
+        customId: r.id,
+        isBuyout: r.is_buyout ?? false,
+      }));
+      setCustomRoles(mapped);
+      return;
+    }
     if (!user) return;
     supabase.from('favourite_roles').select('role_name').eq('user_id', user.id)
       .then(({ data }) => { if (data) setFavouriteRoles(data.map(f => f.role_name)); }, () => {});
@@ -704,13 +739,36 @@ export function CalculatorPage() {
           }
         }
       }, () => {});
-  }, [user]);
+  }, [user, isImpersonating, impersonatedData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load project engine + days & auto-load last day when entering a project.
   // Engine must be set BEFORE loading a day so the calculator uses the right engine.
   useEffect(() => {
     if (!projectId) { setJobEngine(null); return; }
     lastProjectIdRef.current = projectId;
+
+    // Impersonation: load from snapshot instead of fetching from supabase
+    if (isImpersonating && impersonatedData) {
+      const impersonatedProject = impersonatedData.projects.find(p => p.id === projectId);
+      if (impersonatedProject) {
+        setJobEngine(impersonatedProject.calc_engine ?? null);
+        const days: ProjectDaySummary[] = impersonatedProject.days.map(d => ({
+          id: d.id,
+          project_id: d.project_id,
+          work_date: d.work_date,
+          role_name: d.role_name,
+          grand_total: d.grand_total,
+          day_number: d.day_number,
+          result_json: d.result_json as DayResultJson,
+        }));
+        setProjectDays(days);
+        if (days.length > 0) {
+          setCalendarMonth(new Date(days[0].work_date + 'T00:00:00'));
+        }
+      }
+      return;
+    }
+
     (async () => {
       try {
       // 1. Set engine first so subsequent calculation uses the correct one
@@ -749,7 +807,7 @@ export function CalculatorPage() {
         console.error('Failed to load project data:', err);
       }
     })();
-  }, [projectId, setJobEngine]);
+  }, [projectId, setJobEngine, isImpersonating, impersonatedData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load project name (skip if already set from session restore)
   useEffect(() => {
@@ -843,7 +901,7 @@ export function CalculatorPage() {
   // day's wrap time changed), silently update the DB so collapsed days always
   // show the correct total without requiring the user to manually re-save.
   useEffect(() => {
-    if (!currentDayId || !result || isDirty || !projectId) return;
+    if (!currentDayId || !result || isDirty || !projectId || isImpersonating) return;
     const stored = projectDays.find(d => d.id === currentDayId);
     if (!stored) return;
     const liveTotal = result.grandTotal + (parseFloat(expensesDayAmount) || 0);
@@ -856,7 +914,7 @@ export function CalculatorPage() {
 
   // ── Auto-save: fires 1.5s after result changes, when minimum fields are ready ──
   useEffect(() => {
-    if (!result || !user || !selectedRole || !isDirty) return;
+    if (!result || !user || !selectedRole || !isDirty || isImpersonating) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(async () => {
       await handleSave();
@@ -968,6 +1026,7 @@ export function CalculatorPage() {
   };
 
   const removeDay = async (dayId: string) => {
+    if (isImpersonating) return;
     if (!confirm('Remove this day from the project?')) return;
     const { error } = await supabase.from('project_days').delete().eq('id', dayId);
     if (!error) {
@@ -1050,6 +1109,7 @@ export function CalculatorPage() {
   };
 
   const handleSave = async (): Promise<string | null> => {
+    if (isImpersonating) return null;
     if (!result || !user || !selectedRole) return null;
     // Ref-based guard: prevent concurrent saves (React state updates are async)
     if (savingRef.current) return null;
@@ -1272,7 +1332,7 @@ export function CalculatorPage() {
 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Input Form */}
       <div className="lg:col-span-2 space-y-6" ref={formTopRef}>
-        {isDirty && (
+        {isDirty && !isImpersonating && (
           <div className={`flex items-center justify-between rounded-xl px-4 py-2.5 text-sm ${saveError ? 'bg-red-50 border border-red-200 text-red-800' : 'bg-amber-50 border border-amber-200 text-amber-800'}`}>
             <span>{saveError ? '✕ Save failed — tap to retry' : '⚠ Unsaved changes'}</span>
             <Button size="sm" onClick={handleSave} disabled={saving || !result} className="h-7 text-xs">
@@ -1289,7 +1349,7 @@ export function CalculatorPage() {
                 <Badge variant="outline" className="ml-2 text-xs font-normal">Editing saved day</Badge>
               )}
             </CardTitle>
-            {projectId && currentDayId && (
+            {projectId && currentDayId && !isImpersonating && (
               <Button
                 size="sm"
                 className="bg-[#FFD528] text-[#1F1F21] hover:bg-[#FFD528]/90 font-semibold gap-1.5 shrink-0"
@@ -1304,7 +1364,7 @@ export function CalculatorPage() {
           {currentDayId && (
             <div className="md:hidden px-4 pt-3 pb-0 flex items-center justify-between">
               <Badge variant="outline" className="text-xs font-normal">Editing saved day</Badge>
-              {projectId && (
+              {projectId && !isImpersonating && (
                 <Button
                   size="sm"
                   className="bg-[#FFD528] text-[#1F1F21] hover:bg-[#FFD528]/90 font-semibold gap-1.5"
@@ -2032,11 +2092,13 @@ export function CalculatorPage() {
             })()}
 
             <div className="flex items-center gap-3 flex-wrap">
-              <Button variant="outline" onClick={handleReset}>
-                <RotateCcw className="h-4 w-4 mr-1" /> Reset
-              </Button>
+              {!isImpersonating && (
+                <Button variant="outline" onClick={handleReset}>
+                  <RotateCcw className="h-4 w-4 mr-1" /> Reset
+                </Button>
+              )}
               {/* Save status indicator */}
-              {result && (
+              {result && !isImpersonating && (
                 <div className="flex items-center gap-1.5 text-sm ml-auto">
                   {saving ? (
                     <span className="flex items-center gap-1.5 text-muted-foreground">
@@ -2061,7 +2123,7 @@ export function CalculatorPage() {
             </div>
 
             {/* Add New Day — bottom of form */}
-            {projectId && currentDayId && (
+            {projectId && currentDayId && !isImpersonating && (
               <div className="pt-2">
                 <Button
                   className="w-full bg-[#FFD528] text-[#1F1F21] hover:bg-[#FFD528]/90 font-semibold gap-1.5"
@@ -2074,7 +2136,7 @@ export function CalculatorPage() {
             )}
 
             {/* Mobile sticky save bar */}
-            {result && (
+            {result && !isImpersonating && (
               <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-safe">
                 <div className={`mx-auto max-w-lg mb-3 flex items-center justify-between gap-3 rounded-2xl px-4 py-3 shadow-lg text-sm font-medium transition-colors ${
                   saving ? 'bg-muted text-muted-foreground' :
@@ -2251,7 +2313,7 @@ export function CalculatorPage() {
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               <span className="font-mono text-sm font-bold tabular-nums">{activeEngine.meta.currencySymbol}{(day.grand_total || 0).toFixed(2)}</span>
-                              {!day.isCurrent && (
+                              {!day.isCurrent && !isImpersonating && (
                                 <button
                                   onClick={e => { e.stopPropagation(); removeDay(day.key); }}
                                   className="p-1 rounded-lg text-muted-foreground/40 hover:text-red-500 hover:bg-red-50 transition-colors"
@@ -2359,7 +2421,7 @@ export function CalculatorPage() {
                     <span className="font-mono">{activeEngine.meta.currencySymbol}{projectTotal.toFixed(2)}</span>
                   </div>
 
-                  {currentDayId && (
+                  {currentDayId && !isImpersonating && (
                     <>
                       <Button
                         variant="outline"
