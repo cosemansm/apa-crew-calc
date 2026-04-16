@@ -623,7 +623,7 @@ export function SettingsPage() {
       <div className="md:hidden w-full overflow-x-auto pb-1 mb-2">
         <div className="flex gap-1 min-w-max">
           {NAV_ITEMS.map(item => {
-            const isNavDisabled = !!item.badge || (isImpersonating && ['password', 'danger-zone'].includes(item.id));
+            const isNavDisabled = !!item.badge || (isImpersonating && item.id === 'password');
             return (
               <button
                 key={item.id}
@@ -655,7 +655,7 @@ export function SettingsPage() {
         <div className="hidden md:block w-52 shrink-0">
           <nav className="space-y-0.5">
             {NAV_ITEMS.map(item => {
-              const isNavDisabled = !!item.badge || (isImpersonating && ['password', 'danger-zone'].includes(item.id));
+              const isNavDisabled = !!item.badge || (isImpersonating && item.id === 'password');
               return (
                 <button
                   key={item.id}
