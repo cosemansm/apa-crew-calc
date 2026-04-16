@@ -7,8 +7,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from 'recharts';
-import { Users, Briefcase, CalendarDays, PoundSterling, TrendingUp, Zap, RefreshCw, BarChart2, Lightbulb, ChevronDown, X, Upload, Trash2, Pencil, ArrowRight, Globe, Search, Save, Check } from 'lucide-react';
+import { Users, Briefcase, CalendarDays, PoundSterling, TrendingUp, Zap, RefreshCw, BarChart2, Lightbulb, ChevronDown, X, Upload, Trash2, Pencil, ArrowRight, Globe, Search, Save, Check, Eye } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { Switch } from '@/components/ui/switch';
 import { getAllEngines } from '@/engines/index';
 
@@ -1002,8 +1003,9 @@ export function AdminPage() {
   usePageTitle('Admin');
   const { user, session } = useAuth();
   const navigate = useNavigate();
+  const { startImpersonation, impersonationLoading } = useImpersonation();
   const { tab: tabParam } = useParams<{ tab?: string }>();
-  const VALID_TABS = ['dashboard', 'feature-requests', 'notifications', 'engine-access'] as const;
+  const VALID_TABS = ['dashboard', 'users', 'feature-requests', 'notifications', 'engine-access'] as const;
   type AdminTab = typeof VALID_TABS[number];
   const adminTab: AdminTab = (VALID_TABS as readonly string[]).includes(tabParam ?? '') ? (tabParam as AdminTab) : 'dashboard';
   function setAdminTab(id: AdminTab) { navigate(`/admin/${id}`, { replace: true }); }
@@ -1040,6 +1042,14 @@ export function AdminPage() {
       navigate('/dashboard', { replace: true });
     }
   }, [user, navigate]);
+
+  // Auto-load users when switching to Users tab
+  useEffect(() => {
+    if (adminTab === 'users' && !userList && !usersLoading) {
+      fetchUsers();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminTab]);
 
   async function fetchStats() {
     if (!session?.access_token) return;
@@ -1277,6 +1287,8 @@ export function AdminPage() {
           <p className="text-xs text-white/30 mt-0.5">
             {adminTab === 'dashboard'
               ? 'Platform analytics — visible only to you'
+              : adminTab === 'users'
+              ? 'All users — view as, grant lifetime'
               : adminTab === 'feature-requests'
               ? 'Manage feature requests'
               : adminTab === 'notifications'
@@ -1285,11 +1297,11 @@ export function AdminPage() {
           </p>
         </div>
         <button
-          onClick={adminTab === 'dashboard' ? fetchStats : adminTab === 'feature-requests' ? loadAdminFeatureRequests : adminTab === 'engine-access' ? fetchEngineUsers : loadAdminNotifications}
-          disabled={adminTab === 'dashboard' ? loading : adminTab === 'feature-requests' ? frLoading : adminTab === 'engine-access' ? engineUsersLoading : false}
+          onClick={adminTab === 'dashboard' ? fetchStats : adminTab === 'users' ? fetchUsers : adminTab === 'feature-requests' ? loadAdminFeatureRequests : adminTab === 'engine-access' ? fetchEngineUsers : loadAdminNotifications}
+          disabled={adminTab === 'dashboard' ? loading : adminTab === 'users' ? usersLoading : adminTab === 'feature-requests' ? frLoading : adminTab === 'engine-access' ? engineUsersLoading : false}
           className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white text-xs font-mono transition-all disabled:opacity-40"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${(adminTab === 'dashboard' ? loading : adminTab === 'feature-requests' ? frLoading : adminTab === 'engine-access' ? engineUsersLoading : false) ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${(adminTab === 'dashboard' ? loading : adminTab === 'users' ? usersLoading : adminTab === 'feature-requests' ? frLoading : adminTab === 'engine-access' ? engineUsersLoading : false) ? 'animate-spin' : ''}`} />
           Refresh
         </button>
       </div>
@@ -1298,6 +1310,7 @@ export function AdminPage() {
       <div className="flex gap-1 mb-2">
         {[
           { id: 'dashboard' as const, label: 'Dashboard', icon: BarChart2 },
+          { id: 'users' as const, label: 'Users', icon: Users },
           { id: 'feature-requests' as const, label: 'Feature Requests', icon: Lightbulb },
           { id: 'notifications' as const, label: 'Notifications', icon: Zap },
           { id: 'engine-access' as const, label: 'Engine Access', icon: Globe },
@@ -1646,30 +1659,21 @@ export function AdminPage() {
             </>
           )}
 
-          {/* ── Users table ─────────────────────────────────────────────── */}
-          <div className="flex items-center justify-between mt-6 mb-3">
+        </>
+      )}
+      </>
+      )}
+
+      {adminTab === 'users' && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-bold text-white/50 font-mono uppercase tracking-widest">All Users</h2>
-            {!userList && (
-              <button
-                onClick={fetchUsers}
-                disabled={usersLoading}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white text-xs font-mono transition-all disabled:opacity-40"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${usersLoading ? 'animate-spin' : ''}`} />
-                {usersLoading ? 'Loading…' : 'Load users'}
-              </button>
-            )}
-            {userList && (
-              <button
-                onClick={fetchUsers}
-                disabled={usersLoading}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/50 hover:text-white text-xs font-mono transition-all disabled:opacity-40"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${usersLoading ? 'animate-spin' : ''}`} />
-                Refresh
-              </button>
-            )}
           </div>
+          {usersLoading && !userList && (
+            <div className="flex items-center justify-center py-24 text-white/30 text-sm font-mono">
+              Loading users…
+            </div>
+          )}
           {usersError && (
             <div className="bg-[#D45B5B]/10 border border-[#D45B5B]/25 rounded-2xl p-4 text-[#D45B5B] text-sm font-mono mb-3">
               Error: {usersError}
@@ -1722,23 +1726,41 @@ export function AdminPage() {
                             {new Date(u.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
                           </td>
                           <td className="px-4 py-2.5 text-right">
-                            {u.status === 'lifetime' ? (
+                            <div className="flex items-center justify-end gap-2">
                               <button
-                                onClick={() => revokeLifetime(u.user_id)}
-                                disabled={revokingLifetime === u.user_id}
-                                className="px-2.5 py-1 rounded-lg bg-[#D45B5B]/10 hover:bg-[#D45B5B]/20 text-[#D45B5B] text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
+                                onClick={async () => {
+                                  try {
+                                    await startImpersonation(u.user_id);
+                                    navigate('/dashboard');
+                                  } catch {
+                                    // Error already captured by context
+                                  }
+                                }}
+                                disabled={impersonationLoading}
+                                className="px-2.5 py-1 rounded-lg bg-[#60a5fa]/10 hover:bg-[#60a5fa]/20 text-[#60a5fa] text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
+                                title={`View as ${u.email}`}
                               >
-                                {revokingLifetime === u.user_id ? '…' : 'Revoke Lifetime'}
+                                <Eye className="h-3 w-3 inline mr-1" />
+                                View as
                               </button>
-                            ) : (
-                              <button
-                                onClick={() => grantLifetime(u.user_id)}
-                                disabled={grantingLifetime === u.user_id}
-                                className="px-2.5 py-1 rounded-lg bg-[#c084fc]/10 hover:bg-[#c084fc]/20 text-[#c084fc] text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
-                              >
-                                {grantingLifetime === u.user_id ? '…' : 'Grant Lifetime'}
-                              </button>
-                            )}
+                              {u.status === 'lifetime' ? (
+                                <button
+                                  onClick={() => revokeLifetime(u.user_id)}
+                                  disabled={revokingLifetime === u.user_id}
+                                  className="px-2.5 py-1 rounded-lg bg-[#D45B5B]/10 hover:bg-[#D45B5B]/20 text-[#D45B5B] text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
+                                >
+                                  {revokingLifetime === u.user_id ? '…' : 'Revoke Lifetime'}
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => grantLifetime(u.user_id)}
+                                  disabled={grantingLifetime === u.user_id}
+                                  className="px-2.5 py-1 rounded-lg bg-[#c084fc]/10 hover:bg-[#c084fc]/20 text-[#c084fc] text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
+                                >
+                                  {grantingLifetime === u.user_id ? '…' : 'Grant Lifetime'}
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1747,9 +1769,7 @@ export function AdminPage() {
               </div>
             </div>
           )}
-        </>
-      )}
-      </>
+        </div>
       )}
 
       {adminTab === 'feature-requests' && (
