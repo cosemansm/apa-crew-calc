@@ -115,24 +115,11 @@ export function ImpersonationProvider({ children }: { children: ReactNode }) {
     if (!session?.access_token) return;
     setLoading(true);
     try {
-      // Refresh session to ensure token is valid (raw fetch doesn't auto-refresh)
-      const { data: { session: freshSession } } = await supabase.auth.getSession();
-      const token = freshSession?.access_token ?? session.access_token;
-
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-      const resp = await fetch(`${supabaseUrl}/functions/v1/admin-view-user-data`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'apikey': anonKey,
-        },
-        body: JSON.stringify({ userId }),
+      const { data, error } = await supabase.functions.invoke('admin-view-user-data', {
+        body: { userId },
       });
-      const json = await resp.json();
-      if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
-      setData(json as ImpersonatedUserData);
+      if (error) throw error;
+      setData(data as ImpersonatedUserData);
     } catch (e) {
       Sentry.captureException(e, { extra: { context: 'ImpersonationContext startImpersonation', userId } });
       throw e;
