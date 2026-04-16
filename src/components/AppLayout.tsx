@@ -5,6 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { cn } from '@/lib/utils';
 import logoSrc from '@/assets/logo.png';
+import { ImpersonationBanner } from '@/components/ImpersonationBanner';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -21,9 +23,11 @@ export function AppLayout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const { isImpersonating } = useImpersonation();
 
   return (
     <div className="min-h-screen">
+      <ImpersonationBanner />
       {/* ── Desktop Floating Sidebar ── */}
       <aside
         className={cn(
@@ -51,28 +55,37 @@ export function AppLayout() {
           {navItems.map(({ path, label, icon: Icon }) => {
             const isActive = location.pathname === path;
             const isAIInput = path === '/ai-input';
-            return (
-              <Link key={path} to={path}>
-                <div
-                  className={cn(
-                    "flex items-center h-11 rounded-2xl transition-all duration-200 cursor-pointer",
-                    sidebarExpanded ? "gap-3 px-3 justify-start" : "justify-center px-0",
-                    isActive
-                      ? "bg-[#FFD528] text-[#1F1F21]"
-                      : "text-white/60 hover:text-white hover:bg-white/10"
-                  )}
-                >
-                  <Icon className="h-5 w-5 shrink-0" />
-                  {sidebarExpanded && (
-                    <span className="text-sm font-medium whitespace-nowrap font-mono flex-1">
-                      {label}
-                    </span>
-                  )}
-                  {sidebarExpanded && isAIInput && !isPremium && (
-                    <span className="text-[10px] font-bold text-[#FFD528] opacity-80">✦</span>
-                  )}
-                </div>
-              </Link>
+            const isDisabled = isImpersonating && !['/dashboard', '/projects'].includes(path);
+            const innerDiv = (
+              <div
+                className={cn(
+                  "flex items-center h-11 rounded-2xl transition-all duration-200",
+                  sidebarExpanded ? "gap-3 px-3 justify-start" : "justify-center px-0",
+                  isDisabled
+                    ? "cursor-not-allowed opacity-30 text-white/60"
+                    : cn(
+                        "cursor-pointer",
+                        isActive
+                          ? "bg-[#FFD528] text-[#1F1F21]"
+                          : "text-white/60 hover:text-white hover:bg-white/10"
+                      )
+                )}
+              >
+                <Icon className="h-5 w-5 shrink-0" />
+                {sidebarExpanded && (
+                  <span className="text-sm font-medium whitespace-nowrap font-mono flex-1">
+                    {label}
+                  </span>
+                )}
+                {sidebarExpanded && isAIInput && !isPremium && (
+                  <span className="text-[10px] font-bold text-[#FFD528] opacity-80">✦</span>
+                )}
+              </div>
+            );
+            return isDisabled ? (
+              <div key={path}>{innerDiv}</div>
+            ) : (
+              <Link key={path} to={path}>{innerDiv}</Link>
             );
           })}
         </nav>
@@ -112,7 +125,7 @@ export function AppLayout() {
 
         {/* Bottom: Admin (admin-only) + Settings + User */}
         <div className="px-3 py-3 space-y-1">
-          {user?.email === 'milo.cosemans@gmail.com' && (
+          {user?.email === 'milo.cosemans@gmail.com' && !isImpersonating && (
             <Link to="/admin">
               <div
                 className={cn(
@@ -229,18 +242,24 @@ export function AppLayout() {
             <div className="mt-2 bg-[#1F1F21] rounded-2xl shadow-2xl p-2 space-y-0.5">
               {navItems.map(({ path, label, icon: Icon }) => {
                 const isActive = location.pathname === path;
-                return (
-                  <Link key={path} to={path} onClick={() => setMobileMenuOpen(false)}>
-                    <div className={cn(
-                      "flex items-center gap-3 h-11 px-3 rounded-xl transition-all",
-                      isActive
+                const isDisabled = isImpersonating && !['/dashboard', '/projects'].includes(path);
+                const innerDiv = (
+                  <div className={cn(
+                    "flex items-center gap-3 h-11 px-3 rounded-xl transition-all",
+                    isDisabled
+                      ? "cursor-not-allowed opacity-30 text-white/60"
+                      : isActive
                         ? "bg-[#FFD528] text-[#1F1F21] font-semibold"
                         : "text-white/60 hover:text-white hover:bg-white/10"
-                    )}>
-                      <Icon className="h-4.5 w-4.5" />
-                      <span className="text-sm font-medium">{label}</span>
-                    </div>
-                  </Link>
+                  )}>
+                    <Icon className="h-4.5 w-4.5" />
+                    <span className="text-sm font-medium">{label}</span>
+                  </div>
+                );
+                return isDisabled ? (
+                  <div key={path}>{innerDiv}</div>
+                ) : (
+                  <Link key={path} to={path} onClick={() => setMobileMenuOpen(false)}>{innerDiv}</Link>
                 );
               })}
 
@@ -269,7 +288,7 @@ export function AppLayout() {
               </div>
 
               <div className="border-t border-white/10 mt-1 pt-1">
-                {user?.email === 'milo.cosemans@gmail.com' && (
+                {user?.email === 'milo.cosemans@gmail.com' && !isImpersonating && (
                   <Link to="/admin" onClick={() => setMobileMenuOpen(false)}>
                     <div className={cn(
                       "flex items-center gap-3 h-11 px-3 rounded-xl transition-all",
@@ -306,7 +325,10 @@ export function AppLayout() {
         </div>
 
         {/* Page content — offset for floating mobile header */}
-        <main id="main-content" className="max-w-6xl mx-auto px-4 py-6 sm:px-6 lg:px-8 md:pt-6 pt-[88px]">
+        <main id="main-content" className={cn(
+          "max-w-6xl mx-auto px-4 py-6 sm:px-6 lg:px-8 md:pt-6 pt-[88px]",
+          isImpersonating && "pt-[120px] md:pt-[48px]"
+        )}>
           <Outlet />
         </main>
       </div>
