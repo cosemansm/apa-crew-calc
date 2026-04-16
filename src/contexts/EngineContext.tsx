@@ -9,6 +9,7 @@ import {
 import * as Sentry from '@sentry/react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
+import { useImpersonation } from '@/contexts/ImpersonationContext'
 import { getEngine, DEFAULT_ENGINE_ID } from '@/engines/index'
 import type { CalculatorEngine } from '@/engines/types'
 
@@ -25,12 +26,20 @@ const EngineContext = createContext<EngineContextType | undefined>(undefined)
 
 export function EngineProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
+  const { isImpersonating, impersonatedData } = useImpersonation()
   const [defaultEngineId, setDefaultEngineId] = useState(DEFAULT_ENGINE_ID)
   const [jobEngineOverride, setJobEngineOverride] = useState<string | null>(null)
   const [showEngineSelector, setShowEngineSelector] = useState(false)
   const [authorizedEngineIds, setAuthorizedEngineIds] = useState<string[]>([DEFAULT_ENGINE_ID])
 
   useEffect(() => {
+    if (isImpersonating && impersonatedData?.profile) {
+      setDefaultEngineId(impersonatedData.profile.default_engine ?? 'apa-uk')
+      setShowEngineSelector(impersonatedData.profile.multi_engine_enabled)
+      setAuthorizedEngineIds(impersonatedData.profile.authorized_engines ?? ['apa-uk'])
+      setJobEngineOverride(null)
+      return
+    }
     if (!user) {
       setDefaultEngineId(DEFAULT_ENGINE_ID)
       setShowEngineSelector(false)
@@ -63,13 +72,14 @@ export function EngineProvider({ children }: { children: ReactNode }) {
           extra: { context: 'EngineContext profile fetch network error' },
         })
       })
-  }, [user])
+  }, [user, isImpersonating, impersonatedData?.profile])
 
   const setJobEngine = useCallback((id: string | null) => {
     setJobEngineOverride(id)
   }, [])
 
   const setDefaultEngine = useCallback(async (id: string) => {
+    if (isImpersonating) return
     if (!user) return
     setDefaultEngineId(id)
     const { error } = await supabase
@@ -81,7 +91,7 @@ export function EngineProvider({ children }: { children: ReactNode }) {
         extra: { context: 'EngineContext setDefaultEngine' },
       })
     }
-  }, [user])
+  }, [user, isImpersonating])
 
   const resolvedId = jobEngineOverride ?? defaultEngineId
 
