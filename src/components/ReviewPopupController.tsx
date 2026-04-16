@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import * as Sentry from '@sentry/react';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { ReviewPopup } from '@/components/ReviewPopup';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -23,9 +24,11 @@ async function markPopupShown(userId: string, field: 'day10_popup_shown' | 'expi
 export function ReviewPopupController() {
   const { subscription, isPremium, isTrialing, trialDaysLeft, loading } = useSubscription();
   const { user, session } = useAuth();
+  const { isImpersonating } = useImpersonation();
   const [activePopup, setActivePopup] = useState<'day10' | 'expired' | null>(null);
 
   useEffect(() => {
+    if (isImpersonating) return;
     if (loading || !subscription || !user || !session) return;
 
     const now = new Date();
