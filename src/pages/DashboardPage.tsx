@@ -18,6 +18,7 @@ import {
 } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { getCurrencySymbol, groupByCurrency, formatMultiCurrencyTotal } from '@/lib/currency';
 import { getEngine } from '@/engines/index';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
@@ -68,6 +69,7 @@ function dayTotal(d: ProjectDay): number {
 export function DashboardPage() {
   usePageTitle('Dashboard');
   const { user } = useAuth();
+  const { isImpersonating, impersonatedData } = useImpersonation();
   const { defaultEngineId, showEngineSelector } = useEngine();
   const { subscription, isPremium, isTrialing, trialDaysLeft, loading: subLoading } = useSubscription();
   const isLifetime = subscription?.status === 'lifetime';
@@ -91,6 +93,25 @@ export function DashboardPage() {
   const unreadCount = useUnreadCount(notifications);
 
   useEffect(() => {
+    if (isImpersonating && impersonatedData) {
+      setProjects(impersonatedData.projects.map(p => ({
+        ...p,
+        status: p.status as ProjectStatus,
+        days: p.days.map(d => ({
+          ...d,
+          result_json: d.result_json as { grandTotal?: number } | null,
+        })),
+      })));
+      setFavourites(impersonatedData.favouriteRoles.map(f => ({
+        id: f.id,
+        role_name: f.role_name,
+        default_rate: f.default_rate,
+      })));
+      setDisplayName(impersonatedData.displayName);
+      setUserDepartment(impersonatedData.department);
+      setLoading(false);
+      return;
+    }
     if (user) {
       loadProjects();
       loadFavourites();
@@ -104,7 +125,7 @@ export function DashboardPage() {
           if (data?.department) setUserDepartment(data.department);
         }, () => {});
     }
-  }, [user, location.key]);
+  }, [user, location.key, isImpersonating, impersonatedData]);
 
   useEffect(() => {
     async function fetchBadge() {
@@ -153,6 +174,7 @@ export function DashboardPage() {
   };
 
   const updateProjectStatus = async (projectId: string, newStatus: ProjectStatus) => {
+    if (isImpersonating) return;
     const { error } = await supabase
       .from('projects')
       .update({ status: newStatus })
@@ -165,6 +187,7 @@ export function DashboardPage() {
   };
 
   const toggleFavourite = async (role: CrewRole) => {
+    if (isImpersonating) return;
     const existing = favourites.find(f => f.role_name === role.role);
     if (existing) {
       const { error } = await supabase.from('favourite_roles').delete().eq('id', existing.id);
@@ -188,6 +211,7 @@ export function DashboardPage() {
   };
 
   const createProject = async () => {
+    if (isImpersonating) return;
     if (!newProjectName.trim()) return;
     setProjectError(null);
     const { data, error } = await supabase.from('projects').insert({
@@ -418,23 +442,26 @@ export function DashboardPage() {
               setShowNewProject(true);
             }}
             className="gap-2"
+            disabled={isImpersonating}
           >
             <Plus className="h-4 w-4" /> New Job
           </Button>
           {/* Bell — rightmost */}
-          <button
-            onClick={() => setWhatsNewOpen(true)}
-            className="relative w-9 h-9 rounded-lg border border-border bg-background hover:bg-accent flex items-center justify-center transition-colors"
-            title="What's new"
-            aria-label="What's new"
-          >
-            <Bell className="h-4 w-4" />
-            {badgeCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 border-2 border-background">
-                {badgeCount}
-              </span>
-            )}
-          </button>
+          {!isImpersonating && (
+            <button
+              onClick={() => setWhatsNewOpen(true)}
+              className="relative w-9 h-9 rounded-lg border border-border bg-background hover:bg-accent flex items-center justify-center transition-colors"
+              title="What's new"
+              aria-label="What's new"
+            >
+              <Bell className="h-4 w-4" />
+              {badgeCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center px-1 border-2 border-background">
+                  {badgeCount}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -887,7 +914,10 @@ export function DashboardPage() {
 
       {/* Bookkeeping */}
       {user && (
-        <BookkeepingSection userId={user.id} isPremium={isPremium} />
+        <BookkeepingSection
+          userId={isImpersonating ? impersonatedData!.userId : user.id}
+          isPremium={isPremium}
+        />
       )}
 
       {/* My Department */}
