@@ -10,7 +10,8 @@ import * as Sentry from '@sentry/react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/AuthContext'
 import { useImpersonation } from '@/contexts/ImpersonationContext'
-import { getEngine, DEFAULT_ENGINE_ID } from '@/engines/index'
+import { getEngine, getEngineForCountry, DEFAULT_ENGINE_ID } from '@/engines/index'
+import { detectSignupCountry } from '@/lib/detectSignupCountry'
 import type { CalculatorEngine } from '@/engines/types'
 
 interface EngineContextType {
@@ -47,31 +48,56 @@ export function EngineProvider({ children }: { children: ReactNode }) {
       setJobEngineOverride(null)
       return
     }
-    Promise.resolve(
-      supabase
-        .from('profiles')
-        .select('default_engine, multi_engine_enabled, authorized_engines')
-        .eq('id', user.id)
-        .maybeSingle()
-    )
-      .then(({ data, error }) => {
+    ;(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('default_engine, multi_engine_enabled, authorized_engines, signup_country')
+          .eq('id', user.id)
+          .maybeSingle()
+
         if (error) {
           Sentry.captureException(new Error(error.message), {
             extra: { context: 'EngineContext profile fetch' },
           })
           return
         }
+
+        // Safety net: if signup_country was never set (old user or failed detection),
+        // detect now and patch the profile so engine is correct from first load.
+        if (data && !data.signup_country) {
+          try {
+            const country = await detectSignupCountry()
+            const engineId = getEngineForCountry(country)
+            const patch = {
+              signup_country: country,
+              default_engine: engineId,
+              multi_engine_enabled: country !== 'GB',
+              authorized_engines: country !== 'GB'
+                ? ['apa-uk', engineId]
+                : ['apa-uk'],
+            }
+            await supabase.from('profiles').update(patch).eq('id', user.id)
+            setDefaultEngineId(patch.default_engine)
+            setShowEngineSelector(patch.multi_engine_enabled)
+            setAuthorizedEngineIds(patch.authorized_engines)
+            return
+          } catch {
+            // Detection failed — fall through to use existing profile data
+          }
+        }
+
         if (data) {
           setDefaultEngineId(data.default_engine ?? DEFAULT_ENGINE_ID)
           setShowEngineSelector(data.multi_engine_enabled ?? false)
           setAuthorizedEngineIds(data.authorized_engines ?? [DEFAULT_ENGINE_ID])
         }
-      })
-      .catch((err: unknown) => {
+      } catch (err) {
         Sentry.captureException(err, {
           extra: { context: 'EngineContext profile fetch network error' },
         })
-      })
+      }
+    })()
   }, [user, isImpersonating, impersonatedData?.profile])
 
   const setJobEngine = useCallback((id: string | null) => {
