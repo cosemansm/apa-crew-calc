@@ -15,3 +15,6 @@ verify_jwt = false
 
 [functions.grant-lifetime]
 verify_jwt = false
+
+[functions.admin-view-user-data]
+verify_jwt = false
