@@ -13,6 +13,7 @@ import { format, parseISO } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { JobLimitDialog } from '@/components/JobLimitDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
@@ -124,6 +125,7 @@ export function ProjectsPage() {
   usePageTitle('Projects');
   const { user } = useAuth();
   const { isPremium } = useSubscription();
+  const { isImpersonating, impersonatedData } = useImpersonation();
   const navigate = useNavigate();
   const { showEngineSelector, defaultEngineId } = useEngine();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -150,10 +152,25 @@ export function ProjectsPage() {
   const [shareDialogError, setShareDialogError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isImpersonating && impersonatedData) {
+      // Map impersonated projects to the component's Project type
+      const mapped: Project[] = impersonatedData.projects.map(p => ({
+        id: p.id,
+        name: p.name,
+        client_name: p.client_name,
+        created_at: p.created_at,
+        status: p.status as ProjectStatus,
+        calc_engine: p.calc_engine ?? undefined,
+      }));
+      setProjects(mapped);
+      setLoading(false);
+      return;
+    }
     if (user) loadProjects();
-  }, [user]);
+  }, [user, isImpersonating, impersonatedData]);
 
   const loadProjects = async () => {
+    if (isImpersonating) return;
     setLoading(true);
     try {
       const { data } = await supabase
@@ -211,6 +228,27 @@ export function ProjectsPage() {
     setSelectedProject(project);
     setDaysLoading(true);
     try {
+      // When impersonating, use pre-fetched data — no Supabase fetch or heal mutation
+      if (isImpersonating && impersonatedData) {
+        const impProject = impersonatedData.projects.find(p => p.id === project.id);
+        const impDays: ProjectDay[] = (impProject?.days ?? []).map(d => ({
+          id: d.id,
+          project_id: d.project_id,
+          work_date: d.work_date,
+          role_name: d.role_name,
+          day_type: (d as any).day_type ?? '',
+          call_time: (d as any).call_time ?? '',
+          wrap_time: (d as any).wrap_time ?? '',
+          grand_total: d.grand_total,
+          agreed_rate: (d as any).agreed_rate ?? 0,
+          calc_engine: project.calc_engine,
+          result_json: d.result_json as ProjectDay['result_json'],
+        }));
+        setProjectDays(impDays);
+        setDaysLoading(false);
+        return;
+      }
+
       const { data } = await supabase
         .from('project_days')
         .select('*')
@@ -284,6 +322,7 @@ export function ProjectsPage() {
   };
 
   const updateStatus = async (status: ProjectStatus) => {
+    if (isImpersonating) return;
     if (!selectedProject) return;
     setStatusUpdating(true);
     const { error } = await supabase
@@ -300,6 +339,7 @@ export function ProjectsPage() {
 
   const deleteProject = async (projectId: string, e: React.MouseEvent) => {
     e.stopPropagation(); // don't trigger card click
+    if (isImpersonating) return;
     if (!confirm('Delete this job and all its days? This cannot be undone.')) return;
     await supabase.from('project_days').delete().eq('project_id', projectId);
     await supabase.from('projects').delete().eq('id', projectId);
@@ -309,6 +349,7 @@ export function ProjectsPage() {
 
   const duplicateProject = async (project: Project, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isImpersonating) return;
     if (!isPremium && projects.length >= 10) {
       setJobLimitOpen(true);
       return;
@@ -384,6 +425,7 @@ export function ProjectsPage() {
 
   const openShareDialog = async (projectId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isImpersonating) return;
     if (!isPremium) {
       navigate('/#pricing');
       return;
@@ -480,6 +522,7 @@ export function ProjectsPage() {
   };
 
   const removeDay = async (dayId: string) => {
+    if (isImpersonating) return;
     if (!confirm('Remove this day from the project?')) return;
     setDeletingDayId(dayId);
     const { error } = await supabase.from('project_days').delete().eq('id', dayId);
@@ -512,14 +555,16 @@ export function ProjectsPage() {
           <h1 className="text-3xl font-bold tracking-tight">Projects</h1>
           <p className="text-muted-foreground mt-1">All your crew booking projects</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => navigate('/ai-input')} className="gap-2">
-            <Sparkles className="h-4 w-4" /> AI Input
-          </Button>
-          <Button onClick={handleNewJob} className="gap-2">
-            <Plus className="h-4 w-4" /> New Project
-          </Button>
-        </div>
+        {!isImpersonating && (
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => navigate('/ai-input')} className="gap-2">
+              <Sparkles className="h-4 w-4" /> AI Input
+            </Button>
+            <Button onClick={handleNewJob} className="gap-2">
+              <Plus className="h-4 w-4" /> New Project
+            </Button>
+          </div>
+        )}
       </div>
 
 
@@ -592,31 +637,35 @@ export function ProjectsPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={(e) => openShareDialog(project.id, e)}
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            sharedProjectIds.has(project.id)
-                              ? 'text-green-600 hover:bg-green-50'
-                              : 'text-muted-foreground/40 hover:text-blue-500 hover:bg-blue-50'
-                          }`}
-                          title={isPremium ? 'Share project' : 'Upgrade to Pro to share projects'}
-                        >
-                          {isPremium ? <Send className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-                        </button>
-                        <button
-                          onClick={(e) => duplicateProject(project, e)}
-                          className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-blue-500 hover:bg-blue-50 transition-colors"
-                          title="Duplicate job"
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={(e) => deleteProject(project.id, e)}
-                          className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-red-500 hover:bg-red-50 transition-colors"
-                          title="Delete job"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        {!isImpersonating && (
+                          <>
+                            <button
+                              onClick={(e) => openShareDialog(project.id, e)}
+                              className={`p-1.5 rounded-lg transition-colors ${
+                                sharedProjectIds.has(project.id)
+                                  ? 'text-green-600 hover:bg-green-50'
+                                  : 'text-muted-foreground/40 hover:text-blue-500 hover:bg-blue-50'
+                              }`}
+                              title={isPremium ? 'Share project' : 'Upgrade to Pro to share projects'}
+                            >
+                              {isPremium ? <Send className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                            </button>
+                            <button
+                              onClick={(e) => duplicateProject(project, e)}
+                              className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                              title="Duplicate job"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={(e) => deleteProject(project.id, e)}
+                              className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-red-500 hover:bg-red-50 transition-colors"
+                              title="Delete job"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </>
+                        )}
                         <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isSelected ? 'rotate-90' : ''}`} />
                       </div>
                     </div>
@@ -655,23 +704,27 @@ export function ProjectsPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => navigate('/invoices', { state: { projectId: selectedProject.id } })}
-                      className="gap-1.5"
-                    >
-                      <Clock className="h-3.5 w-3.5" />
-                      Go to Timesheet
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
-                      className="gap-1.5"
-                    >
-                      <Edit3 className="h-3.5 w-3.5" />
-                      Edit
-                    </Button>
+                    {!isImpersonating && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate('/invoices', { state: { projectId: selectedProject.id } })}
+                          className="gap-1.5"
+                        >
+                          <Clock className="h-3.5 w-3.5" />
+                          Go to Timesheet
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
+                          className="gap-1.5"
+                        >
+                          <Edit3 className="h-3.5 w-3.5" />
+                          Edit
+                        </Button>
+                      </>
+                    )}
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={closeDetail}>
                       <X className="h-4 w-4" />
                     </Button>
@@ -687,7 +740,7 @@ export function ProjectsPage() {
                     return (
                       <button
                         key={s}
-                        disabled={statusUpdating}
+                        disabled={statusUpdating || isImpersonating}
                         onClick={() => updateStatus(s)}
                         style={{
                           backgroundColor: isActive ? cfg.badgeBg : 'transparent',
@@ -718,14 +771,16 @@ export function ProjectsPage() {
                     <div className="text-center py-8">
                       <Clock className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
                       <p className="text-sm text-muted-foreground">No days saved yet</p>
-                      <Button
-                        size="sm"
-                        className="mt-3 gap-1.5"
-                        onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
-                      >
-                        <Edit3 className="h-3.5 w-3.5" />
-                        Open in Calculator
-                      </Button>
+                      {!isImpersonating && (
+                        <Button
+                          size="sm"
+                          className="mt-3 gap-1.5"
+                          onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
+                        >
+                          <Edit3 className="h-3.5 w-3.5" />
+                          Open in Calculator
+                        </Button>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -756,14 +811,16 @@ export function ProjectsPage() {
                               </div>
                               <div className="flex items-center gap-2 shrink-0 ml-3">
                                 <p className="text-sm font-bold tabular-nums">{sym}{(day.grand_total || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                                <button
-                                  onClick={() => removeDay(day.id)}
-                                  disabled={deletingDayId === day.id}
-                                  className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-red-500 hover:bg-red-50 transition-colors"
-                                  title="Remove day"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
+                                {!isImpersonating && (
+                                  <button
+                                    onClick={() => removeDay(day.id)}
+                                    disabled={deletingDayId === day.id}
+                                    className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                    title="Remove day"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
                               </div>
                             </div>
 
@@ -840,23 +897,25 @@ export function ProjectsPage() {
                         </span>
                       </div>
 
-                      <div className="flex gap-2 mt-1">
-                        <Button
-                          variant="outline"
-                          className="flex-1 gap-2"
-                          onClick={() => navigate('/invoices', { state: { projectId: selectedProject.id } })}
-                        >
-                          <Clock className="h-4 w-4" />
-                          Go to Timesheet
-                        </Button>
-                        <Button
-                          className="flex-1 gap-2"
-                          onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
-                        >
-                          <Edit3 className="h-4 w-4" />
-                          Edit
-                        </Button>
-                      </div>
+                      {!isImpersonating && (
+                        <div className="flex gap-2 mt-1">
+                          <Button
+                            variant="outline"
+                            className="flex-1 gap-2"
+                            onClick={() => navigate('/invoices', { state: { projectId: selectedProject.id } })}
+                          >
+                            <Clock className="h-4 w-4" />
+                            Go to Timesheet
+                          </Button>
+                          <Button
+                            className="flex-1 gap-2"
+                            onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
+                          >
+                            <Edit3 className="h-4 w-4" />
+                            Edit
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardContent>
