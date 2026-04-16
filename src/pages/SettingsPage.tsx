@@ -25,6 +25,7 @@ import { isQBOConnected, disconnectQBO } from '@/services/bookkeeping/quickbooks
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { cn } from '@/lib/utils';
 import { DEPARTMENTS } from '@/data/apa-rates';
 
@@ -196,6 +197,7 @@ export function SettingsPage() {
   const [engineModalOpen, setEngineModalOpen] = useState(false)
   const [pendingEngineId, setPendingEngineId] = useState(defaultEngineId)
   const { user } = useAuth();
+  const { isImpersonating, impersonatedData } = useImpersonation();
   const { section } = useParams<{ section?: string }>();
   const { subscription, isPremium, isTrialing, trialDaysLeft, trialExtended } = useSubscription();
   const isLifetime = subscription?.status === 'lifetime';
@@ -280,6 +282,26 @@ export function SettingsPage() {
 
   useEffect(() => {
     if (!user) return;
+
+    // Impersonation: load from snapshot, skip all DB writes
+    if (isImpersonating && impersonatedData?.userSettings) {
+      const s = impersonatedData.userSettings;
+      setDisplayName(s.display_name ?? '');
+      setPhone(s.phone ?? '');
+      setAddress(s.address ?? '');
+      setDepartment(s.department ?? '');
+      setCompanyName(s.company_name ?? '');
+      setCompanyAddress(s.company_address ?? '');
+      setVatNumber(s.vat_number ?? '');
+      setVatRegistered(s.vat_registered ?? false);
+      setBankAccountName(s.bank_account_name ?? '');
+      setBankSortCode(s.bank_sort_code ?? '');
+      setBankAccountNumber(s.bank_account_number ?? '');
+      setCustomRoles(impersonatedData.customRoles as CustomRole[]);
+      setEquipmentPackages(impersonatedData.equipmentPackages);
+      return;
+    }
+
     supabase.from('user_settings').select('*').eq('user_id', user.id).single().then(({ data }) => {
       if (data) {
         setDisplayName(data.display_name ?? '');
@@ -305,7 +327,7 @@ export function SettingsPage() {
     }, () => {});
     loadCustomRoles();
     loadEquipmentPackages();
-  }, [user]);
+  }, [user, isImpersonating, impersonatedData]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -318,19 +340,27 @@ export function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    if (!user || faConnectedFromUrl.current) return;
+    if (!user || faConnectedFromUrl.current || isImpersonating) return;
     isFreeAgentConnected(user.id).then(setFaConnected).catch(() => setFaConnected(false));
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id, isImpersonating]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!user || xeroConnectedFromUrl.current) return;
+    if (!user || xeroConnectedFromUrl.current || isImpersonating) return;
     isXeroConnected(user.id).then(setXeroConnected).catch(() => setXeroConnected(false));
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id, isImpersonating]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!user || qboConnectedFromUrl.current) return;
+    if (!user || qboConnectedFromUrl.current || isImpersonating) return;
     isQBOConnected(user.id).then(setQboConnected).catch(() => setQboConnected(false));
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id, isImpersonating]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // When impersonating, populate integration connection status from snapshot
+  useEffect(() => {
+    if (!isImpersonating || !impersonatedData) return;
+    setFaConnected(impersonatedData.bookkeepingConnections.freeagent);
+    setXeroConnected(impersonatedData.bookkeepingConnections.xero);
+    setQboConnected(impersonatedData.bookkeepingConnections.quickbooks);
+  }, [isImpersonating, impersonatedData]);
 
   const [faConnectError, setFaConnectError] = useState<string | null>(null);
 
@@ -592,27 +622,30 @@ export function SettingsPage() {
       {/* ── Mobile horizontal nav ── */}
       <div className="md:hidden w-full overflow-x-auto pb-1 mb-2">
         <div className="flex gap-1 min-w-max">
-          {NAV_ITEMS.map(item => (
-            <button
-              key={item.id}
-              onClick={() => !item.badge && navigate(`/settings/${item.id}`)}
-              disabled={!!item.badge}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-colors whitespace-nowrap shrink-0',
-                activeSection === item.id
-                  ? item.danger ? 'bg-red-600 text-white' : 'bg-[#1F1F21] text-white'
-                  : item.badge
-                    ? 'text-muted-foreground/40 cursor-not-allowed bg-muted/50'
-                    : item.danger
-                      ? 'text-red-500 bg-red-50'
-                      : 'text-muted-foreground bg-muted hover:text-foreground'
-              )}
-            >
-              <item.icon className="h-3.5 w-3.5 shrink-0" />
-              {item.label}
-              {item.badge && <Badge variant="secondary" className="text-[9px] px-1 py-0">{item.badge}</Badge>}
-            </button>
-          ))}
+          {NAV_ITEMS.map(item => {
+            const isNavDisabled = !!item.badge || (isImpersonating && ['password', 'danger-zone'].includes(item.id));
+            return (
+              <button
+                key={item.id}
+                onClick={() => !isNavDisabled && navigate(`/settings/${item.id}`)}
+                disabled={isNavDisabled}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-colors whitespace-nowrap shrink-0',
+                  activeSection === item.id
+                    ? item.danger ? 'bg-red-600 text-white' : 'bg-[#1F1F21] text-white'
+                    : isNavDisabled
+                      ? 'text-muted-foreground/40 cursor-not-allowed bg-muted/50'
+                      : item.danger
+                        ? 'text-red-500 bg-red-50'
+                        : 'text-muted-foreground bg-muted hover:text-foreground'
+                )}
+              >
+                <item.icon className="h-3.5 w-3.5 shrink-0" />
+                {item.label}
+                {item.badge && <Badge variant="secondary" className="text-[9px] px-1 py-0">{item.badge}</Badge>}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -621,32 +654,35 @@ export function SettingsPage() {
         {/* ── Left sidebar nav (desktop only) ── */}
         <div className="hidden md:block w-52 shrink-0">
           <nav className="space-y-0.5">
-            {NAV_ITEMS.map(item => (
-              <button
-                key={item.id}
-                onClick={() => !item.badge && navigate(`/settings/${item.id}`)}
-                disabled={!!item.badge}
-                className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left',
-                  activeSection === item.id
-                    ? item.danger ? 'bg-red-600 text-white' : 'bg-[#1F1F21] text-white'
-                    : item.badge
-                      ? 'text-muted-foreground/50 cursor-not-allowed'
-                      : item.danger
-                        ? 'text-red-500 hover:bg-red-50 hover:text-red-600'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                )}
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                <span className="flex-1">{item.label}</span>
-                {item.badge
-                  ? <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{item.badge}</Badge>
-                  : activeSection === item.id
-                    ? <ChevronRight className="h-3.5 w-3.5 opacity-60" />
-                    : null
-                }
-              </button>
-            ))}
+            {NAV_ITEMS.map(item => {
+              const isNavDisabled = !!item.badge || (isImpersonating && ['password', 'danger-zone'].includes(item.id));
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => !isNavDisabled && navigate(`/settings/${item.id}`)}
+                  disabled={isNavDisabled}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors text-left',
+                    activeSection === item.id
+                      ? item.danger ? 'bg-red-600 text-white' : 'bg-[#1F1F21] text-white'
+                      : isNavDisabled
+                        ? 'text-muted-foreground/50 cursor-not-allowed'
+                        : item.danger
+                          ? 'text-red-500 hover:bg-red-50 hover:text-red-600'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  )}
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  <span className="flex-1">{item.label}</span>
+                  {item.badge
+                    ? <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{item.badge}</Badge>
+                    : activeSection === item.id
+                      ? <ChevronRight className="h-3.5 w-3.5 opacity-60" />
+                      : null
+                  }
+                </button>
+              );
+            })}
           </nav>
         </div>
 
@@ -742,7 +778,7 @@ export function SettingsPage() {
                   </div>
                 </div>
 
-                <Button onClick={handleSaveDetails} disabled={savingDetails} className="w-full mt-2">
+                <Button onClick={handleSaveDetails} disabled={savingDetails || isImpersonating} className="w-full mt-2">
                   <Save className="h-4 w-4 mr-2" />
                   {savingDetails ? 'Saving…' : savedDetails ? '✓ Saved!' : 'Save details'}
                 </Button>
@@ -760,7 +796,7 @@ export function SettingsPage() {
                     <CardDescription>Create your own job roles with custom rates and overtime rules</CardDescription>
                   </div>
                   {!showAddForm && (
-                    <Button size="sm" variant="outline" onClick={() => { setShowAddForm(true); setEditingId(null); }}>
+                    <Button size="sm" variant="outline" onClick={() => { setShowAddForm(true); setEditingId(null); }} disabled={isImpersonating}>
                       <Plus className="h-4 w-4 mr-1" /> Add Rate
                     </Button>
                   )}
@@ -823,8 +859,8 @@ export function SettingsPage() {
                               </div>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingId(role.id); setShowAddForm(false); }}><Pencil className="h-3.5 w-3.5" /></Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteCustomRole(role.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isImpersonating} onClick={() => { setEditingId(role.id); setShowAddForm(false); }}><Pencil className="h-3.5 w-3.5" /></Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" disabled={isImpersonating} onClick={() => handleDeleteCustomRole(role.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                             </div>
                           </div>
                         )}
@@ -846,7 +882,7 @@ export function SettingsPage() {
                     <CardDescription>Save equipment packages with a day rate to quickly load in the calculator</CardDescription>
                   </div>
                   {!showAddEquipment && (
-                    <Button size="sm" variant="outline" onClick={() => { setShowAddEquipment(true); setEditingEquipmentId(null); }}>
+                    <Button size="sm" variant="outline" onClick={() => { setShowAddEquipment(true); setEditingEquipmentId(null); }} disabled={isImpersonating}>
                       <Plus className="h-4 w-4 mr-1" /> Add Package
                     </Button>
                   )}
@@ -900,8 +936,8 @@ export function SettingsPage() {
                           <p className="text-xs text-muted-foreground font-mono">£{pkg.day_rate}/day</p>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingEquipmentId(pkg.id); setEditEquipmentName(pkg.name); setEditEquipmentRate(String(pkg.day_rate)); setShowAddEquipment(false); }}><Pencil className="h-3.5 w-3.5" /></Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteEquipmentPackage(pkg.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isImpersonating} onClick={() => { setEditingEquipmentId(pkg.id); setEditEquipmentName(pkg.name); setEditEquipmentRate(String(pkg.day_rate)); setShowAddEquipment(false); }}><Pencil className="h-3.5 w-3.5" /></Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" disabled={isImpersonating} onClick={() => handleDeleteEquipmentPackage(pkg.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                         </div>
                       </div>
                     )}
@@ -1022,8 +1058,22 @@ export function SettingsPage() {
                     </span>
                   </div>
 
-                  {/* Manage plan — Stripe Pro only */}
-                  {isStripePro && (
+                  {/* Impersonation read-only billing info */}
+                  {isImpersonating && impersonatedData?.subscription && (
+                    <div className="space-y-3">
+                      <div className="text-sm font-mono text-white/60">
+                        Plan: <span className="text-white font-bold uppercase">{impersonatedData.subscription.status}</span>
+                      </div>
+                      {impersonatedData.subscription.trial_ends_at && (
+                        <div className="text-sm font-mono text-white/40">
+                          Trial ends: {new Date(impersonatedData.subscription.trial_ends_at).toLocaleDateString('en-GB')}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Manage plan — Stripe Pro only (hidden during impersonation) */}
+                  {isStripePro && !isImpersonating && (
                     <div className="space-y-2">
                       <Button
                         variant="outline"
@@ -1049,8 +1099,8 @@ export function SettingsPage() {
                 </CardContent>
               </Card>
 
-              {/* Upgrade card (trial and free users only) */}
-              {(!isPremium || isTrialing) && !isLifetime && (
+              {/* Upgrade card (trial and free users only, hidden during impersonation) */}
+              {(!isPremium || isTrialing) && !isLifetime && !isImpersonating && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base">
@@ -1139,6 +1189,11 @@ export function SettingsPage() {
                   <CardDescription>Connect your accounting software to push draft invoices directly from Crew Dock</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
+                  {isImpersonating && (
+                    <div className="bg-[#60a5fa]/10 border border-[#60a5fa]/25 rounded-xl p-3 text-[#60a5fa] text-xs font-mono mb-4">
+                      Integration connection status shown from snapshot. Connect/disconnect actions are not available.
+                    </div>
+                  )}
                   {/* FreeAgent — live */}
                   <div className="flex items-center justify-between gap-4 p-4 rounded-xl border border-border">
                     <div className="flex items-center gap-4">
@@ -1151,7 +1206,7 @@ export function SettingsPage() {
                       </div>
                     </div>
                     <div className="shrink-0 flex flex-col items-end gap-1">
-                      {faConnectError && (
+                      {!isImpersonating && faConnectError && (
                         <p className="text-xs text-red-500">Connection failed: {faConnectError}</p>
                       )}
                       {faConnected === null ? (
@@ -1159,25 +1214,31 @@ export function SettingsPage() {
                       ) : faConnected ? (
                         <div className="flex flex-col items-end gap-1.5">
                           <Badge className="bg-green-100 text-green-700 border-green-200">Connected</Badge>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={disconnectingFa}
-                            onClick={() => setDisconnectPending('freeagent')}
-                          >
-                            {disconnectingFa ? 'Disconnecting…' : 'Disconnect'}
-                          </Button>
+                          {!isImpersonating && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={disconnectingFa}
+                              onClick={() => setDisconnectPending('freeagent')}
+                            >
+                              {disconnectingFa ? 'Disconnecting…' : 'Disconnect'}
+                            </Button>
+                          )}
                         </div>
                       ) : (
-                        <Button
-                          size="sm"
-                          disabled={!isPremium}
-                          onClick={() => {
-                            if (user) window.location.href = `/api/auth/freeagent/start?userId=${user.id}`;
-                          }}
-                        >
-                          Connect
-                        </Button>
+                        isImpersonating ? (
+                          <Badge variant="secondary">Not connected</Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            disabled={!isPremium}
+                            onClick={() => {
+                              if (user) window.location.href = `/api/auth/freeagent/start?userId=${user.id}`;
+                            }}
+                          >
+                            Connect
+                          </Button>
+                        )
                       )}
                     </div>
                   </div>
@@ -1194,7 +1255,7 @@ export function SettingsPage() {
                       </div>
                     </div>
                     <div className="shrink-0 flex flex-col items-end gap-1">
-                      {xeroConnectError && (
+                      {!isImpersonating && xeroConnectError && (
                         <p className="text-xs text-red-500">Connection failed: {xeroConnectError}</p>
                       )}
                       {xeroConnected === null ? (
@@ -1202,25 +1263,31 @@ export function SettingsPage() {
                       ) : xeroConnected ? (
                         <div className="flex flex-col items-end gap-1.5">
                           <Badge className="bg-green-100 text-green-700 border-green-200">Connected</Badge>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={disconnectingXero}
-                            onClick={() => setDisconnectPending('xero')}
-                          >
-                            {disconnectingXero ? 'Disconnecting…' : 'Disconnect'}
-                          </Button>
+                          {!isImpersonating && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={disconnectingXero}
+                              onClick={() => setDisconnectPending('xero')}
+                            >
+                              {disconnectingXero ? 'Disconnecting…' : 'Disconnect'}
+                            </Button>
+                          )}
                         </div>
                       ) : (
-                        <Button
-                          size="sm"
-                          disabled={!isPremium}
-                          onClick={() => {
-                            if (user) window.location.href = `/api/auth/xero/start?userId=${user.id}`;
-                          }}
-                        >
-                          Connect
-                        </Button>
+                        isImpersonating ? (
+                          <Badge variant="secondary">Not connected</Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            disabled={!isPremium}
+                            onClick={() => {
+                              if (user) window.location.href = `/api/auth/xero/start?userId=${user.id}`;
+                            }}
+                          >
+                            Connect
+                          </Button>
+                        )
                       )}
                     </div>
                   </div>
@@ -1237,7 +1304,7 @@ export function SettingsPage() {
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-2">
-                      {qboConnectError && (
+                      {!isImpersonating && qboConnectError && (
                         <p className="text-xs text-red-500">Connection failed: {qboConnectError}</p>
                       )}
                       {qboConnected === null ? (
@@ -1245,25 +1312,31 @@ export function SettingsPage() {
                       ) : qboConnected ? (
                         <div className="flex items-center gap-2">
                           <Badge variant="secondary" className="text-green-500 border-green-500/30">Connected</Badge>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={disconnectingQbo}
-                            onClick={() => setDisconnectPending('quickbooks')}
-                          >
-                            {disconnectingQbo ? 'Disconnecting…' : 'Disconnect'}
-                          </Button>
+                          {!isImpersonating && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={disconnectingQbo}
+                              onClick={() => setDisconnectPending('quickbooks')}
+                            >
+                              {disconnectingQbo ? 'Disconnecting…' : 'Disconnect'}
+                            </Button>
+                          )}
                         </div>
                       ) : (
-                        <Button
-                          size="sm"
-                          disabled={!isPremium}
-                          onClick={() => {
-                            if (user) window.location.href = `/api/auth/quickbooks/start?userId=${user.id}`;
-                          }}
-                        >
-                          Connect
-                        </Button>
+                        isImpersonating ? (
+                          <Badge variant="secondary">Not connected</Badge>
+                        ) : (
+                          <Button
+                            size="sm"
+                            disabled={!isPremium}
+                            onClick={() => {
+                              if (user) window.location.href = `/api/auth/quickbooks/start?userId=${user.id}`;
+                            }}
+                          >
+                            Connect
+                          </Button>
+                        )
                       )}
                     </div>
                   </div>
@@ -1285,6 +1358,7 @@ export function SettingsPage() {
                       id="vat-toggle"
                       checked={vatRegistered}
                       onCheckedChange={handleVatToggle}
+                      disabled={isImpersonating}
                     />
                   </div>
                 </CardContent>
@@ -1315,6 +1389,7 @@ export function SettingsPage() {
                       variant="destructive"
                       size="sm"
                       className="shrink-0"
+                      disabled={isImpersonating}
                       onClick={() => { setShowDeleteModal(true); setDeleteConfirmText(''); setDeleteError(null); }}
                     >
                       <Trash2 className="h-4 w-4 mr-1.5" />
