@@ -55,7 +55,7 @@ export function AppLayout() {
           {navItems.map(({ path, label, icon: Icon }) => {
             const isActive = location.pathname === path;
             const isAIInput = path === '/ai-input';
-            const isDisabled = isImpersonating && !['/dashboard', '/projects'].includes(path);
+            const isDisabled = isImpersonating && !['/dashboard', '/projects', '/settings'].includes(path);
             const innerDiv = (
               <div
                 className={cn(
@@ -242,7 +242,7 @@ export function AppLayout() {
             <div className="mt-2 bg-[#1F1F21] rounded-2xl shadow-2xl p-2 space-y-0.5">
               {navItems.map(({ path, label, icon: Icon }) => {
                 const isActive = location.pathname === path;
-                const isDisabled = isImpersonating && !['/dashboard', '/projects'].includes(path);
+                const isDisabled = isImpersonating && !['/dashboard', '/projects', '/settings'].includes(path);
                 const innerDiv = (
                   <div className={cn(
                     "flex items-center gap-3 h-11 px-3 rounded-xl transition-all",
