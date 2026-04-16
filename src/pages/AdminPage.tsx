@@ -1698,7 +1698,8 @@ export function AdminPage() {
                       <th className="text-left text-white/30 px-4 py-2 font-normal">Email</th>
                       <th className="text-left text-white/30 px-4 py-2 font-normal">Status</th>
                       <th className="text-left text-white/30 px-4 py-2 font-normal">Joined</th>
-                      <th className="px-4 py-2" />
+                      <th className="px-4 py-2 text-right text-white/30 font-normal">View</th>
+                      <th className="px-4 py-2 text-right text-white/30 font-normal">Subscription</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1726,7 +1727,6 @@ export function AdminPage() {
                             {new Date(u.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
                           </td>
                           <td className="px-4 py-2.5 text-right">
-                            <div className="flex items-center justify-end gap-2">
                               <button
                                 onClick={async () => {
                                   try {
@@ -1743,6 +1743,8 @@ export function AdminPage() {
                                 <Eye className="h-3 w-3 inline mr-1" />
                                 View as
                               </button>
+                          </td>
+                          <td className="px-4 py-2.5 text-right">
                               {u.status === 'lifetime' ? (
                                 <button
                                   onClick={() => revokeLifetime(u.user_id)}
@@ -1760,7 +1762,6 @@ export function AdminPage() {
                                   {grantingLifetime === u.user_id ? '…' : 'Grant Lifetime'}
                                 </button>
                               )}
-                            </div>
                           </td>
                         </tr>
                       ))}
