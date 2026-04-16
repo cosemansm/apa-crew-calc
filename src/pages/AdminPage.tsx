@@ -1732,8 +1732,8 @@ export function AdminPage() {
                                   try {
                                     await startImpersonation(u.user_id);
                                     navigate('/dashboard');
-                                  } catch {
-                                    // Error already captured by context
+                                  } catch (err) {
+                                    alert(`Failed to impersonate: ${err instanceof Error ? err.message : String(err)}`);
                                   }
                                 }}
                                 disabled={impersonationLoading}

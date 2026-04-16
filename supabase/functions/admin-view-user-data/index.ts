@@ -24,16 +24,12 @@ Deno.serve(async (req) => {
       })
     }
 
-    const userResp = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      headers: { 'Authorization': authHeader, 'apikey': serviceRoleKey }
-    })
-    if (!userResp.ok) {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), {
-        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      })
-    }
-    const callerUser = await userResp.json()
-    if (callerUser.email !== ADMIN_EMAIL) {
+    const db = createClient(supabaseUrl, serviceRoleKey)
+
+    // ── Auth: same pattern as admin-users ──
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user: callerUser }, error: authError } = await db.auth.getUser(token)
+    if (authError || !callerUser || callerUser.email !== ADMIN_EMAIL) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
@@ -47,10 +43,8 @@ Deno.serve(async (req) => {
       })
     }
 
-    const db = createClient(supabaseUrl, serviceRoleKey)
-
-    const { data: authData, error: authError } = await db.auth.admin.getUserById(targetUserId)
-    if (authError || !authData?.user) {
+    const { data: authData, error: lookupError } = await db.auth.admin.getUserById(targetUserId)
+    if (lookupError || !authData?.user) {
       return new Response(JSON.stringify({ error: 'User not found' }), {
         status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
