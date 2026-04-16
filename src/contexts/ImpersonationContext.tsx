@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import * as Sentry from '@sentry/react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 // ── Types ──
 
@@ -114,12 +115,16 @@ export function ImpersonationProvider({ children }: { children: ReactNode }) {
     if (!session?.access_token) return;
     setLoading(true);
     try {
+      // Refresh session to ensure token is valid (raw fetch doesn't auto-refresh)
+      const { data: { session: freshSession } } = await supabase.auth.getSession();
+      const token = freshSession?.access_token ?? session.access_token;
+
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
       const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
       const resp = await fetch(`${supabaseUrl}/functions/v1/admin-view-user-data`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
           'apikey': anonKey,
         },
