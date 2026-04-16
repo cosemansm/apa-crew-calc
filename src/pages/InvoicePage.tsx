@@ -5,8 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { format, parseISO } from 'date-fns';
 import { FileText, FolderOpen, Download, Mail, Loader2, X, Send, AlertCircle, Lock } from 'lucide-react';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import type jsPDF from 'jspdf';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/lib/supabase';
 import { getCurrencySymbol } from '@/lib/currency';
 import { useAuth } from '@/contexts/AuthContext';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { cn } from '@/lib/utils';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { exportToFreeAgent, isFreeAgentConnected, FreeAgentAuthError } from '@/services/bookkeeping/freeagent';
@@ -64,6 +64,7 @@ interface ProjectDay {
 export function InvoicePage() {
   usePageTitle('Invoices');
   const { user } = useAuth();
+  const { isImpersonating, impersonatedData } = useImpersonation();
   const location = useLocation();
 
   const [projects, setProjects] = useState<Project[]>([]);
@@ -130,6 +131,52 @@ export function InvoicePage() {
   const [activeTab, setActiveTab] = useState<'timesheet' | 'invoice'>('timesheet');
 
   useEffect(() => {
+    if (isImpersonating && impersonatedData) {
+      // Load projects from snapshot
+      setProjects(impersonatedData.projects.map(p => ({
+        id: p.id,
+        name: p.name,
+        client_name: p.client_name,
+        job_reference: null,
+        calc_engine: p.calc_engine,
+      })));
+
+      // Load project days from snapshot, attach project relation
+      const projectMap = new Map(impersonatedData.projects.map(p => [p.id, p]));
+      const days: ProjectDay[] = impersonatedData.projects.flatMap(p =>
+        p.days.map(d => ({
+          ...d,
+          projects: { name: p.name, client_name: p.client_name },
+        } as unknown as ProjectDay))
+      );
+      setAllDays(days);
+
+      // Handle preselection from navigation state
+      const state = location.state as { dayId?: string; projectId?: string } | null;
+      if (state?.projectId) {
+        const projDays = days.filter(d => d.project_id === state.projectId);
+        if (projDays.length > 0) {
+          setSelectedProjectId(state.projectId);
+          setSelected(projDays.map(d => d.id));
+          const proj = projectMap.get(state.projectId);
+          if (proj?.client_name) setClientName(proj.client_name);
+        }
+      }
+
+      // Load user settings from snapshot
+      const s = impersonatedData.userSettings;
+      if (s) {
+        if (s.company_name) setCompanyName(s.company_name);
+        if (s.company_address) setCompanyAddress(s.company_address);
+        if (s.vat_number) setVatNumber(s.vat_number);
+        if (s.bank_account_name) setBankAccountName(s.bank_account_name);
+        if (s.bank_sort_code) setBankSortCode(s.bank_sort_code);
+        if (s.bank_account_number) setBankAccountNumber(s.bank_account_number);
+        setVatRegistered(s.vat_registered ?? false);
+      }
+      return;
+    }
+
     if (!user) return;
 
     supabase
@@ -189,7 +236,7 @@ export function InvoicePage() {
         if (data.bank_account_number) setBankAccountNumber(data.bank_account_number);
         setVatRegistered(data.vat_registered ?? false);
       });
-  }, [user]);
+  }, [user, isImpersonating, impersonatedData]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -202,22 +249,20 @@ export function InvoicePage() {
   }, []);
 
   useEffect(() => {
+    if (isImpersonating && impersonatedData) {
+      setFaConnected(impersonatedData.bookkeepingConnections.freeagent);
+      setXeroConnected(impersonatedData.bookkeepingConnections.xero);
+      setQboConnected(impersonatedData.bookkeepingConnections.quickbooks);
+      return;
+    }
     if (!user) return;
     isFreeAgentConnected(user.id).then(setFaConnected).catch(() => setFaConnected(false));
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (!user) return;
     isXeroConnected(user.id).then(setXeroConnected).catch(() => setXeroConnected(false));
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (!user) return;
     isQBOConnected(user.id).then(setQboConnected).catch(() => setQboConnected(false));
-  }, [user?.id]);
+  }, [user?.id, isImpersonating, impersonatedData]);
 
   const handleExportToFreeAgent = async () => {
-    if (!user || selectedDays.length === 0) return;
+    if (!user || selectedDays.length === 0 || isImpersonating) return;
     if (!clientName.trim()) { setFaExportError('Please add a client name before sending to FreeAgent.'); return; }
     setExportingFa(true);
     setFaExportUrl(null);
@@ -247,7 +292,7 @@ export function InvoicePage() {
   };
 
   const handleExportToXero = async () => {
-    if (!user || selectedDays.length === 0) return;
+    if (!user || selectedDays.length === 0 || isImpersonating) return;
     if (!clientName.trim()) { setXeroExportError('Please add a client name before sending to Xero.'); return; }
     setExportingXero(true);
     setXeroExportUrl(null);
@@ -277,7 +322,7 @@ export function InvoicePage() {
   };
 
   const handleExportToQBO = async () => {
-    if (!user || selectedDays.length === 0) return;
+    if (!user || selectedDays.length === 0 || isImpersonating) return;
     if (!clientName.trim()) { setQboExportError('Please add a client name before sending to QuickBooks.'); return; }
     setExportingQbo(true);
     setQboExportUrl(null);
@@ -1000,7 +1045,7 @@ export function InvoicePage() {
           )}
 
           {/* BookkeepingCTA — shown when no bookkeeping platform is connected */}
-          {user && faConnected === false && xeroConnected === false && qboConnected === false && (
+          {user && !isImpersonating && faConnected === false && xeroConnected === false && qboConnected === false && (
             <BookkeepingCTA userId={user.id} />
           )}
 
