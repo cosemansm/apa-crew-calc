@@ -118,7 +118,17 @@ export function ImpersonationProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.functions.invoke('admin-view-user-data', {
         body: { userId },
       });
-      if (error) throw error;
+      if (error) {
+        // Extract the actual error message from the function response
+        let detail = error.message;
+        if ('context' in error && error.context instanceof Response) {
+          try {
+            const body = await error.context.json();
+            detail = body.error || detail;
+          } catch { /* response not JSON */ }
+        }
+        throw new Error(detail);
+      }
       setData(data as ImpersonatedUserData);
     } catch (e) {
       Sentry.captureException(e, { extra: { context: 'ImpersonationContext startImpersonation', userId } });
