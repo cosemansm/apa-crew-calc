@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 import { EngineProvider } from '@/contexts/EngineContext';
+import { ImpersonationProvider } from '@/contexts/ImpersonationContext';
 import { AppLayout } from '@/components/AppLayout';
 import { LoginPage } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
@@ -58,31 +59,33 @@ export default function App() {
     <>
       <BrowserRouter>
         <AuthProvider>
-          <EngineProvider>
-            <SubscriptionProvider>
-              <PendingShareRedirect />
-              <Routes>
-                <Route path="/terms" element={<TermsPage />} />
-                <Route path="/privacy" element={<PrivacyPage />} />
-                <Route path="/share/:token" element={<SharePage />} />
-                <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
-                <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-                  <Route path="/dashboard" element={<DashboardPage />} />
-                  <Route path="/calculator" element={<CalculatorPage />} />
-                  <Route path="/projects" element={<ProjectsPage />} />
-                  <Route path="/ai-input" element={<AIInputPage />} />
-                  <Route path="/history" element={<Navigate to="/projects" replace />} />
-                  <Route path="/invoices" element={<InvoicePage />} />
-                  <Route path="/support/:section?" element={<SupportPage />} />
-                  <Route path="/settings/:section?" element={<SettingsPage />} />
-                  <Route path="/admin/:tab?" element={<AdminPage />} />
-                </Route>
-                <Route path="/update-password" element={<UpdatePasswordPage />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
-              </Routes>
-              <ReviewPopupController />
-            </SubscriptionProvider>
-          </EngineProvider>
+          <ImpersonationProvider>
+            <EngineProvider>
+              <SubscriptionProvider>
+                <PendingShareRedirect />
+                <Routes>
+                  <Route path="/terms" element={<TermsPage />} />
+                  <Route path="/privacy" element={<PrivacyPage />} />
+                  <Route path="/share/:token" element={<SharePage />} />
+                  <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+                  <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+                    <Route path="/dashboard" element={<DashboardPage />} />
+                    <Route path="/calculator" element={<CalculatorPage />} />
+                    <Route path="/projects" element={<ProjectsPage />} />
+                    <Route path="/ai-input" element={<AIInputPage />} />
+                    <Route path="/history" element={<Navigate to="/projects" replace />} />
+                    <Route path="/invoices" element={<InvoicePage />} />
+                    <Route path="/support/:section?" element={<SupportPage />} />
+                    <Route path="/settings/:section?" element={<SettingsPage />} />
+                    <Route path="/admin/:tab?" element={<AdminPage />} />
+                  </Route>
+                  <Route path="/update-password" element={<UpdatePasswordPage />} />
+                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                </Routes>
+                <ReviewPopupController />
+              </SubscriptionProvider>
+            </EngineProvider>
+          </ImpersonationProvider>
         </AuthProvider>
       </BrowserRouter>
       <Analytics />
