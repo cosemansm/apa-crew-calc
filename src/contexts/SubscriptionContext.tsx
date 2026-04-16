@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
 
 export interface Subscription {
   id: string;
@@ -31,6 +32,7 @@ const SubscriptionContext = createContext<SubscriptionContextType | undefined>(u
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const { isImpersonating, impersonatedData } = useImpersonation();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -81,16 +83,33 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     ? Math.max(0, Math.ceil((trialEndsAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
     : 0;
 
+  // Override with impersonated user's subscription when active
+  const impSub = isImpersonating ? impersonatedData?.subscription : null;
+  const effectiveSubscription = impSub
+    ? { ...impSub, id: '', user_id: '', stripe_customer_id: null, stripe_subscription_id: null, day10_popup_shown: true, expired_popup_shown: true, created_at: '' } as Subscription
+    : subscription;
+
+  const impTrialEndsAt = impSub?.trial_ends_at ? new Date(impSub.trial_ends_at) : null;
+  const effectiveIsTrialing = isImpersonating
+    ? (impSub?.status === 'trialing' && impTrialEndsAt != null && impTrialEndsAt > new Date())
+    : isTrialing;
+  const effectiveIsPremium = isImpersonating
+    ? (impSub?.status === 'active' || impSub?.status === 'lifetime' || effectiveIsTrialing)
+    : isPremium;
+  const effectiveTrialDaysLeft = isImpersonating
+    ? (impTrialEndsAt ? Math.max(0, Math.ceil((impTrialEndsAt.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0)
+    : trialDaysLeft;
+
   return (
     <SubscriptionContext.Provider
       value={{
-        subscription,
-        isPremium,
-        isTrialing,
-        trialDaysLeft,
-        trialExtended: subscription?.trial_extended ?? false,
-        loading,
-        error,
+        subscription: effectiveSubscription,
+        isPremium: effectiveIsPremium,
+        isTrialing: effectiveIsTrialing,
+        trialDaysLeft: effectiveTrialDaysLeft,
+        trialExtended: isImpersonating ? (impSub?.trial_extended ?? false) : (subscription?.trial_extended ?? false),
+        loading: isImpersonating ? false : loading,
+        error: isImpersonating ? null : error,
         refresh: fetchSubscription,
       }}
     >
