@@ -1,6 +1,3 @@
-[functions.new-user-notification]
-verify_jwt = false
-
 [functions.admin-users]
 verify_jwt = false
 
