@@ -262,7 +262,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
     if (!isPMPARunner) {
       const otHours = Math.max(0, dayLength - otStartNSD);
       if (otHours > 0) {
-        const nsdOtRate = isWeekday ? Math.round(bhr * otCoefficient) : Math.round(bdr * rateMultiplier / 10);
+        const nsdOtRate = isWeekday ? otRate : Math.round(bdr * rateMultiplier / 10);
         lineItems.push({ description: 'Overtime', hours: roundOTHours(otHours), rate: nsdOtRate, total: roundOTHours(otHours) * nsdOtRate, timeFrom: nsdOtStartTime, timeTo: wrapTime });
       }
     }
@@ -292,7 +292,7 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
     if (!isPMPARunner) {
       const otHours = Math.max(0, dayLength - 9);
       if (otHours > 0) {
-        const plOtRate = isWeekday ? Math.round(bhr * otCoefficient) : Math.round(bdr * rateMultiplier / 10);
+        const plOtRate = isWeekday ? otRate : Math.round(bdr * rateMultiplier / 10);
         lineItems.push({ description: 'Overtime', hours: roundOTHours(otHours), rate: plOtRate, total: roundOTHours(otHours) * plOtRate, timeFrom: plOtStartTime, timeTo: wrapTime });
       }
     }
