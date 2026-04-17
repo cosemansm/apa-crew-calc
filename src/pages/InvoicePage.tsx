@@ -5,7 +5,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { format, parseISO } from 'date-fns';
 import { FileText, FolderOpen, Download, Mail, Loader2, X, Send, AlertCircle, Lock } from 'lucide-react';
-import type jsPDF from 'jspdf';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -386,6 +387,11 @@ export function InvoicePage() {
     if (!invoiceRef.current) return null;
     const el = invoiceRef.current;
 
+    const [{ default: html2canvas }, { default: jsPDFConstructor }] = await Promise.all([
+      import('html2canvas'),
+      import('jspdf'),
+    ]);
+
     // Temporarily strip rounded corners + shadow so they don't bleed grey into the PDF
     const prevWidth        = el.style.width;
     const prevBorderRadius = el.style.borderRadius;
@@ -411,7 +417,7 @@ export function InvoicePage() {
     const quality  = format === 'JPEG' ? 0.85 : 1;
     const imgData  = canvas.toDataURL(mimeType, quality);
 
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pdf = new jsPDFConstructor({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const pdfWidth  = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
     const imgHeightMm = (canvas.height / canvas.width) * pdfWidth;
@@ -466,6 +472,11 @@ export function InvoicePage() {
       el.style.boxShadow    = 'none';
 
       try {
+        const [{ default: html2canvas }, { default: jsPDFConstructor }] = await Promise.all([
+          import('html2canvas'),
+          import('jspdf'),
+        ]);
+
         const canvas = await html2canvas(el, {
           scale: 2,
           useCORS: true,
@@ -473,7 +484,7 @@ export function InvoicePage() {
           logging: false,
         });
 
-        const pdf      = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pdf      = new jsPDFConstructor({ orientation: 'portrait', unit: 'mm', format: 'a4' });
         const pxPerMm  = canvas.width / contentWidthMm;
         const pageHeightPx = Math.floor(contentHeightMm * pxPerMm);
 
