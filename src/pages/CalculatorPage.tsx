@@ -1696,6 +1696,7 @@ export function CalculatorPage() {
                     Pre-call start
                   </Label>
                 </div>
+                <p className="ml-7 mt-1 text-[11px] text-muted-foreground/60">For crew collecting vehicles, delivering equipment, or starting before unit call</p>
                 {preCallEnabled && (
                   <div className="ml-7 mt-2">
                     <TimePicker
