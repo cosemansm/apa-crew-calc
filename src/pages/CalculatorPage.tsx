@@ -467,6 +467,8 @@ export function CalculatorPage() {
   const [secondBreakDuration, setSecondBreakDuration] = useState(ss?.secondBreakDuration ?? '30');
   const [continuousFirstBreakGiven, setContinuousFirstBreakGiven] = useState(ss?.continuousFirstBreakGiven ?? true);
   const [continuousAdditionalBreakGiven, setContinuousAdditionalBreakGiven] = useState(ss?.continuousAdditionalBreakGiven ?? true);
+  const [preCallEnabled, setPreCallEnabled] = useState(false);
+  const [preCallStartTime, setPreCallStartTime] = useState('');
   const [travelHours, setTravelHours] = useState(ss?.travelHours ?? '0');
   const [mileage, setMileage] = useState(ss?.mileage ?? '0');
   const [equipmentValue, setEquipmentValue] = useState(ss?.equipmentValue ?? '0');
@@ -881,11 +883,12 @@ export function CalculatorPage() {
       previousWrapTime: autoPreviousWrap || undefined,
       equipmentValue: parseFloat(equipmentValue) || 0,
       equipmentDiscount: parseFloat(equipmentDiscount) || 0,
+      preCallStartTime: preCallEnabled ? preCallStartTime : undefined,
       extra: !activeEngine.meta.features.agreedRateInput
         ? { hasEquipment, kmRate }
         : undefined,
     }); } catch { return null; }
-  }, [selectedRole, agreedRate, dayType, dayOfWeek, callTime, effectiveWrapTime, firstBreakGiven, firstBreakTime, firstBreakDuration, secondBreakGiven, secondBreakTime, secondBreakDuration, continuousFirstBreakGiven, continuousAdditionalBreakGiven, travelHours, mileage, autoPreviousWrap, workDate, isBankHoliday, equipmentValue, equipmentDiscount, activeEngine, hasEquipment, kmRate]);
+  }, [selectedRole, agreedRate, dayType, dayOfWeek, callTime, effectiveWrapTime, firstBreakGiven, firstBreakTime, firstBreakDuration, secondBreakGiven, secondBreakTime, secondBreakDuration, continuousFirstBreakGiven, continuousAdditionalBreakGiven, travelHours, mileage, autoPreviousWrap, workDate, isBankHoliday, equipmentValue, equipmentDiscount, activeEngine, hasEquipment, kmRate, preCallEnabled, preCallStartTime]);
 
   // Mark dirty whenever the calculated result changes (but not during load/reset)
   useEffect(() => {
@@ -943,6 +946,10 @@ export function CalculatorPage() {
     const defaultHours = DEFAULT_WRAP_HOURS[newType];
     if (defaultHours !== undefined) {
       setWrapTime(addHoursToTime(callTime, defaultHours));
+    }
+    if (newType === 'rest' || newType === 'travel') {
+      setPreCallEnabled(false);
+      setPreCallStartTime('');
     }
   };
 
@@ -1660,6 +1667,46 @@ export function CalculatorPage() {
                 </div>
               );
             })()}
+
+            {/* Pre-call start (UK-APA only, not for rest/travel days) */}
+            {activeEngine.meta.id === 'apa-uk' && dayType !== 'rest' && dayType !== 'travel' && (
+              <div className="border-t border-border/40 pt-3 mt-1">
+                <div className="flex items-center gap-2.5">
+                  <Checkbox
+                    id="preCallStart"
+                    checked={preCallEnabled}
+                    onCheckedChange={v => {
+                      const enabled = !!v;
+                      setPreCallEnabled(enabled);
+                      if (enabled && !preCallStartTime) {
+                        setPreCallStartTime(addHoursToTime(callTime, -1));
+                      }
+                    }}
+                  />
+                  <Label htmlFor="preCallStart" className={cn('text-sm font-medium', !preCallEnabled && 'text-muted-foreground')}>
+                    Pre-call start
+                  </Label>
+                </div>
+                {preCallEnabled && (
+                  <div className="ml-7 mt-2">
+                    <TimePicker
+                      label="Individual Start"
+                      value={preCallStartTime || addHoursToTime(callTime, -1)}
+                      onChange={(v) => {
+                        const startMins = parseInt(v.split(':')[0]) * 60 + parseInt(v.split(':')[1]);
+                        const callMins = parseInt(callTime.split(':')[0]) * 60 + parseInt(callTime.split(':')[1]);
+                        if (startMins >= callMins) {
+                          setPreCallEnabled(false);
+                          setPreCallStartTime('');
+                        } else {
+                          setPreCallStartTime(v);
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             <Separator />
 
