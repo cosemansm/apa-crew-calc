@@ -1653,7 +1653,7 @@ export function CalculatorPage() {
               return (
                 <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-end">
                   <TimePicker
-                    label={dayType === 'travel' ? 'Departure Time' : 'Call Time'}
+                    label={dayType === 'travel' ? 'Departure Time' : 'Main Call Time'}
                     value={callTime}
                     onChange={(v) => {
                       setCallTime(v);
