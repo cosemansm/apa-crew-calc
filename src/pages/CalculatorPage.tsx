@@ -241,6 +241,7 @@ interface FullProjectDay {
   expenses_notes: string;
   previous_wrap: string | null;
   is_bank_holiday: boolean;
+  pre_call_start_time: string | null;
 }
 
 function ProjectCalendar({
@@ -991,6 +992,13 @@ export function CalculatorPage() {
     setShowEquipmentSection((day.equipment_value ?? 0) > 0);
     setShowExpensesSection((day.expenses_amount ?? 0) > 0);
     setPreviousWrap(day.previous_wrap ?? '');
+    if (day.pre_call_start_time) {
+      setPreCallEnabled(true);
+      setPreCallStartTime(day.pre_call_start_time);
+    } else {
+      setPreCallEnabled(false);
+      setPreCallStartTime('');
+    }
     const role = customRoles.find(r => r.role === day.role_name) ?? activeEngine.getRole(day.role_name);
     if (role) {
       setSelectedRole(role);
@@ -1183,6 +1191,7 @@ export function CalculatorPage() {
       expenses_notes: expensesDayNotes.trim(),
       previous_wrap: autoPreviousWrap || null,
       is_bank_holiday: bankHolidays.has(workDate),
+      pre_call_start_time: preCallEnabled ? preCallStartTime : null,
     };
 
     // Update project name if it has changed
