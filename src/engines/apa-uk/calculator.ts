@@ -163,6 +163,70 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
   const otRate = role.customOtRate ?? Math.round(bhr * otCoefficient);
   const tripleBhr = bhr * 3;
 
+  // PM/PA/Runner special handling (Appendix 1)
+  const isPMPARunner = role.specialRules === 'pm_pa_runner';
+
+  // ── Pre-call individual start (APA T&Cs Section 2.1.3/2.2.3 note) ──
+  // An individual starting before the unit call is paid for pre-call hours separately.
+  // Their basic working day still starts at the call time.
+  const preCallLineItems: CalculationLineItem[] = [];
+  const preCallDayTypes: DayType[] = ['basic_working', 'continuous_working', 'prep', 'recce', 'build_strike', 'pre_light'];
+  if (input.preCallStartTime && preCallDayTypes.includes(dayType)) {
+    const preCallMins = timeToMinutes(input.preCallStartTime);
+    const callMins = timeToMinutes(callTime);
+    const preCallDuration = callMins - preCallMins;
+
+    if (preCallDuration > 0) {
+      const fiveAmMins = 5 * 60;
+
+      // Determine pre-call OT rate based on day of week and role
+      let preCallOtRate: number;
+      if (isSundayOrBH) {
+        preCallOtRate = bhr * 2;
+      } else if (isSaturday) {
+        preCallOtRate = Math.round(bdr * 1.5 / 10);
+      } else {
+        preCallOtRate = isPMPARunner ? bhr : otRate;
+      }
+
+      if (preCallMins < fiveAmMins) {
+        // Split: triple time before 5am, OT rate from 5am to call
+        const tripleHours = (Math.min(fiveAmMins, callMins) - preCallMins) / 60;
+        preCallLineItems.push({
+          description: 'Pre-call Triple Time (before 05:00)',
+          hours: tripleHours,
+          rate: tripleBhr,
+          total: tripleHours * tripleBhr,
+          timeFrom: input.preCallStartTime,
+          timeTo: '05:00',
+        });
+
+        if (callMins > fiveAmMins) {
+          const otHours = (callMins - fiveAmMins) / 60;
+          preCallLineItems.push({
+            description: 'Pre-call Overtime (05:00 to call)',
+            hours: otHours,
+            rate: preCallOtRate,
+            total: otHours * preCallOtRate,
+            timeFrom: '05:00',
+            timeTo: callTime,
+          });
+        }
+      } else {
+        // All pre-call hours are at OT rate (start is at or after 5am)
+        const preCallHours = preCallDuration / 60;
+        preCallLineItems.push({
+          description: `Pre-call Overtime (${input.preCallStartTime} to call)`,
+          hours: preCallHours,
+          rate: preCallOtRate,
+          total: preCallHours * preCallOtRate,
+          timeFrom: input.preCallStartTime,
+          timeTo: callTime,
+        });
+      }
+    }
+  }
+
   // Buyout: return agreed daily rate as a single line item, no OT or BHR breakdown.
   if (role.isBuyout) {
     const eqTotal = Math.round((input.equipmentValue ?? 0) * (1 - (input.equipmentDiscount ?? 0) / 100));
@@ -181,9 +245,6 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
       dayDescription: 'Buyout',
     };
   }
-
-  // PM/PA/Runner special handling (Appendix 1)
-  const isPMPARunner = role.specialRules === 'pm_pa_runner';
 
   // Per APA T&Cs Section 6.2 (two thresholds):
   //   > 5.5 hrs after call  → first break is "delayed" → £10 penalty
@@ -734,6 +795,11 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
   const equipmentValue = input.equipmentValue ?? 0;
   const equipmentDiscount = input.equipmentDiscount ?? 0;
   const equipmentTotal = Math.round(equipmentValue * (1 - equipmentDiscount / 100) * 100) / 100;
+
+  // Prepend pre-call line items and adjust totals
+  if (preCallLineItems.length > 0) {
+    lineItems.unshift(...preCallLineItems);
+  }
 
   const subtotal = lineItems.reduce((sum, item) => sum + (item.total ?? 0), 0);
   const penaltiesTotal = penalties.reduce((sum, item) => sum + (item.total ?? 0), 0);
