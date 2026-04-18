@@ -84,7 +84,7 @@ function getCallType(callTimeStr: string, dayType: DayType): CallType {
   const mins = timeToMinutes(callTimeStr);
   const hour = Math.floor(mins / 60);
 
-  if (dayType !== 'basic_working' && dayType !== 'continuous_working') {
+  if (dayType !== 'basic_working' && dayType !== 'continuous_working' && dayType !== 'pre_light') {
     return 'standard';
   }
 
@@ -275,6 +275,22 @@ export function calculateCrewCost(input: CalculationInput): CalculationResult {
     // Derive rate from BDR to avoid double-rounding through bhr
     const hourlyRate = Math.round(bdr * rateMultiplier / 10);
     const plOtStartTime = addHoursToTime(callTime, 9);
+
+    // Early call OT for pre-light days (Section 2.1.3: early call applies all days)
+    if (callType === 'early' && !isPMPARunner) {
+      const callMins = timeToMinutes(callTime);
+      const earlyHours = Math.max(0, (7 * 60 - callMins) / 60);
+      const plEarlyOtRate = isWeekday ? otRate : Math.round(bdr * rateMultiplier / 10);
+      lineItems.push({
+        description: `Early Call Overtime (${callTime}-07:00)`,
+        hours: earlyHours,
+        rate: plEarlyOtRate,
+        total: earlyHours * plEarlyOtRate,
+        timeFrom: callTime,
+        timeTo: '07:00',
+      });
+    }
+
     lineItems.push({
       description: 'Pre-light Day',
       hours: baseHours,
