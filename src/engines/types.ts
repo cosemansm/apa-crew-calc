@@ -80,6 +80,7 @@ export interface EngineCalculationInput {
   travelHours: number;
   mileageDistance: number;
   previousWrapTime?: string;
+  preCallStartTime?: string;  // Individual start time before unit call (e.g. "05:30")
   equipmentValue?: number;
   equipmentDiscount?: number;
   extra?: Record<string, unknown>;

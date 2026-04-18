@@ -35,6 +35,7 @@ export interface CalculationInput {
   travelHours: number;
   mileageOutsideM25: number;
   previousWrapTime?: string; // for time-off-the-clock calculation
+  preCallStartTime?: string; // HH:MM - individual start before unit call
   equipmentValue?: number;    // gross equipment charge
   equipmentDiscount?: number; // discount % (0–100)
 }
@@ -794,6 +795,7 @@ export function calculateEngineWrapper(input: EngineCalculationInput): EngineRes
     travelHours: input.travelHours,
     mileageOutsideM25: input.mileageDistance,
     previousWrapTime: input.previousWrapTime,
+    preCallStartTime: input.preCallStartTime,
     equipmentValue: input.equipmentValue,
     equipmentDiscount: input.equipmentDiscount,
   }
