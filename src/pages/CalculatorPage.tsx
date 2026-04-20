@@ -1033,11 +1033,60 @@ export function CalculatorPage() {
 
   const refreshProjectDays = async (projId: string) => {
     const { data } = await supabase.from('project_days')
-      .select('id, work_date, role_name, grand_total, day_number, day_type, result_json, wrap_time, call_time, expenses_amount, expenses_notes')
+      .select('*')
       .eq('project_id', projId)
       .order('work_date', { ascending: true });
-    if (data) setProjectDays(data as ProjectDaySummary[]);
-    return (data ?? []) as ProjectDaySummary[];
+    if (!data) return [] as ProjectDaySummary[];
+    // Heal stale result_json for all days (e.g. mileage missing from totals)
+    let days = data as any[];
+    const healed: any[] = [];
+    for (const day of days) {
+      if (!day.role_name) continue;
+      const role = activeEngine.getRole(day.role_name);
+      if (!role) continue;
+      try {
+        const result = activeEngine.calculate({
+          role,
+          agreedDailyRate: day.agreed_rate || 0,
+          dayType: day.day_type,
+          dayOfWeek: day.day_of_week ?? '',
+          callTime: day.call_time,
+          wrapTime: day.wrap_time,
+          firstBreakGiven: day.first_break_given ?? true,
+          firstBreakTime: day.first_break_time ?? undefined,
+          firstBreakDurationMins: day.first_break_duration ?? 60,
+          secondBreakGiven: day.second_break_given ?? true,
+          secondBreakTime: day.second_break_time ?? undefined,
+          secondBreakDurationMins: day.second_break_duration ?? 30,
+          continuousFirstBreakGiven: day.continuous_first_break_given ?? true,
+          continuousAdditionalBreakGiven: day.continuous_additional_break_given ?? true,
+          travelHours: day.travel_hours ?? 0,
+          mileageDistance: day.mileage ?? 0,
+          previousWrapTime: day.previous_wrap ?? undefined,
+          equipmentValue: day.equipment_value ?? 0,
+          equipmentDiscount: day.equipment_discount ?? 0,
+          extra: !activeEngine.meta.features.agreedRateInput
+            ? {
+                hasEquipment: (day.equipment_value ?? 0) > 0,
+                kmRate: (day.equipment_value ?? 0) > 0 ? 0.85 : 0.45,
+              }
+            : undefined,
+        });
+        const newTotal = result.grandTotal + (day.expenses_amount ?? 0);
+        if (Math.abs(newTotal - day.grand_total) >= 0.005) {
+          healed.push({ ...day, grand_total: newTotal, result_json: result });
+          supabase.from('project_days')
+            .update({ grand_total: newTotal, result_json: result })
+            .eq('id', day.id)
+            .then();
+        }
+      } catch { /* engine error — skip */ }
+    }
+    if (healed.length > 0) {
+      days = days.map(d => healed.find(h => h.id === d.id) ?? d);
+    }
+    setProjectDays(days as ProjectDaySummary[]);
+    return days as ProjectDaySummary[];
   };
 
   const removeDay = async (dayId: string) => {

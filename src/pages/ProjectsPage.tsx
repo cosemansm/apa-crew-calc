@@ -24,22 +24,7 @@ import { calculateCrewCost, type DayType, type DayOfWeek } from '@/data/calculat
 import { useEngine } from '@/hooks/useEngine';
 import { getEngine } from '@/engines/index';
 import { getCurrencySymbol } from '@/lib/currency';
-
-// ── Status config ────────────────────────────────────────────────────────────
-export type ProjectStatus = 'ongoing' | 'finished' | 'invoiced' | 'paid';
-
-export const STATUS_CONFIG: Record<ProjectStatus, {
-  label: string;
-  calendarBg: string;   // used in calendar bars
-  badgeBg: string;
-  badgeText: string;
-  badgeBorder: string;
-}> = {
-  ongoing:  { label: 'Ongoing',  calendarBg: '#3B82F6', badgeBg: '#EFF6FF', badgeText: '#1D4ED8', badgeBorder: '#BFDBFE' },
-  finished: { label: 'Finished', calendarBg: '#22C55E', badgeBg: '#F0FDF4', badgeText: '#15803D', badgeBorder: '#BBF7D0' },
-  invoiced: { label: 'Invoiced', calendarBg: '#8B5CF6', badgeBg: '#F5F3FF', badgeText: '#6D28D9', badgeBorder: '#DDD6FE' },
-  paid:     { label: 'Paid',     calendarBg: '#F59E0B', badgeBg: '#FFFBEB', badgeText: '#92400E', badgeBorder: '#FDE68A' },
-};
+import { STATUS_CONFIG, StatusBadge, type ProjectStatus } from '@/lib/projectStatus';
 
 // ── Interfaces ───────────────────────────────────────────────────────────────
 interface Project {
@@ -93,32 +78,6 @@ const DAY_TYPE_SHORT: Record<string, string> = {
   rest: 'Rest Day',
   travel: 'Travel Day',
 };
-
-// ── StatusBadge ──────────────────────────────────────────────────────────────
-export function StatusBadge({ status }: { status: ProjectStatus }) {
-  const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.ongoing;
-  return (
-    <span
-      style={{
-        backgroundColor: cfg.badgeBg,
-        color: cfg.badgeText,
-        border: `1px solid ${cfg.badgeBorder}`,
-        borderRadius: '999px',
-        fontSize: '11px',
-        fontWeight: 600,
-        padding: '2px 8px',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '5px',
-        lineHeight: 1.5,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: cfg.calendarBg, display: 'inline-block', flexShrink: 0 }} />
-      {cfg.label}
-    </span>
-  );
-}
 
 // ── Main component ───────────────────────────────────────────────────────────
 export function ProjectsPage() {
@@ -286,6 +245,12 @@ export function ProjectsPage() {
               previousWrapTime: (day as any).previous_wrap ?? undefined,
               equipmentValue: (day as any).equipment_value ?? 0,
               equipmentDiscount: (day as any).equipment_discount ?? 0,
+              extra: !engine.meta.features.agreedRateInput
+                ? {
+                    hasEquipment: ((day as any).equipment_value ?? 0) > 0,
+                    kmRate: ((day as any).equipment_value ?? 0) > 0 ? 0.85 : 0.45,
+                  }
+                : undefined,
             });
             const newTotal = result.grandTotal + ((day as any).expenses_amount ?? 0);
             // Only heal if the stored total actually differs
