@@ -644,10 +644,10 @@ export function DashboardPage() {
                             <div className="flex items-center justify-between">
                               <button
                                 onClick={() => navigate(`/calculator?project=${dp.project_id}`)}
-                                className="flex items-center gap-1.5 text-xs font-medium text-[#1F1F21] hover:text-[#FFD528] transition-colors"
+                                className="flex items-center gap-1.5 text-xs font-semibold bg-[#FFD528] text-[#1F1F21] hover:bg-[#e6c024] px-3 py-1.5 rounded-lg transition-colors"
                               >
                                 <ExternalLink className="h-3 w-3" />
-                                Edit day in Calculator
+                                Open in Calculator
                               </button>
                               <button
                                 onClick={() => setDeleteConfirm({ id: dp.project_id, name: dp.projectName })}
