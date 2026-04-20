@@ -191,6 +191,7 @@ interface DayResultJson {
   travelPay?: number;
   mileage?: number;
   mileageMiles?: number;
+  mileageDistance?: number;
   equipmentValue?: number;
   equipmentDiscount?: number;
   equipmentTotal?: number;
@@ -2491,7 +2492,7 @@ export function CalculatorPage() {
 
                               {(rj.mileage ?? 0) > 0 && (
                                 <Fragment key="mileage">
-                                  <p className="text-xs text-muted-foreground py-[3px]">Mileage ({rj.mileageMiles} {activeEngine.meta.mileageUnit})</p>
+                                  <p className="text-xs text-muted-foreground py-[3px]">{activeEngine.meta.mileageUnit === 'km' ? 'Travel' : 'Mileage'} ({rj.mileageDistance ?? rj.mileageMiles ?? 0} {activeEngine.meta.mileageUnit})</p>
                                   <span className="font-mono text-xs font-semibold tabular-nums text-right py-[3px]">{activeEngine.meta.currencySymbol}{(rj.mileage ?? 0).toFixed(2)}</span>
                                 </Fragment>
                               )}

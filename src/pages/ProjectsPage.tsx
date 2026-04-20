@@ -53,6 +53,7 @@ interface ProjectDay {
     travelPay?: number;
     mileage?: number;
     mileageMiles?: number;
+    mileageDistance?: number;
     subtotal?: number;
   };
 }
@@ -834,13 +835,19 @@ export function ProjectsPage() {
                                       <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">{sym}{travelPay.toFixed(2)}</span>
                                     </Fragment>
                                   )}
-                                  {mileagePay > 0 && (
-                                    <Fragment key="mileage">
-                                      <p className="text-xs text-muted-foreground py-[3px] self-center">Mileage ({day.result_json?.mileageMiles || 0} mi)</p>
-                                      <span />
-                                      <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">{sym}{mileagePay.toFixed(2)}</span>
-                                    </Fragment>
-                                  )}
+                                  {mileagePay > 0 && (() => {
+                                    const eng = selectedProject?.calc_engine ? getEngine(selectedProject.calc_engine) : null;
+                                    const unit = eng?.meta.mileageUnit ?? 'km';
+                                    const dist = day.result_json?.mileageDistance ?? day.result_json?.mileageMiles ?? 0;
+                                    const label = unit === 'km' ? 'Travel' : 'Mileage';
+                                    return (
+                                      <Fragment key="mileage">
+                                        <p className="text-xs text-muted-foreground py-[3px] self-center">{label} ({dist} {unit})</p>
+                                        <span />
+                                        <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">{sym}{mileagePay.toFixed(2)}</span>
+                                      </Fragment>
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             )}
