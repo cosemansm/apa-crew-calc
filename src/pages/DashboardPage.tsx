@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
   Plus, FolderOpen, Star, StarOff, ChevronLeft, ChevronRight,
-  Calendar, Clock, X, TrendingUp, Sparkles, ExternalLink, Bell, Info, Trash2
+  Calendar, Clock, X, TrendingUp, Sparkles, Edit3, Bell, Info, Trash2
 } from 'lucide-react';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, getDay,
@@ -646,8 +646,8 @@ export function DashboardPage() {
                                 onClick={() => navigate(`/calculator?project=${dp.project_id}`)}
                                 className="flex items-center gap-1.5 text-xs font-semibold bg-[#FFD528] text-[#1F1F21] hover:bg-[#e6c024] px-3 py-1.5 rounded-lg transition-colors"
                               >
-                                <ExternalLink className="h-3 w-3" />
-                                Open in Calculator
+                                <Edit3 className="h-3 w-3" />
+                                Edit
                               </button>
                               <button
                                 onClick={() => setDeleteConfirm({ id: dp.project_id, name: dp.projectName })}
