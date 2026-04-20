@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
   Plus, FolderOpen, Star, StarOff, ChevronLeft, ChevronRight,
-  Calendar, Clock, X, TrendingUp, Sparkles, ExternalLink, Bell, Info
+  Calendar, Clock, X, TrendingUp, Sparkles, ExternalLink, Bell, Info, Trash2
 } from 'lucide-react';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, getDay,
@@ -22,11 +22,12 @@ import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { getCurrencySymbol, groupByCurrency, formatMultiCurrencyTotal } from '@/lib/currency';
 import { getEngine } from '@/engines/index';
 import { APA_CREW_ROLES, DEPARTMENTS, getRolesByDepartment, type CrewRole } from '@/data/apa-rates';
-import { STATUS_CONFIG, StatusBadge, type ProjectStatus } from './ProjectsPage';
+import { STATUS_CONFIG, StatusBadge, type ProjectStatus } from '@/lib/projectStatus';
 import { TrialBanner } from '@/components/TrialBanner';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { JobLimitDialog } from '@/components/JobLimitDialog';
 import { BookkeepingSection } from '@/components/BookkeepingSection';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { WhatsNewDrawer, useUnreadCount } from '@/components/WhatsNewDrawer';
 import { useEngine } from '@/hooks/useEngine';
@@ -90,6 +91,8 @@ export function DashboardPage() {
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const [notifications, setNotifications] = useState<{ id: string; published_at: string }[]>([]);
   const [badgeCount, setBadgeCount] = useState(0);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const unreadCount = useUnreadCount(notifications);
 
   useEffect(() => {
@@ -234,6 +237,16 @@ export function DashboardPage() {
       setCalendarNewJobDate(null);
       navigate(`/calculator?project=${data.id}&name=${encodeURIComponent(data.name)}${dateParam}`);
     }
+  };
+
+  const deleteProject = async (projectId: string) => {
+    if (isImpersonating) return;
+    setDeleting(true);
+    await supabase.from('project_days').delete().eq('project_id', projectId);
+    await supabase.from('projects').delete().eq('id', projectId);
+    setProjects(prev => prev.filter(p => p.id !== projectId));
+    setDeleteConfirm(null);
+    setDeleting(false);
   };
 
   // Calendar data
@@ -628,13 +641,22 @@ export function DashboardPage() {
                                 );
                               })}
                             </div>
-                            <button
-                              onClick={() => navigate(`/calculator?project=${dp.project_id}`)}
-                              className="flex items-center gap-1.5 text-xs font-medium text-[#1F1F21] hover:text-[#FFD528] transition-colors w-full"
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                              Edit day in Calculator
-                            </button>
+                            <div className="flex items-center justify-between">
+                              <button
+                                onClick={() => navigate(`/calculator?project=${dp.project_id}`)}
+                                className="flex items-center gap-1.5 text-xs font-medium text-[#1F1F21] hover:text-[#FFD528] transition-colors"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                Edit day in Calculator
+                              </button>
+                              <button
+                                onClick={() => setDeleteConfirm({ id: dp.project_id, name: dp.projectName })}
+                                className="flex items-center justify-center h-7 w-7 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors"
+                                title="Delete job"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
                           </PopoverContent>
                         </Popover>
                       );
@@ -1008,6 +1030,26 @@ export function DashboardPage() {
         onClose={() => setWhatsNewOpen(false)}
         onSeen={() => setBadgeCount(0)}
       />
+      <Dialog open={!!deleteConfirm} onOpenChange={open => { if (!open) setDeleteConfirm(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete job</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <span className="font-semibold text-foreground">{deleteConfirm?.name}</span> and all its days? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 justify-end mt-2">
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)} disabled={deleting}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteConfirm && deleteProject(deleteConfirm.id)}
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
