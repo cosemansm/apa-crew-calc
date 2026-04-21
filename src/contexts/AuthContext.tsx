@@ -34,10 +34,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .select('onboarding_completed')
           .eq('user_id', session.user.id)
           .maybeSingle()
-          .then(({ data }) => {
-            setOnboardingCompleted(data?.onboarding_completed ?? false)
+          .then(({ data, error }) => {
+            setOnboardingCompleted(error ? false : (data?.onboarding_completed ?? false))
           })
-          .catch(() => setOnboardingCompleted(false))
       } else {
         setOnboardingCompleted(null)
       }
@@ -65,9 +64,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             { onConflict: 'user_id', ignoreDuplicates: true }
           ).then(({ error }) => {
             if (error) Sentry.captureException(new Error(error.message), { extra: { context: 'AuthContext user_settings upsert', supabaseError: error } });
-          }).catch(() => {
-            // Network failure (e.g. mobile Safari killing background fetches) —
-            // settings will sync on next successful sign-in, safe to swallow.
           });
         }
         // Fetch onboarding status
@@ -75,10 +71,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .select('onboarding_completed')
           .eq('user_id', session.user.id)
           .maybeSingle()
-          .then(({ data }) => {
-            setOnboardingCompleted(data?.onboarding_completed ?? false)
+          .then(({ data, error }) => {
+            setOnboardingCompleted(error ? false : (data?.onboarding_completed ?? false))
           })
-          .catch(() => setOnboardingCompleted(false))
       }
       if (_event === 'SIGNED_OUT') {
         setOnboardingCompleted(null)
