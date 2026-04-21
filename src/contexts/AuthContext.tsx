@@ -9,7 +9,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string, department?: string) => Promise<{ error: Error | null }>;
+  onboardingCompleted: boolean | null;
+  signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -21,12 +22,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      if (session) {
+        supabase.from('user_settings')
+          .select('onboarding_completed')
+          .eq('user_id', session.user.id)
+          .maybeSingle()
+          .then(({ data }) => {
+            setOnboardingCompleted(data?.onboarding_completed ?? false)
+          })
+          .catch(() => setOnboardingCompleted(false))
+      } else {
+        setOnboardingCompleted(null)
+      }
     }).catch((error) => {
       Sentry.captureException(error, { extra: { context: 'AuthContext getSession network failure' } });
       setLoading(false);
@@ -44,28 +58,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (_event === 'SIGNED_IN' && session) {
-        const { full_name, department } = session.user.user_metadata ?? {};
+        const { full_name } = session.user.user_metadata ?? {};
         if (full_name) {
           supabase.from('user_settings').upsert(
-            { user_id: session.user.id, display_name: full_name, department: department || null },
+            { user_id: session.user.id, display_name: full_name },
             { onConflict: 'user_id', ignoreDuplicates: true }
           ).then(({ error }) => {
             if (error) Sentry.captureException(new Error(error.message), { extra: { context: 'AuthContext user_settings upsert', supabaseError: error } });
+          }).catch(() => {
+            // Network failure (e.g. mobile Safari killing background fetches) —
+            // settings will sync on next successful sign-in, safe to swallow.
           });
         }
+        // Fetch onboarding status
+        supabase.from('user_settings')
+          .select('onboarding_completed')
+          .eq('user_id', session.user.id)
+          .maybeSingle()
+          .then(({ data }) => {
+            setOnboardingCompleted(data?.onboarding_completed ?? false)
+          })
+          .catch(() => setOnboardingCompleted(false))
+      } else {
+        setOnboardingCompleted(null)
       }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string, department?: string) => {
+  const signUp = async (email: string, password: string, fullName: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName, department: department || null },
-        emailRedirectTo: 'https://app.crewdock.app/dashboard',
+        data: { full_name: fullName },
+        emailRedirectTo: `${window.location.origin}/onboarding`,
       },
     })
 
@@ -102,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/dashboard`,
+        redirectTo: `${window.location.origin}/onboarding`,
       },
     });
     return { error: error as Error | null };
@@ -113,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, onboardingCompleted, signUp, signIn, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );
