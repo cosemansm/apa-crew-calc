@@ -859,6 +859,7 @@ export function InvoicePage() {
               clientName={clientName || null}
               selectedDays={selectedDays as TimesheetDay[]}
               mileageUnit={selectedProject?.calc_engine ? getEngine(selectedProject.calc_engine).meta.mileageUnit : 'km'}
+              currencySymbol={currencySymbol}
             />
           </div>
         </div>

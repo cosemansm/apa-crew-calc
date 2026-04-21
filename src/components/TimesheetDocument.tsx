@@ -40,10 +40,11 @@ interface TimesheetDocumentProps {
   clientName: string | null;
   selectedDays: TimesheetDay[];
   mileageUnit?: 'miles' | 'km';
+  currencySymbol?: string;
 }
 
-function fmtAmount(n: number) {
-  return `£${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
+function fmtAmount(n: number, sym = '£') {
+  return `${sym}${n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`;
 }
 
 function Row({ desc, qty, rate, amount }: { desc: string; qty: string; rate: string; amount: string }) {
@@ -65,10 +66,11 @@ function Row({ desc, qty, rate, amount }: { desc: string; qty: string; rate: str
   );
 }
 
-export function TimesheetDocument({ userName, projectName, clientName, selectedDays, mileageUnit = 'km' }: TimesheetDocumentProps) {
+export function TimesheetDocument({ userName, projectName, clientName, selectedDays, mileageUnit = 'km', currencySymbol: sym = '£' }: TimesheetDocumentProps) {
   const sorted = [...selectedDays].sort((a, b) => a.work_date.localeCompare(b.work_date));
   const uniqueRoles = Array.from(new Set(sorted.map(d => d.role_name)));
   const grandTotal = sorted.reduce((sum, d) => sum + (d.grand_total || 0), 0);
+  const fmt = (n: number) => fmtAmount(n, sym);
 
   const period = sorted.length === 0 ? '—' : (() => {
     const first = format(parseISO(sorted[0].work_date), 'd MMM yyyy');
@@ -136,7 +138,7 @@ export function TimesheetDocument({ userName, projectName, clientName, selectedD
               <div style={{ flex: 1 }} />
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
                 <div style={{ fontSize: 9, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 2 }}>Day total</div>
-                <div style={{ fontSize: 14, fontWeight: 700 }}>{fmtAmount(day.grand_total || 0)}</div>
+                <div style={{ fontSize: 14, fontWeight: 700 }}>{fmt(day.grand_total || 0)}</div>
               </div>
             </div>
 
@@ -148,16 +150,16 @@ export function TimesheetDocument({ userName, projectName, clientName, selectedD
                     <Row
                       desc={`${dayLabel} — ${day.role_name}`}
                       qty="1 day"
-                      rate={lineItems[0].rate ? `${fmtAmount(lineItems[0].rate)}/day` : ''}
-                      amount={fmtAmount(lineItems[0].total ?? 0)}
+                      rate={lineItems[0].rate ? `${fmt(lineItems[0].rate)}/day` : ''}
+                      amount={fmt(lineItems[0].total ?? 0)}
                     />
                     {lineItems.slice(1).map((item, j) => (
                       <Row
                         key={j}
                         desc={item.description}
                         qty={item.hours != null ? `${item.hours} hrs` : '—'}
-                        rate={item.rate != null ? `£${item.rate.toFixed(2)}/hr` : '—'}
-                        amount={fmtAmount(item.total ?? 0)}
+                        rate={item.rate != null ? `${sym}${item.rate.toFixed(2)}/hr` : '—'}
+                        amount={fmt(item.total ?? 0)}
                       />
                     ))}
                   </>
@@ -166,7 +168,7 @@ export function TimesheetDocument({ userName, projectName, clientName, selectedD
                     desc={`${dayLabel} — ${day.role_name}`}
                     qty="1 day"
                     rate="—"
-                    amount={fmtAmount(day.grand_total || 0)}
+                    amount={fmt(day.grand_total || 0)}
                   />
                 )}
               </div>
@@ -175,13 +177,13 @@ export function TimesheetDocument({ userName, projectName, clientName, selectedD
                 <div style={{ paddingTop: 12 }}>
                   <div style={{ fontSize: 9, color: '#bbb', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 5 }}>Penalties &amp; Allowances</div>
                   {penalties.map((p, j) => (
-                    <Row key={j} desc={p.description} qty={p.hours != null ? `${p.hours} hrs` : '—'} rate="—" amount={fmtAmount(p.total ?? 0)} />
+                    <Row key={j} desc={p.description} qty={p.hours != null ? `${p.hours} hrs` : '—'} rate="—" amount={fmt(p.total ?? 0)} />
                   ))}
-                  {rj.travelPay ? <Row desc="Travel pay" qty="—" rate="—" amount={fmtAmount(rj.travelPay)} /> : null}
+                  {rj.travelPay ? <Row desc="Travel pay" qty="—" rate="—" amount={fmt(rj.travelPay)} /> : null}
                   {rj.mileage   ? (() => {
                     const dist = rj.mileageDistance ?? rj.mileageMiles ?? 0;
                     const label = mileageUnit === 'km' ? 'Travel' : 'Mileage';
-                    return <Row desc={`${label} (${dist} ${mileageUnit})`} qty={`${dist} ${mileageUnit}`} rate="—" amount={fmtAmount(rj.mileage)} />;
+                    return <Row desc={`${label} (${dist} ${mileageUnit})`} qty={`${dist} ${mileageUnit}`} rate="—" amount={fmt(rj.mileage)} />;
                   })() : null}
                 </div>
               )}
@@ -189,13 +191,13 @@ export function TimesheetDocument({ userName, projectName, clientName, selectedD
               {hasExpenses && (
                 <div style={{ paddingTop: 12 }}>
                   <div style={{ fontSize: 9, color: '#bbb', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 5 }}>Expenses</div>
-                  <Row desc={day.expenses_notes || 'Expenses'} qty="—" rate="—" amount={fmtAmount(day.expenses_amount ?? 0)} />
+                  <Row desc={day.expenses_notes || 'Expenses'} qty="—" rate="—" amount={fmt(day.expenses_amount ?? 0)} />
                 </div>
               )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center', padding: '10px 0 0', borderTop: '1px solid #e8e8e6', marginTop: 4 }}>
                 <div style={{ fontSize: 10, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Day subtotal</div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#1F1F21', textAlign: 'right', minWidth: 64 }}>{fmtAmount(day.grand_total || 0)}</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#1F1F21', textAlign: 'right', minWidth: 64 }}>{fmt(day.grand_total || 0)}</div>
               </div>
             </div>
           </div>
@@ -210,7 +212,7 @@ export function TimesheetDocument({ userName, projectName, clientName, selectedD
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: 9, color: '#aaa', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 4 }}>Total due</div>
-          <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em' }}>{fmtAmount(grandTotal)}</div>
+          <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em' }}>{fmt(grandTotal)}</div>
         </div>
       </div>
     </div>
