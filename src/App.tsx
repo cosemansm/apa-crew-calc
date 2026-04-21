@@ -24,18 +24,30 @@ const SharePage = lazy(() => import('@/pages/SharePage').then(m => ({ default: m
 const TermsPage = lazy(() => import('@/pages/TermsPage').then(m => ({ default: m.TermsPage })));
 const PrivacyPage = lazy(() => import('@/pages/PrivacyPage').then(m => ({ default: m.PrivacyPage })));
 const UpdatePasswordPage = lazy(() => import('@/pages/UpdatePasswordPage').then(m => ({ default: m.UpdatePasswordPage })));
+const SignUpPage = lazy(() => import('@/pages/SignUpPage').then(m => ({ default: m.SignUpPage })));
+const OnboardingPage = lazy(() => import('@/pages/OnboardingPage').then(m => ({ default: m.OnboardingPage })));
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
-  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  const { user, loading, onboardingCompleted } = useAuth();
+  if (loading || onboardingCompleted === null) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   if (!user) return <Navigate to="/login" replace />;
+  if (!onboardingCompleted) return <Navigate to="/onboarding" replace />;
   return <>{children}</>;
 }
 
 function PublicRoute({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, onboardingCompleted } = useAuth();
   if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (user && !onboardingCompleted) return <Navigate to="/onboarding" replace />;
   if (user) return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+}
+
+function OnboardingRoute({ children }: { children: ReactNode }) {
+  const { user, loading, onboardingCompleted } = useAuth();
+  if (loading || onboardingCompleted === null) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (!user) return <Navigate to="/login" replace />;
+  if (onboardingCompleted) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 }
 
@@ -72,6 +84,8 @@ export default function App() {
                   <Route path="/privacy" element={<PrivacyPage />} />
                   <Route path="/share/:token" element={<SharePage />} />
                   <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+                  <Route path="/signup" element={<PublicRoute><SignUpPage /></PublicRoute>} />
+                  <Route path="/onboarding" element={<OnboardingRoute><OnboardingPage /></OnboardingRoute>} />
                   <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                     <Route path="/dashboard" element={<DashboardPage />} />
                     <Route path="/calculator" element={<CalculatorPage />} />

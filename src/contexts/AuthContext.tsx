@@ -79,7 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setOnboardingCompleted(data?.onboarding_completed ?? false)
           })
           .catch(() => setOnboardingCompleted(false))
-      } else {
+      }
+      if (_event === 'SIGNED_OUT') {
         setOnboardingCompleted(null)
       }
     });
