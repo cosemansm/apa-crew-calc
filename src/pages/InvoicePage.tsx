@@ -24,6 +24,7 @@ import { exportToFreeAgent, isFreeAgentConnected, FreeAgentAuthError } from '@/s
 import { exportToXero, isXeroConnected, XeroAuthError } from '@/services/bookkeeping/xero';
 import { exportToQBO, isQBOConnected, QBOAuthError } from '@/services/bookkeeping/quickbooks';
 import { BookkeepingCTA } from '@/components/BookkeepingCTA';
+import { getEngine } from '@/engines/index';
 import { TimesheetDocument } from '@/components/TimesheetDocument';
 import type { TimesheetDay } from '@/components/TimesheetDocument';
 
@@ -477,8 +478,18 @@ export function InvoicePage() {
           import('jspdf'),
         ]);
 
+        // Measure day block boundaries before capture so we can avoid splitting them
+        const scale = 2;
+        const dayEls = el.querySelectorAll('[data-ts-day]');
+        const breakPoints: number[] = [];
+        for (const d of dayEls) {
+          breakPoints.push((d as HTMLElement).offsetTop * scale);
+        }
+        // Add total height as final break point
+        breakPoints.push(el.scrollHeight * scale);
+
         const canvas = await html2canvas(el, {
-          scale: 2,
+          scale,
           useCORS: true,
           backgroundColor: '#ffffff',
           logging: false,
@@ -488,14 +499,31 @@ export function InvoicePage() {
         const pxPerMm  = canvas.width / contentWidthMm;
         const pageHeightPx = Math.floor(contentHeightMm * pxPerMm);
 
-        let remainingHeight = canvas.height;
-        let sourceY         = 0;
-        let isFirstPage     = true;
+        let sourceY     = 0;
+        let isFirstPage = true;
 
-        while (remainingHeight > 0) {
+        while (sourceY < canvas.height) {
           if (!isFirstPage) pdf.addPage();
 
-          const sliceH = Math.min(pageHeightPx, remainingHeight);
+          const maxEnd = sourceY + pageHeightPx;
+          let sliceEnd: number;
+
+          if (maxEnd >= canvas.height) {
+            // Everything remaining fits on this page
+            sliceEnd = canvas.height;
+          } else {
+            // Find the last day boundary that fits within this page
+            let bestBreak = sourceY; // fallback: no content (shouldn't happen)
+            for (const bp of breakPoints) {
+              if (bp <= sourceY) continue; // before current page
+              if (bp <= maxEnd) bestBreak = bp;
+              else break;
+            }
+            // If no break found within range, force the full page to avoid infinite loop
+            sliceEnd = bestBreak > sourceY ? bestBreak : maxEnd;
+          }
+
+          const sliceH = sliceEnd - sourceY;
 
           const pageCanvas    = document.createElement('canvas');
           pageCanvas.width    = canvas.width;
@@ -508,9 +536,8 @@ export function InvoicePage() {
 
           pdf.addImage(sliceData, 'PNG', margin, margin, contentWidthMm, sliceHeightMm);
 
-          sourceY         += sliceH;
-          remainingHeight -= sliceH;
-          isFirstPage      = false;
+          sourceY     = sliceEnd;
+          isFirstPage = false;
         }
 
         const slug    = (selectedProject?.name ?? 'timesheet').toLowerCase().replace(/\s+/g, '-');
@@ -831,6 +858,7 @@ export function InvoicePage() {
               projectName={selectedProject?.name ?? ''}
               clientName={clientName || null}
               selectedDays={selectedDays as TimesheetDay[]}
+              mileageUnit={selectedProject?.calc_engine ? getEngine(selectedProject.calc_engine).meta.mileageUnit : 'km'}
             />
           </div>
         </div>
