@@ -1,50 +1,37 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/usePageTitle';
+import { DottedBg } from '@/components/onboarding/DottedBg';
 import logoSrc from '@/assets/logo.png';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
-import { DEPARTMENTS } from '@/data/apa-rates';
 import { supabase } from '@/lib/supabase';
 
 function GoogleIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+    <svg width="16" height="16" viewBox="0 0 18 18">
       <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
-      <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
-      <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-      <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
+      <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z" fill="#34A853"/>
+      <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
+      <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
     </svg>
   );
 }
 
 export function LoginPage() {
   usePageTitle('Sign In');
-  const { signIn, signUp, signInWithGoogle } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Login form
+  // Sign-in form
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
   // Forgot password
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
-
-  // Register form
-  const [regName, setRegName] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regConfirm, setRegConfirm] = useState('');
-  const [regDepartment, setRegDepartment] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,192 +61,127 @@ export function LoginPage() {
     setLoading(false);
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(null);
-    if (regPassword !== regConfirm) {
-      setError('Passwords do not match');
-      return;
-    }
-    if (regPassword.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
+  const handleGoogle = async () => {
     setLoading(true);
-    const { error } = await signUp(regEmail, regPassword, regName, regDepartment);
-    if (error) {
-      setError(error.message);
-    } else {
-      setSuccess('Account created! Check your email for confirmation.');
-    }
+    const { error } = await signInWithGoogle();
+    if (error) setError(error.message);
     setLoading(false);
   };
 
-  return (
-    <main id="main-content" className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <div className="h-12 w-12 rounded-2xl bg-[#FFD528] flex items-center justify-center overflow-hidden">
-            <img src={logoSrc} alt="Crew Dock" className="h-9 w-9 object-contain" style={{ mixBlendMode: 'multiply' }} />
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    height: 44,
+    borderRadius: 16,
+    background: '#fff',
+    border: '1px solid #E5E2DC',
+    padding: '0 12px',
+    fontSize: 14,
+    color: '#1F1F21',
+    outline: 'none',
+    boxSizing: 'border-box',
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontFamily: '"JetBrains Mono", monospace',
+    fontWeight: 500,
+    fontSize: 13,
+    color: '#1F1F21',
+    marginBottom: 6,
+    display: 'block',
+  };
+
+  if (showForgotPassword) {
+    return (
+      <DottedBg>
+        <div style={{ background: '#fff', borderRadius: 24, padding: 32, width: '100%', maxWidth: 420, border: '1px solid #E5E2DC', boxShadow: '0 2px 16px rgba(0,0,0,0.04)' }}>
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <img src={logoSrc} alt="Crew Dock" style={{ width: 48, height: 48, borderRadius: 14, imageRendering: 'pixelated' as const, margin: '0 auto 8px', display: 'block' }} />
+            <div style={{ fontFamily: '"JetBrains Mono", monospace', fontWeight: 700, fontSize: 16, color: '#1F1F21', letterSpacing: '-0.02em' }}>Crew Dock</div>
           </div>
-          <h1 className="text-3xl font-bold">Crew Dock</h1>
+
+          <div style={{ fontFamily: '"JetBrains Mono", monospace', fontWeight: 600, fontSize: 15, color: '#1F1F21', marginBottom: 6 }}>Reset password</div>
+          <div style={{ fontSize: 13, color: '#8A8A8A', marginBottom: 16 }}>Enter your email and we'll send you a reset link.</div>
+
+          {error && <div style={{ background: '#FEE', border: '1px solid #D45B5B', borderRadius: 12, padding: '10px 14px', fontSize: 13, color: '#D45B5B', marginBottom: 14 }}>{error}</div>}
+          {success && <div style={{ background: '#EDFBE8', border: '1px solid #4CAF50', borderRadius: 12, padding: '10px 14px', fontSize: 13, color: '#2E7D32', marginBottom: 14 }}>{success}</div>}
+
+          {!success && (
+            <form onSubmit={handleForgotPassword}>
+              <div style={{ marginBottom: 18 }}>
+                <label style={labelStyle}>Email</label>
+                <input type="email" required value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} placeholder="you@company.com" style={inputStyle} />
+              </div>
+              <button type="submit" disabled={loading}
+                style={{ width: '100%', height: 40, borderRadius: 16, background: '#FFD528', border: 'none', fontFamily: '"JetBrains Mono", monospace', fontWeight: 600, fontSize: 14, color: '#1F1F21', boxShadow: '0 2px 12px rgba(255,213,40,0.30)', cursor: 'pointer', opacity: loading ? 0.6 : 1 }}>
+                {loading ? 'Sending...' : 'Send reset email'}
+              </button>
+            </form>
+          )}
+
+          <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <button type="button" onClick={() => { setShowForgotPassword(false); setError(null); setSuccess(null); }}
+              style={{ background: 'none', border: 'none', fontFamily: '"JetBrains Mono", monospace', fontSize: 13, color: '#8A8A8A', cursor: 'pointer', textDecoration: 'underline' }}>
+              Back to sign in
+            </button>
+          </div>
         </div>
-        <p className="text-center text-muted-foreground mb-6">
-          APA Crew Rate Calculator for UK Commercials
-        </p>
+      </DottedBg>
+    );
+  }
 
-        <Tabs defaultValue="login" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">Sign In</TabsTrigger>
-            <TabsTrigger value="register">Register</TabsTrigger>
-          </TabsList>
+  return (
+    <DottedBg>
+      <div style={{ background: '#fff', borderRadius: 24, padding: 32, width: '100%', maxWidth: 420, border: '1px solid #E5E2DC', boxShadow: '0 2px 16px rgba(0,0,0,0.04)' }}>
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <img src={logoSrc} alt="Crew Dock" style={{ width: 48, height: 48, borderRadius: 14, imageRendering: 'pixelated' as const, margin: '0 auto 8px', display: 'block' }} />
+          <div style={{ fontFamily: '"JetBrains Mono", monospace', fontWeight: 700, fontSize: 16, color: '#1F1F21', letterSpacing: '-0.02em', marginBottom: 16 }}>Crew Dock</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+            <div style={{ background: '#F0EDE8', borderRadius: 999, padding: 4, display: 'flex' }}>
+              <Link to="/signup" style={{ height: 36, padding: '0 20px', borderRadius: 999, display: 'flex', alignItems: 'center', fontFamily: '"JetBrains Mono", monospace', fontSize: 13, fontWeight: 500, color: '#8A8A8A', textDecoration: 'none' }}>Sign up</Link>
+              <div style={{ height: 36, padding: '0 20px', borderRadius: 999, background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', fontFamily: '"JetBrains Mono", monospace', fontSize: 13, fontWeight: 600, color: '#1F1F21' }}>Sign in</div>
+            </div>
+          </div>
+        </div>
 
-          <TabsContent value="login">
-            <Card>
-              {showForgotPassword ? (
-                <form onSubmit={handleForgotPassword}>
-                  <CardHeader>
-                    <CardTitle>Reset Password</CardTitle>
-                    <CardDescription>Enter your email and we'll send you a reset link</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {error && <div role="alert" className="p-3 text-sm text-red-600 bg-red-50 rounded-md">{error}</div>}
-                    {success && <div role="status" className="p-3 text-sm text-green-600 bg-green-50 rounded-md">{success}</div>}
-                    {!success && (
-                      <div className="space-y-2">
-                        <Label htmlFor="forgot-email">Email</Label>
-                        <Input id="forgot-email" type="email" placeholder="you@company.com" value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} required />
-                      </div>
-                    )}
-                  </CardContent>
-                  <CardFooter className="flex flex-col gap-3">
-                    {!success && (
-                      <Button className="w-full" type="submit" disabled={loading}>
-                        {loading ? 'Sending...' : 'Send Reset Email'}
-                      </Button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => { setShowForgotPassword(false); setError(null); setSuccess(null); }}
-                      className="text-sm text-muted-foreground hover:underline"
-                    >
-                      Back to Sign In
-                    </button>
-                  </CardFooter>
-                </form>
-              ) : (
-                <form onSubmit={handleLogin}>
-                  <CardHeader>
-                    <CardTitle>Sign In</CardTitle>
-                    <CardDescription>Enter your credentials to access your account</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    {error && <div role="alert" className="p-3 text-sm text-red-600 bg-red-50 rounded-md">{error}</div>}
-                    <div className="space-y-2">
-                      <Label htmlFor="login-email">Email</Label>
-                      <Input id="login-email" type="email" placeholder="you@company.com" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} required />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="login-password">Password</Label>
-                      <Input id="login-password" type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} required />
-                      <button
-                        type="button"
-                        onClick={() => { setShowForgotPassword(true); setError(null); setSuccess(null); }}
-                        className="text-xs text-muted-foreground hover:underline"
-                      >
-                        Forgot password?
-                      </button>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="flex flex-col gap-3">
-                    <Button className="w-full" type="submit" disabled={loading}>
-                      {loading ? 'Signing in...' : 'Sign In'}
-                    </Button>
-                    <div className="relative w-full">
-                      <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-                      <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">or</span></div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={signInWithGoogle}
-                      disabled={loading}
-                      aria-label="Continue with Google"
-                      className="w-full flex items-center justify-center gap-3 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-medium text-[#1F1F21] hover:bg-gray-50 transition-colors disabled:opacity-50"
-                    >
-                      <GoogleIcon aria-hidden="true" />
-                      Continue with Google
-                    </button>
-                  </CardFooter>
-                </form>
-              )}
-            </Card>
-          </TabsContent>
+        {error && <div style={{ background: '#FEE', border: '1px solid #D45B5B', borderRadius: 12, padding: '10px 14px', fontSize: 13, color: '#D45B5B', marginBottom: 14 }}>{error}</div>}
 
-          <TabsContent value="register">
-            <Card>
-              <form onSubmit={handleRegister}>
-                <CardHeader>
-                  <CardTitle>Create Account</CardTitle>
-                  <CardDescription>Register to start calculating crew rates</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {error && <div role="alert" className="p-3 text-sm text-red-600 bg-red-50 rounded-md">{error}</div>}
-                  {success && <div role="status" className="p-3 text-sm text-green-600 bg-green-50 rounded-md">{success}</div>}
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-name">Full Name</Label>
-                    <Input id="reg-name" placeholder="Jane Smith" value={regName} onChange={e => setRegName(e.target.value)} required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-department">My Department (optional)</Label>
-                    <Select value={regDepartment} onValueChange={setRegDepartment}>
-                      <SelectTrigger id="reg-department">
-                        <SelectValue placeholder="Select department (optional)" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DEPARTMENTS.map(dept => (
-                          <SelectItem key={dept} value={dept}>{dept}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-email">Email</Label>
-                    <Input id="reg-email" type="email" placeholder="you@company.com" value={regEmail} onChange={e => setRegEmail(e.target.value)} required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-password">Password</Label>
-                    <Input id="reg-password" type="password" value={regPassword} onChange={e => setRegPassword(e.target.value)} required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reg-confirm">Confirm Password</Label>
-                    <Input id="reg-confirm" type="password" value={regConfirm} onChange={e => setRegConfirm(e.target.value)} required />
-                  </div>
-                </CardContent>
-                <CardFooter className="flex flex-col gap-3">
-                  <Button className="w-full" type="submit" disabled={loading}>
-                    {loading ? 'Creating account...' : 'Create Account'}
-                  </Button>
-                  <div className="relative w-full">
-                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">or</span></div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={signInWithGoogle}
-                    disabled={loading}
-                    aria-label="Continue with Google"
-                    className="w-full flex items-center justify-center gap-3 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-medium text-[#1F1F21] hover:bg-gray-50 transition-colors disabled:opacity-50"
-                  >
-                    <GoogleIcon aria-hidden="true" />
-                    Continue with Google
-                  </button>
-                </CardFooter>
-              </form>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        <form onSubmit={handleLogin}>
+          <div style={{ marginBottom: 14 }}>
+            <label style={labelStyle}>Email</label>
+            <input type="email" required value={loginEmail} onChange={e => setLoginEmail(e.target.value)} placeholder="you@company.com" style={inputStyle} />
+          </div>
+          <div style={{ marginBottom: 6 }}>
+            <label style={labelStyle}>Password</label>
+            <input type="password" required value={loginPassword} onChange={e => setLoginPassword(e.target.value)} style={inputStyle} />
+          </div>
+          <div style={{ marginBottom: 18, textAlign: 'right' }}>
+            <button type="button" onClick={() => { setShowForgotPassword(true); setError(null); setSuccess(null); }}
+              style={{ background: 'none', border: 'none', fontFamily: '"JetBrains Mono", monospace', fontSize: 11, color: '#8A8A8A', cursor: 'pointer', textDecoration: 'underline' }}>
+              Forgot password?
+            </button>
+          </div>
+          <button type="submit" disabled={loading}
+            style={{ width: '100%', height: 40, borderRadius: 16, background: '#FFD528', border: 'none', fontFamily: '"JetBrains Mono", monospace', fontWeight: 600, fontSize: 14, color: '#1F1F21', boxShadow: '0 2px 12px rgba(255,213,40,0.30)', cursor: 'pointer', opacity: loading ? 0.6 : 1 }}>
+            {loading ? 'Signing in...' : 'Sign in'}
+          </button>
+        </form>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0 16px' }}>
+          <div style={{ flex: 1, height: 1, background: '#E5E2DC' }} />
+          <span style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: 11, color: '#8A8A8A', letterSpacing: '0.08em', fontWeight: 500 }}>OR</span>
+          <div style={{ flex: 1, height: 1, background: '#E5E2DC' }} />
+        </div>
+
+        <button type="button" onClick={handleGoogle} disabled={loading}
+          style={{ width: '100%', height: 40, borderRadius: 16, background: 'transparent', border: '1px solid #E5E2DC', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: '"JetBrains Mono", monospace', fontWeight: 500, fontSize: 14, color: '#1F1F21', cursor: 'pointer' }}>
+          <GoogleIcon /> Continue with Google
+        </button>
+
+        <div style={{ textAlign: 'center', marginTop: 16, fontSize: 11, color: '#8A8A8A', lineHeight: 1.5 }}>
+          Don't have an account?{' '}
+          <Link to="/signup" style={{ fontWeight: 600, color: '#1F1F21', textDecoration: 'underline' }}>Sign up</Link>
+        </div>
       </div>
-    </main>
+    </DottedBg>
   );
 }
