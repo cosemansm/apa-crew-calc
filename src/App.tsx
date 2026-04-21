@@ -1,26 +1,29 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { SubscriptionProvider } from '@/contexts/SubscriptionContext';
 import { EngineProvider } from '@/contexts/EngineContext';
 import { ImpersonationProvider } from '@/contexts/ImpersonationContext';
 import { AppLayout } from '@/components/AppLayout';
-import { LoginPage } from '@/pages/LoginPage';
 import { DashboardPage } from '@/pages/DashboardPage';
-import { CalculatorPage } from '@/pages/CalculatorPage';
-import { AIInputPage } from '@/pages/AIInputPage';
-import { InvoicePage } from '@/pages/InvoicePage';
-import { SettingsPage } from '@/pages/SettingsPage';
-import { ProjectsPage } from '@/pages/ProjectsPage';
-import { SupportPage } from '@/pages/SupportPage';
-import { AdminPage } from '@/pages/AdminPage';
-import { SharePage } from '@/pages/SharePage';
 import { ReviewPopupController } from '@/components/ReviewPopupController';
-import { TermsPage } from '@/pages/TermsPage';
-import { PrivacyPage } from '@/pages/PrivacyPage';
-import { UpdatePasswordPage } from '@/pages/UpdatePasswordPage';
 import type { ReactNode } from 'react';
+
+// Lazy-loaded pages — split into separate chunks
+const LoginPage = lazy(() => import('@/pages/LoginPage').then(m => ({ default: m.LoginPage })));
+const CalculatorPage = lazy(() => import('@/pages/CalculatorPage').then(m => ({ default: m.CalculatorPage })));
+const AIInputPage = lazy(() => import('@/pages/AIInputPage').then(m => ({ default: m.AIInputPage })));
+const InvoicePage = lazy(() => import('@/pages/InvoicePage').then(m => ({ default: m.InvoicePage })));
+const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const ProjectsPage = lazy(() => import('@/pages/ProjectsPage').then(m => ({ default: m.ProjectsPage })));
+const SupportPage = lazy(() => import('@/pages/SupportPage').then(m => ({ default: m.SupportPage })));
+const AdminPage = lazy(() => import('@/pages/AdminPage').then(m => ({ default: m.AdminPage })));
+const SharePage = lazy(() => import('@/pages/SharePage').then(m => ({ default: m.SharePage })));
+const TermsPage = lazy(() => import('@/pages/TermsPage').then(m => ({ default: m.TermsPage })));
+const PrivacyPage = lazy(() => import('@/pages/PrivacyPage').then(m => ({ default: m.PrivacyPage })));
+const UpdatePasswordPage = lazy(() => import('@/pages/UpdatePasswordPage').then(m => ({ default: m.UpdatePasswordPage })));
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -63,6 +66,7 @@ export default function App() {
             <EngineProvider>
               <SubscriptionProvider>
                 <PendingShareRedirect />
+                <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
                 <Routes>
                   <Route path="/terms" element={<TermsPage />} />
                   <Route path="/privacy" element={<PrivacyPage />} />
@@ -82,6 +86,7 @@ export default function App() {
                   <Route path="/update-password" element={<UpdatePasswordPage />} />
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 </Routes>
+                </Suspense>
                 <ReviewPopupController />
               </SubscriptionProvider>
             </EngineProvider>
@@ -89,6 +94,7 @@ export default function App() {
         </AuthProvider>
       </BrowserRouter>
       <Analytics />
+      <SpeedInsights />
     </>
   );
 }
