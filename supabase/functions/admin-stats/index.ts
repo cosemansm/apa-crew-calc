@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
       db.from('subscriptions').select('user_id, status, trial_ends_at, trial_extended, current_period_end, created_at'),
       db.from('projects').select('id, user_id, status, created_at'),
       db.from('project_days').select('id, project_id, grand_total, role_name, day_type, work_date'),
-      db.from('user_settings').select('user_id, department'),
+      db.from('user_settings').select('user_id, department, calculator_tool, bookkeeping_software, onboarding_completed'),
       db.from('bookkeeping_connections').select('user_id, platform'),
       db.from('custom_roles').select('user_id'),
       db.from('equipment_packages').select('user_id'),
@@ -263,6 +263,38 @@ Deno.serve(async (req) => {
       .map(([category, count]) => ({ category, count }))
       .sort((a, b) => b.count - a.count)
 
+    // ── Onboarding Insights ────────────────────────────────────────────
+    const calculatorToolCounts: Record<string, number> = {}
+    const bookkeepingSoftwareCounts: Record<string, number> = {}
+    let totalOnboarded = 0
+    let totalSkipped = 0
+
+    userSettings.forEach(s => {
+      if (s.onboarding_completed) {
+        totalOnboarded++
+        if (!s.calculator_tool && !s.bookkeeping_software) {
+          totalSkipped++
+        }
+      }
+      if (s.calculator_tool) {
+        calculatorToolCounts[s.calculator_tool] = (calculatorToolCounts[s.calculator_tool] ?? 0) + 1
+      }
+      if (s.bookkeeping_software) {
+        bookkeepingSoftwareCounts[s.bookkeeping_software] = (bookkeepingSoftwareCounts[s.bookkeeping_software] ?? 0) + 1
+      }
+    })
+
+    const onboardingCalcTools = Object.entries(calculatorToolCounts)
+      .map(([tool, count]) => ({ tool, count }))
+      .sort((a, b) => b.count - a.count)
+
+    const onboardingBookkeeping = Object.entries(bookkeepingSoftwareCounts)
+      .map(([software, count]) => ({ software, count }))
+      .sort((a, b) => b.count - a.count)
+
+    const totalAnswered = totalOnboarded - totalSkipped
+    const completionRate = totalOnboarded > 0 ? Math.round((totalAnswered / totalOnboarded) * 100) : 0
+
     // ── Build response ──────────────────────────────────────────────────────
     const stats = {
       users: {
@@ -316,6 +348,13 @@ Deno.serve(async (req) => {
         sharedJobsTotal: sharedJobs.length,
         featureRequests: featureRequests.length,
         featureRequestsByCategory,
+      },
+      onboarding: {
+        calculatorTools: onboardingCalcTools,
+        bookkeepingSoftware: onboardingBookkeeping,
+        totalOnboarded,
+        totalSkipped,
+        completionRate,
       },
     }
 
