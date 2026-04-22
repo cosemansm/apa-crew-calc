@@ -1299,6 +1299,7 @@ export function CalculatorPage() {
       setSaveError(false);
       setIsDirty(false);
       setLastSavedAt(new Date());
+      setTimeout(() => setLastSavedAt(null), 3000);
       await refreshProjectDays(resolvedProjectId);
     } else {
       setSaveError(true);
@@ -2228,7 +2229,7 @@ export function CalculatorPage() {
                     <Button size="sm" onClick={handleSave} disabled={saving} variant="destructive">
                       <Save className="h-3.5 w-3.5 mr-1" /> Save failed — retry
                     </Button>
-                  ) : lastSavedAt && !isDirty ? (
+                  ) : lastSavedAt ? (
                     <span className="flex items-center gap-1.5 text-green-600">
                       <Check className="h-3.5 w-3.5" /> Saved
                     </span>
@@ -2261,19 +2262,19 @@ export function CalculatorPage() {
                 <div className={`mx-auto max-w-lg mb-3 flex items-center justify-between gap-3 rounded-2xl px-4 py-3 shadow-lg text-sm font-medium transition-colors ${
                   saving ? 'bg-muted text-muted-foreground' :
                   saveError ? 'bg-red-50 text-red-700 border border-red-200' :
-                  lastSavedAt && !isDirty ? 'bg-green-50 text-green-700 border border-green-200' :
+                  lastSavedAt ? 'bg-green-50 text-green-700 border border-green-200' :
                   'bg-[#1F1F21] text-white'
                 }`}>
                   {saving ? (
                     <><Cloud className="h-4 w-4 animate-pulse" /><span>Saving…</span></>
                   ) : saveError ? (
                     <><Save className="h-4 w-4" /><span>Save failed — tap to retry</span></>
-                  ) : lastSavedAt && !isDirty ? (
+                  ) : lastSavedAt ? (
                     <><Check className="h-4 w-4" /><span>Saved</span></>
                   ) : (
                     <><Save className="h-4 w-4" /><span>Not saved yet — tap to save</span></>
                   )}
-                  {!saving && (saveError || !lastSavedAt || isDirty) && (
+                  {!saving && (saveError || !lastSavedAt) && (
                     <button onClick={handleSave} className={`rounded-xl px-3 py-1 text-xs font-semibold ${saveError ? 'bg-red-600 text-white' : 'bg-[#FFD528] text-[#1F1F21]'}`}>
                       {saveError ? 'Retry' : 'Save'}
                     </button>
