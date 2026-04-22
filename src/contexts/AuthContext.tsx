@@ -23,7 +23,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
+  const [onboardingCompleted, _setOnboardingCompleted] = useState<boolean | null>(() => {
+    const cached = localStorage.getItem('onboarding_completed');
+    return cached === null ? null : cached === 'true';
+  });
+
+  const setOnboardingCompleted = (value: boolean | null) => {
+    _setOnboardingCompleted(value);
+    if (value === null) {
+      localStorage.removeItem('onboarding_completed');
+    } else {
+      localStorage.setItem('onboarding_completed', String(value));
+    }
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
