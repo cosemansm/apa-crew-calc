@@ -94,19 +94,19 @@ export function InvoicePage() {
   const [vatRegistered, setVatRegistered] = useState(false);
 
   const [faConnected, setFaConnected] = useState<boolean | null>(null);
-  const [faDetailed, setFaDetailed] = useState(true);
+  const faDetailed = true;
   const [exportingFa, setExportingFa] = useState(false);
   const [faExportUrl, setFaExportUrl] = useState<string | null>(null);
   const [faExportError, setFaExportError] = useState<string | null>(null);
 
   const [xeroConnected, setXeroConnected] = useState<boolean | null>(null);
-  const [xeroDetailed, setXeroDetailed] = useState(true);
+  const xeroDetailed = true;
   const [exportingXero, setExportingXero] = useState(false);
   const [xeroExportUrl, setXeroExportUrl] = useState<string | null>(null);
   const [xeroExportError, setXeroExportError] = useState<string | null>(null);
 
   const [qboConnected, setQboConnected] = useState<boolean | null>(null);
-  const [qboDetailed, setQboDetailed] = useState(true);
+  const qboDetailed = true;
   const [exportingQbo, setExportingQbo] = useState(false);
   const [qboExportUrl, setQboExportUrl] = useState<string | null>(null);
   const [qboExportError, setQboExportError] = useState<string | null>(null);
@@ -891,31 +891,6 @@ export function InvoicePage() {
           {/* FreeAgent export — only shown when connected and Pro */}
           {isPremium && faConnected && (
             <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Line items</span>
-                <div className="flex rounded-md border border-border overflow-hidden text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setFaDetailed(false)}
-                    className={cn(
-                      'px-3 py-1 transition-colors',
-                      !faDetailed ? 'bg-[#FFD528] text-[#1F1F21] font-medium' : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    Basic
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFaDetailed(true)}
-                    className={cn(
-                      'px-3 py-1 transition-colors',
-                      faDetailed ? 'bg-[#FFD528] text-[#1F1F21] font-medium' : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    Detailed
-                  </button>
-                </div>
-              </div>
               <Button
                 variant="outline"
                 className="w-full gap-2"
@@ -961,31 +936,6 @@ export function InvoicePage() {
           {/* Xero export — only shown when connected and Pro */}
           {isPremium && xeroConnected && (
             <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Line items</span>
-                <div className="flex rounded-md border border-border overflow-hidden text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setXeroDetailed(false)}
-                    className={cn(
-                      'px-3 py-1 transition-colors',
-                      !xeroDetailed ? 'bg-[#FFD528] text-[#1F1F21] font-medium' : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    Basic
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setXeroDetailed(true)}
-                    className={cn(
-                      'px-3 py-1 transition-colors',
-                      xeroDetailed ? 'bg-[#FFD528] text-[#1F1F21] font-medium' : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    Detailed
-                  </button>
-                </div>
-              </div>
               <Button
                 variant="outline"
                 className="w-full gap-2"
@@ -1024,31 +974,6 @@ export function InvoicePage() {
           {/* QBO export — only shown when connected and Pro */}
           {isPremium && qboConnected && (
             <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">Line items</span>
-                <div className="flex rounded-md border border-border overflow-hidden text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setQboDetailed(false)}
-                    className={cn(
-                      'px-3 py-1 transition-colors',
-                      !qboDetailed ? 'bg-[#FFD528] text-[#1F1F21] font-medium' : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    Basic
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setQboDetailed(true)}
-                    className={cn(
-                      'px-3 py-1 transition-colors',
-                      qboDetailed ? 'bg-[#FFD528] text-[#1F1F21] font-medium' : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    Detailed
-                  </button>
-                </div>
-              </div>
               <Button
                 variant="outline"
                 className="w-full gap-2"
@@ -1255,10 +1180,25 @@ export function InvoicePage() {
                               {(rj.travelPay ?? 0) > 0 && (
                                 <tr style={{ backgroundColor: '#FAFAF8' }}>
                                   <td style={{ padding: '3px 14px 3px 28px', color: '#6B6B6B', fontSize: '11px' }} colSpan={3}>
-                                    Travel pay{rj.mileageMiles ? ` · ${rj.mileageMiles} miles outside M25` : ''}
+                                    Travel pay
                                   </td>
                                   <td style={{ padding: '3px 14px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace' }}>
-                                    {currencySymbol}{((rj.travelPay ?? 0) + (rj.mileage ?? 0)).toFixed(2)}
+                                    {currencySymbol}{(rj.travelPay ?? 0).toFixed(2)}
+                                  </td>
+                                </tr>
+                              )}
+                              {/* Mileage */}
+                              {(rj.mileage ?? 0) > 0 && (
+                                <tr style={{ backgroundColor: '#FAFAF8' }}>
+                                  <td style={{ padding: '3px 14px 3px 28px', color: '#6B6B6B', fontSize: '11px' }} colSpan={3}>
+                                    {(rj.mileageDistance ?? 0) > 0
+                                      ? `Travel (${rj.mileageDistance} km)`
+                                      : rj.mileageMiles
+                                        ? `Mileage (${rj.mileageMiles} miles outside M25)`
+                                        : 'Mileage'}
+                                  </td>
+                                  <td style={{ padding: '3px 14px', textAlign: 'right', color: '#6B6B6B', fontSize: '11px', fontFamily: 'monospace' }}>
+                                    {currencySymbol}{(rj.mileage ?? 0).toFixed(2)}
                                   </td>
                                 </tr>
                               )}
