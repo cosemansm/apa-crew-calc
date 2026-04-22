@@ -487,6 +487,7 @@ export function CalculatorPage() {
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [favouriteRoles, setFavouriteRoles] = useState<string[]>([]);
+  const [userDepartment, setUserDepartment] = useState<string | null>(null);
   const [customRoles, setCustomRoles] = useState<EngineRole[]>([]);
   // SDYM engine state
   const [hasEquipment, setHasEquipment] = useState(false);
@@ -674,6 +675,7 @@ export function CalculatorPage() {
   useEffect(() => {
     if (isImpersonating && impersonatedData) {
       setFavouriteRoles(impersonatedData.favouriteRoles.map(f => f.role_name));
+      setUserDepartment(impersonatedData.department);
       setEquipmentPackages(impersonatedData.equipmentPackages.map(p => ({
         id: p.id,
         name: p.name,
@@ -699,6 +701,8 @@ export function CalculatorPage() {
     if (!user) return;
     supabase.from('favourite_roles').select('role_name').eq('user_id', user.id)
       .then(({ data }) => { if (data) setFavouriteRoles(data.map(f => f.role_name)); }, () => {});
+    supabase.from('user_settings').select('department').eq('user_id', user.id).maybeSingle()
+      .then(({ data }) => { if (data) setUserDepartment(data.department); }, () => {});
     supabase.from('equipment_packages').select('id, name, day_rate').eq('user_id', user.id)
       .order('name', { ascending: true })
       .then(({ data }) => { if (data) setEquipmentPackages(data); }, () => {});
@@ -1594,12 +1598,15 @@ export function CalculatorPage() {
                       })}
                     </SelectGroup>
                   )}
-                  {activeEngine.departments.map(dept => {
+                  {(userDepartment
+                    ? [userDepartment, ...activeEngine.departments.filter(d => d !== userDepartment)]
+                    : activeEngine.departments
+                  ).map(dept => {
                     const deptRoles = activeEngine.getRolesByDepartment(dept).filter(r => !(activeEngine.meta.features.favourites && favouriteRoles.includes(r.role)));
                     if (deptRoles.length === 0) return null;
                     return (
                       <SelectGroup key={dept}>
-                        {deptRoles.length > 1 && <SelectLabel>{dept}</SelectLabel>}
+                        <SelectLabel>{dept}{dept === userDepartment ? ' (Your Dept)' : ''}</SelectLabel>
                         {deptRoles.map(role => (
                           <SelectItem key={role.role} value={role.role}>
                             {role.role}
@@ -1776,15 +1783,21 @@ export function CalculatorPage() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h3 className="font-medium">Breaks & Penalties</h3>
-                    <a
-                      href="https://www.a-p-a.net/apa-crew-terms/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors font-mono"
-                      title="APA Recommended Terms for Crew 2025"
-                    >
-                      APA T&Cs ↗
-                    </a>
+                    {activeEngine.meta.termsUrl ? (
+                      <a
+                        href={activeEngine.meta.termsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors font-mono"
+                        title={activeEngine.meta.termsLabel}
+                      >
+                        {activeEngine.meta.termsLabel} ↗
+                      </a>
+                    ) : activeEngine.meta.termsLabel ? (
+                      <span className="text-[10px] text-muted-foreground/50 font-mono">
+                        {activeEngine.meta.termsLabel}
+                      </span>
+                    ) : null}
                   </div>
 
                   {/* Non-shooting day breaks (prep/recce/build_strike/pre_light) */}
