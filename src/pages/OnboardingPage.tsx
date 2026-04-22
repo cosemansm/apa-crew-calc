@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { usePageTitle } from '@/hooks/usePageTitle'
@@ -29,6 +29,17 @@ export function OnboardingPage() {
   const [jobName, setJobName] = useState('')
   const [clientName, setClientName] = useState('')
   const [showCreateJob, setShowCreateJob] = useState(false)
+  const markedComplete = useRef(false)
+
+  // Mark onboarding as completed on first visit so users never see it twice
+  useEffect(() => {
+    if (!user || markedComplete.current) return
+    markedComplete.current = true
+    supabase.from('user_settings').update({
+      onboarding_completed: true,
+    }).eq('user_id', user.id)
+    setOnboardingCompleted(true)
+  }, [user, setOnboardingCompleted])
 
   const saveOnboardingData = async () => {
     if (!user) return
