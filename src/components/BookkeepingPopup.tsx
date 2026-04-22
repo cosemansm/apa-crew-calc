@@ -1,6 +1,15 @@
 import { useNavigate } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { BOOKKEEPING_BRAND_COLORS } from '@/lib/bookkeepingPopup'
+import freeagentLogo from '@/assets/integrations/freeagent.svg'
+import xeroLogo from '@/assets/integrations/xero.svg'
+import quickbooksLogo from '@/assets/integrations/quickbooks.svg'
+
+const BOOKKEEPING_LOGOS: Record<string, string> = {
+  FreeAgent: freeagentLogo,
+  Xero: xeroLogo,
+  QuickBooks: quickbooksLogo,
+}
 
 interface BookkeepingPopupProps {
   variant: 'trial' | 'upgrade'
@@ -60,12 +69,17 @@ export function BookkeepingPopup({ variant, software, onDismiss }: BookkeepingPo
         {/* Icon */}
         <div style={{
           width: 48, height: 48, borderRadius: 12,
-          background: variant === 'trial' ? brandColor : '#1F1F21',
+          background: variant === 'trial'
+            ? (BOOKKEEPING_LOGOS[software] ? '#fff' : brandColor)
+            : '#1F1F21',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           margin: '0 auto 16px',
+          border: variant === 'trial' && BOOKKEEPING_LOGOS[software] ? '1px solid #E5E2DC' : 'none',
         }}>
           {variant === 'trial' ? (
-            <span style={{ color: '#fff', fontFamily: '"JetBrains Mono", monospace', fontWeight: 700, fontSize: 18 }}>{initial}</span>
+            BOOKKEEPING_LOGOS[software]
+              ? <img src={BOOKKEEPING_LOGOS[software]} alt={software} style={{ width: 32, height: 32, objectFit: 'contain' }} />
+              : <span style={{ color: '#fff', fontFamily: '"JetBrains Mono", monospace', fontWeight: 700, fontSize: 18 }}>{initial}</span>
           ) : (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFD528" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
