@@ -160,7 +160,7 @@ export function DashboardPage() {
       .maybeSingle()
       .then(({ data }) => {
         setHasBookkeepingConnection(!!data);
-      });
+      }, () => {});
   }, [user, isImpersonating]);
 
   useEffect(() => {
