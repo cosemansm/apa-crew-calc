@@ -147,6 +147,13 @@ interface AdminStats {
     featureRequests: number;
     featureRequestsByCategory: { category: string; count: number }[];
   };
+  onboarding: {
+    calculatorTools: { tool: string; count: number }[];
+    bookkeepingSoftware: { software: string; count: number }[];
+    totalOnboarded: number;
+    totalSkipped: number;
+    completionRate: number;
+  };
 }
 
 function StatCard({ label, value, sub, icon: Icon, accent }: {
@@ -1655,6 +1662,75 @@ export function AdminPage() {
                     <span className="text-sm font-mono text-white/40 w-6 text-right">{count}</span>
                   </div>
                 ))}
+              </div>
+            </>
+          )}
+
+          {/* ── Onboarding Insights ─────────────────────────────────────── */}
+          {stats.onboarding && (
+            <>
+              <SectionTitle>Onboarding Insights</SectionTitle>
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="bg-[#2a2a2c] rounded-2xl p-4 border border-white/5">
+                  <span className="text-[10px] text-white/40 font-mono uppercase tracking-wider block mb-1">Onboarded</span>
+                  <span className="text-2xl font-bold font-mono text-[#FFD528]">{stats.onboarding.totalOnboarded}</span>
+                  <span className="text-[11px] text-white/30 block mt-1">completed wizard</span>
+                </div>
+                <div className="bg-[#2a2a2c] rounded-2xl p-4 border border-white/5">
+                  <span className="text-[10px] text-white/40 font-mono uppercase tracking-wider block mb-1">Skipped</span>
+                  <span className="text-2xl font-bold font-mono text-white">{stats.onboarding.totalSkipped}</span>
+                  <span className="text-[11px] text-white/30 block mt-1">skipped all steps</span>
+                </div>
+                <div className="bg-[#2a2a2c] rounded-2xl p-4 border border-white/5">
+                  <span className="text-[10px] text-white/40 font-mono uppercase tracking-wider block mb-1">Completion Rate</span>
+                  <span className="text-2xl font-bold font-mono text-[#4ade80]">{stats.onboarding.completionRate}%</span>
+                  <span className="text-[11px] text-white/30 block mt-1">answered at least 1 step</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {stats.onboarding.calculatorTools.length > 0 && (
+                  <div className="bg-[#2a2a2c] rounded-2xl p-4 border border-white/5 space-y-2">
+                    <span className="text-[10px] text-white/40 font-mono uppercase tracking-wider block mb-2">Previous Calculator Method</span>
+                    {stats.onboarding.calculatorTools.map(({ tool, count }) => {
+                      const max = stats.onboarding.calculatorTools[0].count
+                      return (
+                        <div key={tool} className="flex items-center gap-3">
+                          <span className="text-sm font-mono text-white/60 w-36 shrink-0 truncate">{tool}</span>
+                          <div className="flex-1 bg-white/5 rounded-full h-1.5">
+                            <div className="h-1.5 rounded-full bg-[#FFD528]" style={{ width: `${Math.min(100, (count / max) * 100)}%` }} />
+                          </div>
+                          <span className="text-sm font-mono text-white/40 w-6 text-right">{count}</span>
+                        </div>
+                      )
+                    })}
+                    <div className="flex justify-between pt-2 border-t border-white/5">
+                      <span className="text-[11px] text-white/30 font-mono">Total responses</span>
+                      <span className="text-[11px] text-white/50 font-mono">{stats.onboarding.calculatorTools.reduce((s, t) => s + t.count, 0)}</span>
+                    </div>
+                  </div>
+                )}
+                {stats.onboarding.bookkeepingSoftware.length > 0 && (
+                  <div className="bg-[#2a2a2c] rounded-2xl p-4 border border-white/5 space-y-2">
+                    <span className="text-[10px] text-white/40 font-mono uppercase tracking-wider block mb-2">Bookkeeping Software</span>
+                    {stats.onboarding.bookkeepingSoftware.map(({ software, count }) => {
+                      const max = stats.onboarding.bookkeepingSoftware[0].count
+                      const isNone = software === "I don't use one"
+                      return (
+                        <div key={software} className="flex items-center gap-3">
+                          <span className="text-sm font-mono text-white/60 w-36 shrink-0 truncate">{software}</span>
+                          <div className="flex-1 bg-white/5 rounded-full h-1.5">
+                            <div className={`h-1.5 rounded-full ${isNone ? 'bg-gray-500' : 'bg-[#4ade80]'}`} style={{ width: `${Math.min(100, (count / max) * 100)}%` }} />
+                          </div>
+                          <span className="text-sm font-mono text-white/40 w-6 text-right">{count}</span>
+                        </div>
+                      )
+                    })}
+                    <div className="flex justify-between pt-2 border-t border-white/5">
+                      <span className="text-[11px] text-white/30 font-mono">Total responses</span>
+                      <span className="text-[11px] text-white/50 font-mono">{stats.onboarding.bookkeepingSoftware.reduce((s, t) => s + t.count, 0)}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           )}
