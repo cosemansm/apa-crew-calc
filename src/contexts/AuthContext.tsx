@@ -37,7 +37,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .eq('user_id', session.user.id)
           .maybeSingle()
           .then(({ data, error }) => {
-            setOnboardingCompleted(error ? false : (data?.onboarding_completed ?? false))
+            if (error) {
+              // Session is stale (e.g. user deleted from Supabase) — sign out
+              supabase.auth.signOut();
+              return;
+            }
+            setOnboardingCompleted(data?.onboarding_completed ?? false)
           })
       } else {
         setOnboardingCompleted(null)
@@ -75,7 +80,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .eq('user_id', session.user.id)
           .maybeSingle()
           .then(({ data, error }) => {
-            setOnboardingCompleted(error ? false : (data?.onboarding_completed ?? false))
+            if (error) {
+              supabase.auth.signOut();
+              return;
+            }
+            setOnboardingCompleted(data?.onboarding_completed ?? false)
           })
       }
       if (_event === 'SIGNED_OUT') {
