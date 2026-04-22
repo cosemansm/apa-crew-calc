@@ -17,7 +17,7 @@ type Step = 'welcome' | 'country' | 'department' | 'calculator' | 'bookkeeping' 
 export function OnboardingPage() {
   usePageTitle('Welcome')
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, setOnboardingCompleted } = useAuth()
   const [step, setStep] = useState<Step>('welcome')
   const [country, setCountry] = useState<string | null>(null)
   const [department, setDepartment] = useState<string | null>(null)
@@ -46,6 +46,7 @@ export function OnboardingPage() {
       }).eq('id', user.id)
     }
 
+    setOnboardingCompleted(true)
     setSaving(false)
     navigate(destination === 'dashboard' ? '/dashboard' : '/projects?new=true', { replace: true })
   }
