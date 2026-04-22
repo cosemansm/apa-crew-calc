@@ -11,21 +11,43 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { ReviewPopupController } from '@/components/ReviewPopupController';
 import type { ReactNode } from 'react';
 
+// Retry dynamic imports once with a full page reload to handle stale chunks after deploy
+function lazyWithReload(
+  factory: () => Promise<Record<string, unknown>>,
+  pick: string,
+) {
+  return lazy(() =>
+    factory()
+      .then(m => {
+        sessionStorage.removeItem('chunk-reload');
+        return { default: m[pick] as React.ComponentType };
+      })
+      .catch(() => {
+        const key = 'chunk-reload';
+        if (!sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, '1');
+          window.location.reload();
+        }
+        return new Promise<{ default: React.ComponentType }>(() => {});
+      }),
+  );
+}
+
 // Lazy-loaded pages — split into separate chunks
-const LoginPage = lazy(() => import('@/pages/LoginPage').then(m => ({ default: m.LoginPage })));
-const CalculatorPage = lazy(() => import('@/pages/CalculatorPage').then(m => ({ default: m.CalculatorPage })));
-const AIInputPage = lazy(() => import('@/pages/AIInputPage').then(m => ({ default: m.AIInputPage })));
-const InvoicePage = lazy(() => import('@/pages/InvoicePage').then(m => ({ default: m.InvoicePage })));
-const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
-const ProjectsPage = lazy(() => import('@/pages/ProjectsPage').then(m => ({ default: m.ProjectsPage })));
-const SupportPage = lazy(() => import('@/pages/SupportPage').then(m => ({ default: m.SupportPage })));
-const AdminPage = lazy(() => import('@/pages/AdminPage').then(m => ({ default: m.AdminPage })));
-const SharePage = lazy(() => import('@/pages/SharePage').then(m => ({ default: m.SharePage })));
-const TermsPage = lazy(() => import('@/pages/TermsPage').then(m => ({ default: m.TermsPage })));
-const PrivacyPage = lazy(() => import('@/pages/PrivacyPage').then(m => ({ default: m.PrivacyPage })));
-const UpdatePasswordPage = lazy(() => import('@/pages/UpdatePasswordPage').then(m => ({ default: m.UpdatePasswordPage })));
-const SignUpPage = lazy(() => import('@/pages/SignUpPage').then(m => ({ default: m.SignUpPage })));
-const OnboardingPage = lazy(() => import('@/pages/OnboardingPage').then(m => ({ default: m.OnboardingPage })));
+const LoginPage = lazyWithReload(() => import('@/pages/LoginPage'), 'LoginPage');
+const CalculatorPage = lazyWithReload(() => import('@/pages/CalculatorPage'), 'CalculatorPage');
+const AIInputPage = lazyWithReload(() => import('@/pages/AIInputPage'), 'AIInputPage');
+const InvoicePage = lazyWithReload(() => import('@/pages/InvoicePage'), 'InvoicePage');
+const SettingsPage = lazyWithReload(() => import('@/pages/SettingsPage'), 'SettingsPage');
+const ProjectsPage = lazyWithReload(() => import('@/pages/ProjectsPage'), 'ProjectsPage');
+const SupportPage = lazyWithReload(() => import('@/pages/SupportPage'), 'SupportPage');
+const AdminPage = lazyWithReload(() => import('@/pages/AdminPage'), 'AdminPage');
+const SharePage = lazyWithReload(() => import('@/pages/SharePage'), 'SharePage');
+const TermsPage = lazyWithReload(() => import('@/pages/TermsPage'), 'TermsPage');
+const PrivacyPage = lazyWithReload(() => import('@/pages/PrivacyPage'), 'PrivacyPage');
+const UpdatePasswordPage = lazyWithReload(() => import('@/pages/UpdatePasswordPage'), 'UpdatePasswordPage');
+const SignUpPage = lazyWithReload(() => import('@/pages/SignUpPage'), 'SignUpPage');
+const OnboardingPage = lazyWithReload(() => import('@/pages/OnboardingPage'), 'OnboardingPage');
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading, onboardingCompleted } = useAuth();
