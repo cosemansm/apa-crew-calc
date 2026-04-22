@@ -10,6 +10,13 @@ Sentry.init({
   dsn: 'https://a329400d299c6e7f89458d7a231f99d5@o4511186084167680.ingest.de.sentry.io/4511186095898704',
   enabled: import.meta.env.PROD,
   sendDefaultPii: false,
+  beforeSend(event) {
+    const message = event.exception?.values?.[0]?.value ?? '';
+    if (/Load failed/.test(message) || /Failed to fetch/.test(message)) {
+      event.level = 'warning';
+    }
+    return event;
+  },
 })
 
 function ErrorFallback({ eventId }: { eventId: string | null }) {
