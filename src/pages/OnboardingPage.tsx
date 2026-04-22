@@ -37,20 +37,22 @@ export function OnboardingPage() {
   useEffect(() => {
     if (!user || markedComplete.current) return
     markedComplete.current = true
-    supabase.from('user_settings').update({
+    supabase.from('user_settings').upsert({
+      user_id: user.id,
       onboarding_completed: true,
-    }).eq('user_id', user.id)
+    }, { onConflict: 'user_id' })
   }, [user])
 
   const saveOnboardingData = async () => {
     if (!user) return
 
-    await supabase.from('user_settings').update({
+    await supabase.from('user_settings').upsert({
+      user_id: user.id,
       department: department || undefined,
       calculator_tool: calculatorTool || undefined,
       bookkeeping_software: bookkeeping || undefined,
       onboarding_completed: true,
-    }).eq('user_id', user.id)
+    }, { onConflict: 'user_id' })
 
     if (country && country !== 'OTHER') {
       const engineId = getEngineForCountry(country)
