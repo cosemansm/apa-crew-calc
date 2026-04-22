@@ -44,6 +44,7 @@ interface DayResultJson {
   travelPay?: number;
   mileage?: number;
   mileageMiles?: number;
+  mileageDistance?: number;
   equipmentTotal?: number;
   equipmentDiscount?: number;
 }
