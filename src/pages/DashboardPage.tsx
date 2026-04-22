@@ -27,6 +27,8 @@ import { TrialBanner } from '@/components/TrialBanner';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { JobLimitDialog } from '@/components/JobLimitDialog';
 import { BookkeepingSection } from '@/components/BookkeepingSection';
+import { BookkeepingPopup } from '@/components/BookkeepingPopup';
+import { shouldShowBookkeepingPopup, getPopupVariant } from '@/lib/bookkeepingPopup';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { WhatsNewDrawer, useUnreadCount } from '@/components/WhatsNewDrawer';
@@ -93,6 +95,10 @@ export function DashboardPage() {
   const [badgeCount, setBadgeCount] = useState(0);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [bookkeepingSoftware, setBookkeepingSoftware] = useState<string | null>(null);
+  const [bookkeepingDismissedAt, setBookkeepingDismissedAt] = useState<string | null>(null);
+  const [hasBookkeepingConnection, setHasBookkeepingConnection] = useState(true); // default true = don't show until checked
+  const [bookkeepingPopupVisible, setBookkeepingPopupVisible] = useState(false);
   const unreadCount = useUnreadCount(notifications);
 
   useEffect(() => {
@@ -120,12 +126,14 @@ export function DashboardPage() {
       loadFavourites();
       supabase
         .from('user_settings')
-        .select('display_name, department')
+        .select('display_name, department, bookkeeping_software, bookkeeping_popup_dismissed_at')
         .eq('user_id', user.id)
         .single()
         .then(({ data }) => {
           if (data?.display_name) setDisplayName(data.display_name);
           if (data?.department) setUserDepartment(data.department);
+          if (data?.bookkeeping_software) setBookkeepingSoftware(data.bookkeeping_software);
+          if (data?.bookkeeping_popup_dismissed_at) setBookkeepingDismissedAt(data.bookkeeping_popup_dismissed_at);
         }, () => {});
     }
   }, [user, location.key, isImpersonating, impersonatedData]);
@@ -142,6 +150,30 @@ export function DashboardPage() {
   }, [user]);
 
   useEffect(() => { setBadgeCount(unreadCount); }, [unreadCount]);
+
+  useEffect(() => {
+    if (!user || isImpersonating) return;
+    supabase
+      .from('bookkeeping_connections')
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        setHasBookkeepingConnection(!!data);
+      });
+  }, [user, isImpersonating]);
+
+  useEffect(() => {
+    if (!subscription || isImpersonating) return;
+    const show = shouldShowBookkeepingPopup({
+      bookkeepingSoftware,
+      hasBookkeepingConnection,
+      subscriptionStatus: subscription.status,
+      trialEndsAt: subscription.trial_ends_at,
+      dismissedAt: bookkeepingDismissedAt,
+    });
+    setBookkeepingPopupVisible(show);
+  }, [bookkeepingSoftware, hasBookkeepingConnection, subscription, bookkeepingDismissedAt, isImpersonating]);
 
   const loadProjects = async () => {
     setLoading(true);
@@ -237,6 +269,16 @@ export function DashboardPage() {
       setCalendarNewJobDate(null);
       navigate(`/calculator?project=${data.id}&name=${encodeURIComponent(data.name)}${dateParam}`);
     }
+  };
+
+  const handleBookkeepingDismiss = async () => {
+    setBookkeepingPopupVisible(false);
+    if (!user) return;
+    const now = new Date().toISOString();
+    setBookkeepingDismissedAt(now);
+    await supabase.from('user_settings').update({
+      bookkeeping_popup_dismissed_at: now,
+    }).eq('user_id', user.id);
   };
 
   const deleteProject = async (projectId: string) => {
@@ -1050,6 +1092,16 @@ export function DashboardPage() {
           </div>
         </DialogContent>
       </Dialog>
+      {bookkeepingPopupVisible && bookkeepingSoftware && subscription && (
+        <BookkeepingPopup
+          variant={getPopupVariant({
+            subscriptionStatus: subscription.status,
+            trialEndsAt: subscription.trial_ends_at,
+          })}
+          software={bookkeepingSoftware}
+          onDismiss={handleBookkeepingDismiss}
+        />
+      )}
     </div>
   );
 }
