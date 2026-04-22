@@ -31,15 +31,16 @@ export function OnboardingPage() {
   const [showCreateJob, setShowCreateJob] = useState(false)
   const markedComplete = useRef(false)
 
-  // Mark onboarding as completed on first visit so users never see it twice
+  // Persist onboarding as completed in the DB on first visit so re-logins skip it.
+  // Don't update in-memory state here — that would cause OnboardingRoute to
+  // redirect to /dashboard before the user finishes the questionnaire.
   useEffect(() => {
     if (!user || markedComplete.current) return
     markedComplete.current = true
     supabase.from('user_settings').update({
       onboarding_completed: true,
     }).eq('user_id', user.id)
-    setOnboardingCompleted(true)
-  }, [user, setOnboardingCompleted])
+  }, [user])
 
   const saveOnboardingData = async () => {
     if (!user) return
