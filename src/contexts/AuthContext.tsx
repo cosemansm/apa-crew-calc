@@ -27,10 +27,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+      const confirmed = session?.user?.email_confirmed_at ? true : false;
+      setSession(confirmed ? session : null);
+      setUser(confirmed ? session!.user : null);
       setLoading(false);
-      if (session) {
+      if (confirmed && session) {
         supabase.from('user_settings')
           .select('onboarding_completed')
           .eq('user_id', session.user.id)
@@ -47,8 +48,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+      const confirmed = session?.user?.email_confirmed_at ? true : false;
+      setSession(confirmed ? session : null);
+      setUser(confirmed ? session!.user : null);
       setLoading(false);
 
       if (session?.user) {
@@ -57,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         Sentry.setUser(null);
       }
 
-      if (_event === 'SIGNED_IN' && session) {
+      if (_event === 'SIGNED_IN' && session && confirmed) {
         const { full_name } = session.user.user_metadata ?? {};
         if (full_name) {
           supabase.from('user_settings').upsert(
