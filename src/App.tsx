@@ -53,13 +53,15 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user, loading, onboardingCompleted } = useAuth();
   if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   if (!user) return <Navigate to="/login" replace />;
-  if (onboardingCompleted === null || !onboardingCompleted) return <Navigate to="/onboarding" replace />;
+  if (onboardingCompleted === null) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (!onboardingCompleted) return <Navigate to="/onboarding" replace />;
   return <>{children}</>;
 }
 
 function PublicRoute({ children }: { children: ReactNode }) {
   const { user, loading, onboardingCompleted } = useAuth();
   if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  if (user && onboardingCompleted === null) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   if (user && !onboardingCompleted) return <Navigate to="/onboarding" replace />;
   if (user) return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
