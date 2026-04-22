@@ -9,6 +9,8 @@ export const meta: EngineMeta = {
   currencySymbol: '£',
   mileageUnit: 'miles',
   domain: undefined,
+  termsLabel: 'APA T&Cs 2025',
+  termsUrl: 'https://www.a-p-a.net/apa-crew-terms/',
   features: {
     agreedRateInput: true,
     bhrOtInfo: true,

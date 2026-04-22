@@ -7,6 +7,8 @@ export interface EngineMeta {
   currencySymbol: string;
   mileageUnit: 'miles' | 'km';
   domain?: string;
+  termsLabel?: string;       // e.g. "APA T&Cs 2025" or "Sodyum Deal Memo 2026"
+  termsUrl?: string;         // External link to the terms document (omit if none)
   features: {
     agreedRateInput: boolean;       // User enters a day rate (false = engine derives its own)
     bhrOtInfo: boolean;             // BHR / OT grade info shown under role picker
