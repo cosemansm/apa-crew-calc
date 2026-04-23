@@ -1403,14 +1403,7 @@ export function CalculatorPage() {
 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Input Form */}
       <div className="lg:col-span-2 space-y-6" ref={formTopRef}>
-        {isDirty && !isImpersonating && (
-          <div className={`flex items-center justify-between rounded-xl px-4 py-2.5 text-sm ${saveError ? 'bg-red-50 border border-red-200 text-red-800' : 'bg-amber-50 border border-amber-200 text-amber-800'}`}>
-            <span>{saveError ? '✕ Save failed — tap to retry' : '⚠ Unsaved changes'}</span>
-            <Button size="sm" onClick={handleSave} disabled={saving || !result} className="h-7 text-xs">
-              {saving ? 'Saving…' : saveError ? 'Retry' : 'Save now'}
-            </Button>
-          </div>
-        )}
+{/* Unsaved banner removed — save action lives in floating bar */}
         <Card>
           <CardHeader className="hidden md:flex md:flex-row md:items-center md:justify-between pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
@@ -1420,31 +1413,11 @@ export function CalculatorPage() {
                 <Badge variant="outline" className="ml-2 text-xs font-normal">Editing saved day</Badge>
               )}
             </CardTitle>
-            {projectId && currentDayId && !isImpersonating && (
-              <Button
-                size="sm"
-                className="bg-[#FFD528] text-[#1F1F21] hover:bg-[#FFD528]/90 font-semibold gap-1.5 shrink-0"
-                onClick={handleAddDay}
-                disabled={saving}
-              >
-                <Plus className="h-4 w-4" /> Add New Day
-              </Button>
-            )}
           </CardHeader>
-          {/* Mobile: compact editing badge + add day button */}
+          {/* Mobile: compact editing badge */}
           {currentDayId && (
-            <div className="md:hidden px-4 pt-3 pb-0 flex items-center justify-between">
+            <div className="md:hidden px-4 pt-3 pb-0">
               <Badge variant="outline" className="text-xs font-normal">Editing saved day</Badge>
-              {projectId && !isImpersonating && (
-                <Button
-                  size="sm"
-                  className="bg-[#FFD528] text-[#1F1F21] hover:bg-[#FFD528]/90 font-semibold gap-1.5"
-                  onClick={handleAddDay}
-                  disabled={saving}
-                >
-                  <Plus className="h-4 w-4" /> Add New Day
-                </Button>
-              )}
             </div>
           )}
           <CardContent className="space-y-6">
@@ -2218,69 +2191,84 @@ export function CalculatorPage() {
                   <RotateCcw className="h-4 w-4 mr-1" /> Reset
                 </Button>
               )}
-              {/* Save status indicator */}
-              {result && !isImpersonating && (
-                <div className="flex items-center gap-1.5 text-sm ml-auto">
-                  {saving ? (
-                    <span className="flex items-center gap-1.5 text-muted-foreground">
-                      <Cloud className="h-3.5 w-3.5 animate-pulse" /> Saving…
-                    </span>
-                  ) : saveError ? (
-                    <Button size="sm" onClick={handleSave} disabled={saving} variant="destructive">
-                      <Save className="h-3.5 w-3.5 mr-1" /> Save failed — retry
-                    </Button>
-                  ) : lastSavedAt ? (
-                    <span className="flex items-center gap-1.5 text-green-600">
-                      <Check className="h-3.5 w-3.5" /> Saved
-                    </span>
-                  ) : (
-                    <Button size="sm" onClick={handleSave} disabled={saving}>
-                      <Save className="h-3.5 w-3.5 mr-1" />
-                      {currentDayId ? 'Update Day' : 'Save Day'}
-                    </Button>
-                  )}
-                </div>
-              )}
+{/* Save status moved to floating bar */}
             </div>
 
-            {/* Add New Day — bottom of form */}
-            {projectId && currentDayId && !isImpersonating && (
-              <div className="pt-2">
-                <Button
-                  className="w-full bg-[#FFD528] text-[#1F1F21] hover:bg-[#FFD528]/90 font-semibold gap-1.5"
-                  onClick={handleAddDay}
-                  disabled={saving}
-                >
-                  <Plus className="h-4 w-4" /> Add New Day
-                </Button>
-              </div>
-            )}
 
-            {/* Mobile sticky save bar */}
+            {/* Spacer so content isn't hidden behind floating bar */}
+            <div className="h-16 md:h-0" />
+
+            {/* Floating action buttons — mobile: glass bottom bar (B), desktop: floating bottom-right (D) */}
             {result && !isImpersonating && (
-              <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-safe">
-                <div className={`mx-auto max-w-lg mb-3 flex items-center justify-between gap-3 rounded-2xl px-4 py-3 shadow-lg text-sm font-medium transition-colors ${
-                  saving ? 'bg-muted text-muted-foreground' :
-                  saveError ? 'bg-red-50 text-red-700 border border-red-200' :
-                  lastSavedAt ? 'bg-green-50 text-green-700 border border-green-200' :
-                  'bg-[#1F1F21] text-white'
-                }`}>
-                  {saving ? (
-                    <><Cloud className="h-4 w-4 animate-pulse" /><span>Saving…</span></>
-                  ) : saveError ? (
-                    <><Save className="h-4 w-4" /><span>Save failed — tap to retry</span></>
-                  ) : lastSavedAt ? (
-                    <><Check className="h-4 w-4" /><span>Saved</span></>
-                  ) : (
-                    <><Save className="h-4 w-4" /><span>Not saved yet — tap to save</span></>
-                  )}
-                  {!saving && (saveError || !lastSavedAt) && (
-                    <button onClick={handleSave} className={`rounded-xl px-3 py-1 text-xs font-semibold ${saveError ? 'bg-red-600 text-white' : 'bg-[#FFD528] text-[#1F1F21]'}`}>
-                      {saveError ? 'Retry' : 'Save'}
-                    </button>
+              <>
+                {/* Mobile: glass bottom bar with Save + Add Day */}
+                <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-4 pb-safe">
+                  <div className="mx-auto max-w-lg mb-3 flex gap-2 rounded-2xl bg-white/90 backdrop-blur-xl border border-gray-200 px-3 py-2.5 shadow-lg">
+                    <Button
+                      className={`flex-1 gap-1.5 font-semibold text-sm rounded-xl h-10 ${
+                        saving ? 'bg-muted text-muted-foreground' :
+                        saveError ? 'bg-red-600 text-white hover:bg-red-700' :
+                        lastSavedAt && !isDirty ? 'bg-green-600 text-white hover:bg-green-700' :
+                        'bg-[#1F1F21] text-white hover:bg-[#1F1F21]/90'
+                      }`}
+                      onClick={handleSave}
+                      disabled={saving || !result || !!(lastSavedAt && !isDirty)}
+                    >
+                      {saving ? (
+                        <><Cloud className="h-4 w-4 animate-pulse" /> Saving...</>
+                      ) : saveError ? (
+                        <><Save className="h-4 w-4" /> Retry</>
+                      ) : lastSavedAt && !isDirty ? (
+                        <><Check className="h-4 w-4" /> Saved</>
+                      ) : (
+                        <><Save className="h-4 w-4" /> {currentDayId ? 'Update' : 'Save'}</>
+                      )}
+                    </Button>
+                    {projectId && currentDayId && (
+                      <Button
+                        className="flex-1 bg-[#FFD528] text-[#1F1F21] hover:bg-[#FFD528]/90 font-semibold gap-1.5 text-sm rounded-xl h-10"
+                        onClick={handleAddDay}
+                        disabled={saving}
+                      >
+                        <Plus className="h-4 w-4" /> Add Day
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Desktop: floating buttons bottom-right */}
+                <div className="hidden md:flex fixed bottom-6 right-6 z-50 gap-2">
+                  <Button
+                    className={`gap-1.5 font-semibold rounded-xl shadow-lg px-5 h-10 ${
+                      saving ? 'bg-muted text-muted-foreground' :
+                      saveError ? 'bg-red-600 text-white hover:bg-red-700' :
+                      lastSavedAt && !isDirty ? 'bg-green-600 text-white hover:bg-green-700' :
+                      'bg-[#1F1F21] text-white hover:bg-[#1F1F21]/90'
+                    }`}
+                    onClick={handleSave}
+                    disabled={saving || !result || !!(lastSavedAt && !isDirty)}
+                  >
+                    {saving ? (
+                      <><Cloud className="h-4 w-4 animate-pulse" /> Saving...</>
+                    ) : saveError ? (
+                      <><Save className="h-4 w-4" /> Save failed — retry</>
+                    ) : lastSavedAt && !isDirty ? (
+                      <><Check className="h-4 w-4" /> Saved</>
+                    ) : (
+                      <><Save className="h-4 w-4" /> {currentDayId ? 'Update Day' : 'Save Day'}</>
+                    )}
+                  </Button>
+                  {projectId && currentDayId && (
+                    <Button
+                      className="bg-[#FFD528] text-[#1F1F21] hover:bg-[#FFD528]/90 font-semibold gap-1.5 rounded-xl shadow-lg px-5 h-10"
+                      onClick={handleAddDay}
+                      disabled={saving}
+                    >
+                      <Plus className="h-4 w-4" /> Add New Day
+                    </Button>
                   )}
                 </div>
-              </div>
+              </>
             )}
           </CardContent>
         </Card>
