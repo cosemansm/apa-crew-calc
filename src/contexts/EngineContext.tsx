@@ -25,13 +25,21 @@ interface EngineContextType {
 
 const EngineContext = createContext<EngineContextType | undefined>(undefined)
 
+function getCachedEngineProfile() {
+  try {
+    const raw = sessionStorage.getItem('cache:engineProfile')
+    return raw ? JSON.parse(raw) as { defaultEngine: string; multiEngine: boolean; authorizedEngines: string[] } : null
+  } catch { return null }
+}
+
 export function EngineProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const { isImpersonating, impersonatedData } = useImpersonation()
-  const [defaultEngineId, setDefaultEngineId] = useState(DEFAULT_ENGINE_ID)
+  const cached = getCachedEngineProfile()
+  const [defaultEngineId, setDefaultEngineId] = useState(cached?.defaultEngine ?? DEFAULT_ENGINE_ID)
   const [jobEngineOverride, setJobEngineOverride] = useState<string | null>(null)
-  const [showEngineSelector, setShowEngineSelector] = useState(false)
-  const [authorizedEngineIds, setAuthorizedEngineIds] = useState<string[]>([DEFAULT_ENGINE_ID])
+  const [showEngineSelector, setShowEngineSelector] = useState(cached?.multiEngine ?? false)
+  const [authorizedEngineIds, setAuthorizedEngineIds] = useState<string[]>(cached?.authorizedEngines ?? [DEFAULT_ENGINE_ID])
 
   useEffect(() => {
     if (isImpersonating && impersonatedData?.profile) {
@@ -81,6 +89,7 @@ export function EngineProvider({ children }: { children: ReactNode }) {
             setDefaultEngineId(patch.default_engine)
             setShowEngineSelector(patch.multi_engine_enabled)
             setAuthorizedEngineIds(patch.authorized_engines)
+            try { sessionStorage.setItem('cache:engineProfile', JSON.stringify({ defaultEngine: patch.default_engine, multiEngine: patch.multi_engine_enabled, authorizedEngines: patch.authorized_engines })) } catch { /* quota */ }
             return
           } catch {
             // Detection failed — fall through to use existing profile data
@@ -88,9 +97,13 @@ export function EngineProvider({ children }: { children: ReactNode }) {
         }
 
         if (data) {
-          setDefaultEngineId(data.default_engine ?? DEFAULT_ENGINE_ID)
-          setShowEngineSelector(data.multi_engine_enabled ?? false)
-          setAuthorizedEngineIds(data.authorized_engines ?? [DEFAULT_ENGINE_ID])
+          const eng = data.default_engine ?? DEFAULT_ENGINE_ID
+          const multi = data.multi_engine_enabled ?? false
+          const auths = data.authorized_engines ?? [DEFAULT_ENGINE_ID]
+          setDefaultEngineId(eng)
+          setShowEngineSelector(multi)
+          setAuthorizedEngineIds(auths)
+          try { sessionStorage.setItem('cache:engineProfile', JSON.stringify({ defaultEngine: eng, multiEngine: multi, authorizedEngines: auths })) } catch { /* quota */ }
         }
       } catch (err) {
         Sentry.captureException(err, {

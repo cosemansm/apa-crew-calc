@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { usePageTitle } from '@/hooks/usePageTitle';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -68,6 +68,21 @@ function dayTotal(d: ProjectDay): number {
   return d.result_json?.grandTotal ?? 0;
 }
 
+// --- sessionStorage cache helpers (stale-while-revalidate) ---
+const CACHE_KEY_PROJECTS = 'cache:dashboard:projects';
+const CACHE_KEY_FAVOURITES = 'cache:dashboard:favourites';
+const CACHE_KEY_SETTINGS = 'cache:dashboard:settings';
+
+function cacheSet(key: string, data: unknown) {
+  try { sessionStorage.setItem(key, JSON.stringify(data)); } catch { /* quota */ }
+}
+function cacheGet<T>(key: string): T | null {
+  try {
+    const raw = sessionStorage.getItem(key);
+    return raw ? JSON.parse(raw) as T : null;
+  } catch { return null; }
+}
+
 
 export function DashboardPage() {
   usePageTitle('Dashboard');
@@ -77,19 +92,23 @@ export function DashboardPage() {
   const { subscription, isPremium, isTrialing, trialDaysLeft, loading: subLoading } = useSubscription();
   const isLifetime = subscription?.status === 'lifetime';
   const navigate = useNavigate();
-  const location = useLocation();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [favourites, setFavourites] = useState<FavouriteRole[]>([]);
+  const cachedProjects = cacheGet<Project[]>(CACHE_KEY_PROJECTS);
+  const cachedFavourites = cacheGet<FavouriteRole[]>(CACHE_KEY_FAVOURITES);
+  const cachedSettings = cacheGet<{ displayName: string | null; department: string | null }>(CACHE_KEY_SETTINGS);
+  const hasCachedData = !!cachedProjects;
+
+  const [projects, setProjects] = useState<Project[]>(cachedProjects ?? []);
+  const [favourites, setFavourites] = useState<FavouriteRole[]>(cachedFavourites ?? []);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showNewProject, setShowNewProject] = useState(false);
   const [jobLimitOpen, setJobLimitOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [newClientName, setNewClientName] = useState('');
   const [calendarNewJobDate, setCalendarNewJobDate] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!hasCachedData);
   const [projectError, setProjectError] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState<string | null>(null);
-  const [userDepartment, setUserDepartment] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(cachedSettings?.displayName ?? null);
+  const [userDepartment, setUserDepartment] = useState<string | null>(cachedSettings?.department ?? null);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const [notifications, setNotifications] = useState<{ id: string; published_at: string }[]>([]);
   const [badgeCount, setBadgeCount] = useState(0);
@@ -100,6 +119,10 @@ export function DashboardPage() {
   const [hasBookkeepingConnection, setHasBookkeepingConnection] = useState(true); // default true = don't show until checked
   const [bookkeepingPopupVisible, setBookkeepingPopupVisible] = useState(false);
   const unreadCount = useUnreadCount(notifications);
+
+  // Keep sessionStorage cache in sync for stale-while-revalidate on next page load
+  useEffect(() => { if (projects.length > 0) cacheSet(CACHE_KEY_PROJECTS, projects); }, [projects]);
+  useEffect(() => { if (favourites.length > 0) cacheSet(CACHE_KEY_FAVOURITES, favourites); }, [favourites]);
 
   useEffect(() => {
     if (isImpersonating && impersonatedData) {
@@ -122,7 +145,8 @@ export function DashboardPage() {
       return;
     }
     if (user) {
-      loadProjects();
+      const bg = hasCachedData;
+      loadProjects(bg);
       loadFavourites();
       supabase
         .from('user_settings')
@@ -134,9 +158,13 @@ export function DashboardPage() {
           if (data?.department) setUserDepartment(data.department);
           if (data?.bookkeeping_software) setBookkeepingSoftware(data.bookkeeping_software);
           if (data?.bookkeeping_popup_dismissed_at) setBookkeepingDismissedAt(data.bookkeeping_popup_dismissed_at);
+          cacheSet(CACHE_KEY_SETTINGS, {
+            displayName: data?.display_name ?? null,
+            department: data?.department ?? null,
+          });
         }, () => {});
     }
-  }, [user, location.key, isImpersonating, impersonatedData]);
+  }, [user, isImpersonating, impersonatedData]);
 
   useEffect(() => {
     async function fetchBadge() {
@@ -175,8 +203,8 @@ export function DashboardPage() {
     setBookkeepingPopupVisible(show);
   }, [bookkeepingSoftware, hasBookkeepingConnection, subscription, bookkeepingDismissedAt, isImpersonating]);
 
-  const loadProjects = async () => {
-    setLoading(true);
+  const loadProjects = async (background = false) => {
+    if (!background) setLoading(true);
     const { data: projectsData } = await supabase
       .from('projects')
       .select('*')

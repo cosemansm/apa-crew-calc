@@ -30,15 +30,23 @@ interface SubscriptionContextType {
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
 
+function getCachedSubscription(): Subscription | null {
+  try {
+    const raw = sessionStorage.getItem('cache:subscription');
+    return raw ? JSON.parse(raw) as Subscription : null;
+  } catch { return null; }
+}
+
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const { isImpersonating, impersonatedData } = useImpersonation();
-  const [subscription, setSubscription] = useState<Subscription | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cached = getCachedSubscription();
+  const [subscription, setSubscription] = useState<Subscription | null>(cached);
+  const [loading, setLoading] = useState(!cached);
   const [error, setError] = useState<Error | null>(null);
 
   const fetchSubscription = useCallback(async () => {
-    setLoading(true);
+    if (!cached) setLoading(true);
     if (!user) {
       setSubscription(null);
       setError(null);
@@ -58,6 +66,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       } else {
         setError(null);
         setSubscription(data ?? null);
+        try { sessionStorage.setItem('cache:subscription', JSON.stringify(data)); } catch { /* quota */ }
       }
     } catch (err) {
       console.error('Failed to fetch subscription:', err);
