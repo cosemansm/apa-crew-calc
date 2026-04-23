@@ -1600,7 +1600,7 @@ export function CalculatorPage() {
                     <span className="text-xs text-muted-foreground">
                       BHR {activeEngine.meta.currencySymbol}{(selectedRole.engineData.customBhr as number | undefined) ?? Math.round(parseInt(agreedRate) / 10)}/hr
                       {(selectedRole.engineData.otGrade as string) !== 'N/A' && (
-                        <> · OT Grade {selectedRole.engineData.otGrade as string} · OT {activeEngine.meta.currencySymbol}{Math.round(((selectedRole.engineData.customBhr as number | undefined) ?? Math.round(parseInt(agreedRate) / 10)) * (selectedRole.engineData.otCoefficient as number))}/hr</>
+                        <> · OT Grade {selectedRole.engineData.otGrade as string} · OT {activeEngine.meta.currencySymbol}{(selectedRole.engineData.customOtRate as number | undefined) ?? Math.round(((selectedRole.engineData.customBhr as number | undefined) ?? Math.round(parseInt(agreedRate) / 10)) * (selectedRole.engineData.otCoefficient as number))}/hr</>
                       )}
                     </span>
                   )}
