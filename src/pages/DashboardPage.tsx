@@ -659,40 +659,32 @@ export function DashboardPage() {
                       <Share className="h-4 w-4" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent align="end" className="w-80">
-                    <div className="space-y-3">
-                      <div>
-                        <h4 className="font-semibold text-sm flex items-center gap-1.5">
-                          Calendar Feed
-                          {!isPremium && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">PRO</Badge>}
-                        </h4>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Subscribe to your booked days from any calendar app
-                        </p>
-                      </div>
+                  <PopoverContent align="end" className="w-64">
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-sm flex items-center gap-1.5">
+                        Calendar Feed
+                        {!isPremium && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">PRO</Badge>}
+                      </h4>
 
                       {!isPremium ? (
                         <p className="text-xs text-muted-foreground">
-                          Upgrade to Pro to generate a calendar feed URL.
+                          Upgrade to Pro to subscribe to your booked days from any calendar app.
                         </p>
                       ) : feedToken ? (
-                        <div className="space-y-2 rounded-lg border bg-muted/50 p-3">
-                          <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            Your feed URL
-                          </label>
+                        <div className="space-y-2">
                           <div className="flex gap-2">
                             <input
                               type="text"
                               readOnly
                               value={`${window.location.origin}/api/calendar/${feedToken}`}
-                              className="flex-1 rounded-md border bg-background px-2 py-1.5 text-xs font-mono truncate"
+                              className="flex-1 rounded-md border bg-muted/50 px-2 py-1.5 text-[11px] font-mono truncate"
                             />
                             <Button size="sm" onClick={copyFeedUrl}>
                               {feedCopied ? 'Copied!' : 'Copy'}
                             </Button>
                           </div>
                           <p className="text-[11px] text-muted-foreground leading-relaxed">
-                            Paste this URL into your calendar app's "Subscribe by URL" option. Changes may take up to 24 hours to appear.
+                            Paste into your calendar app's "Subscribe by URL". Updates may take up to 24h.
                           </p>
                           <button
                             onClick={regenerateFeedToken}
@@ -703,11 +695,11 @@ export function DashboardPage() {
                           </button>
                         </div>
                       ) : (
-                        <div className="text-center py-2">
-                          <p className="text-xs text-muted-foreground mb-3">
-                            Generate a feed URL to sync your booked days with Google Calendar, Apple Calendar, or Outlook.
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Sync your booked days with Google Calendar, Apple Calendar, or Outlook.
                           </p>
-                          <Button onClick={generateFeedToken} disabled={feedLoading}>
+                          <Button size="sm" onClick={generateFeedToken} disabled={feedLoading}>
                             {feedLoading ? 'Generating...' : 'Generate Feed URL'}
                           </Button>
                         </div>
