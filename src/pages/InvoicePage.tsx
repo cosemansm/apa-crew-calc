@@ -132,7 +132,10 @@ export function InvoicePage() {
   const projectPickerRef = useRef<HTMLDivElement>(null);
   const invoiceRef = useRef<HTMLDivElement>(null);
   const timesheetRef = useRef<HTMLDivElement>(null);
-  const [activeTab, setActiveTab] = useState<'timesheet' | 'invoice'>('timesheet');
+  const [activeTab, setActiveTab] = useState<'timesheet' | 'invoice'>(() => {
+    const state = location.state as { tab?: 'timesheet' | 'invoice' } | null;
+    return state?.tab ?? 'timesheet';
+  });
 
   useEffect(() => {
     if (isImpersonating && impersonatedData) {
