@@ -378,11 +378,12 @@ async function createInvoice(
     jobReference: string | null;
     days: InvoiceDay[];
     vatRegistered: boolean;
+    clientOutsideUK: boolean;
     detailed: boolean;
   }
 ): Promise<string> {
   const base = getQBOBaseUrl();
-  const taxCode = payload.vatRegistered ? 'TAX' : 'NON';
+  const taxCode = (payload.vatRegistered && !payload.clientOutsideUK) ? 'TAX' : 'NON';
 
   const privateNote = [payload.invoiceNumber, payload.projectName, payload.jobReference]
     .filter(Boolean)
@@ -430,7 +431,7 @@ async function createInvoice(
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
 
-  const { userId, clientName, projectName, jobReference, invoiceNumber, days, vatRegistered, detailed } = req.body;
+  const { userId, clientName, projectName, jobReference, invoiceNumber, days, vatRegistered, clientOutsideUK, detailed } = req.body;
 
   if (!userId || !clientName || !days?.length) {
     return res.status(400).json({ error: 'missing_required_fields' });
@@ -444,7 +445,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const customerId = await findOrCreateCustomer(accessToken, realmId, clientName);
     const invoiceUrl = await createInvoice(accessToken, realmId, customerId, items, {
-      invoiceNumber, projectName, jobReference, days, vatRegistered, detailed,
+      invoiceNumber, projectName, jobReference, days, vatRegistered, clientOutsideUK, detailed,
     });
 
     return res.status(200).json({ invoiceUrl });

@@ -218,10 +218,11 @@ async function createInvoice(
     invoiceNumber: string;
     days: InvoiceDay[];
     vatRegistered: boolean;
+    clientOutsideUK: boolean;
     detailed: boolean;
   }
 ): Promise<string> {
-  const taxType = payload.vatRegistered ? 'OUTPUT2' : 'NONE';
+  const taxType = (payload.vatRegistered && !payload.clientOutsideUK) ? 'OUTPUT2' : 'NONE';
   const today = new Date().toISOString().split('T')[0];
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + 30);
@@ -273,7 +274,7 @@ async function createInvoice(
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'method_not_allowed' });
 
-  const { userId, clientName, projectName, jobReference, invoiceNumber, days, vatRegistered, detailed } = req.body;
+  const { userId, clientName, projectName, jobReference, invoiceNumber, days, vatRegistered, clientOutsideUK, detailed } = req.body;
 
   if (!userId || !clientName || !days?.length) {
     return res.status(400).json({ error: 'missing_required_fields' });
@@ -283,7 +284,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { accessToken, tenantId } = await getValidToken(userId);
     const contactId = await findOrCreateContact(accessToken, tenantId, clientName);
     const invoiceUrl = await createInvoice(accessToken, tenantId, contactId, {
-      clientName, projectName, jobReference, invoiceNumber, days, vatRegistered, detailed,
+      clientName, projectName, jobReference, invoiceNumber, days, vatRegistered, clientOutsideUK, detailed,
     });
     return res.status(200).json({ invoiceUrl });
   } catch (err) {
