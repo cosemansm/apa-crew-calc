@@ -210,6 +210,8 @@ interface ProjectDaySummary {
   call_time?: string;
   expenses_amount?: number;
   expenses_notes?: string;
+  equipment_value?: number;
+  equipment_discount?: number;
 }
 
 interface FullProjectDay {
@@ -788,7 +790,7 @@ export function CalculatorPage() {
 
       // 2. Load project days
       const { data } = await supabase.from('project_days')
-        .select('id, work_date, role_name, grand_total, day_number, day_type, result_json, wrap_time, call_time, expenses_amount, expenses_notes')
+        .select('id, work_date, role_name, grand_total, day_number, day_type, result_json, wrap_time, call_time, expenses_amount, expenses_notes, equipment_value, equipment_discount')
         .eq('project_id', projectId)
         .order('work_date', { ascending: true });
       if (data) {
@@ -1146,7 +1148,6 @@ export function CalculatorPage() {
     suppressDirtyRef.current = true;
     wrapManualRef.current = false;
     setShowTravel(false);
-    setShowEquipmentSection(false);
     setShowExpensesSection(false);
     setIsDirty(false);
     setPendingDayId(null);
@@ -1167,8 +1168,19 @@ export function CalculatorPage() {
     setContinuousAdditionalBreakGiven(true);
     setTravelHours('0');
     setMileage('0');
-    setEquipmentValue('0');
-    setEquipmentDiscount('0');
+    // Inherit equipment from existing days so kit fees carry over to new days
+    const dayWithEquipment = [...projectDays]
+      .sort((a, b) => b.day_number - a.day_number)
+      .find(d => (d.equipment_value ?? 0) > 0);
+    if (dayWithEquipment) {
+      setEquipmentValue(String(dayWithEquipment.equipment_value));
+      setEquipmentDiscount(String(dayWithEquipment.equipment_discount ?? 0));
+      setShowEquipmentSection(true);
+    } else {
+      setEquipmentValue('0');
+      setEquipmentDiscount('0');
+      setShowEquipmentSection(false);
+    }
     setExpensesDayAmount('');
     setExpensesDayNotes('');
     setPreviousWrap('');
