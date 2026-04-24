@@ -339,8 +339,10 @@ export function AIInputPage() {
 
     if (intent === 'question') {
       // Route to chat
-      setChatMessages([{ role: 'user', content: input }]);
+      const question = input;
+      setChatMessages([{ role: 'user', content: question }]);
       setChatInput('');
+      setInput('');
       setStage('chat');
       setChatLoading(true);
       setLoading(false);
@@ -393,14 +395,14 @@ export function AIInputPage() {
 
     const question = chatInput;
     setChatInput('');
+    const history: ChatMessage[] = [
+      ...chatMessages.map(m => ({ role: m.role, content: m.content })),
+      { role: 'user' as const, content: question },
+    ];
     setChatMessages(prev => [...prev, { role: 'user', content: question }]);
     setChatLoading(true);
 
     try {
-      const history: ChatMessage[] = chatMessages.map(m => ({
-        role: m.role,
-        content: m.content,
-      }));
 
       const queryEmbedding = await embedText(question);
       const chunks = await getTCChunks();
@@ -677,7 +679,7 @@ export function AIInputPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => { setChatMessages([]); setChatInput(''); }}
+              onClick={() => { setChatMessages([]); setChatInput(''); setStage('input'); }}
               className="gap-1.5"
             >
               <RotateCcw className="h-3.5 w-3.5" /> New chat
@@ -939,7 +941,7 @@ export function AIInputPage() {
               </div>
 
               {entry.notes && (
-                <p className="text-xs text-muted-foreground italic px-1">📝 {entry.notes}</p>
+                <p className="text-xs text-muted-foreground italic px-1">{entry.notes}</p>
               )}
 
               {/* Breakdown */}

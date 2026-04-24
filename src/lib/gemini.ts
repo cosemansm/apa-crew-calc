@@ -143,5 +143,8 @@ export async function embedText(text: string): Promise<number[]> {
   }
 
   const data = await response.json();
+  if (!data?.embedding?.values) {
+    throw new Error('Unexpected embedding API response format');
+  }
   return data.embedding.values;
 }
