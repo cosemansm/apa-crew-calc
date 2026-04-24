@@ -119,3 +119,29 @@ export async function parseTimesheetWithGemini(userInput: string): Promise<Parse
     missingFields: Array.isArray(entry.missingFields) ? entry.missingFields : [],
   }));
 }
+
+// --- Embedding ---
+
+const EMBED_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${GEMINI_API_KEY}`;
+
+export async function embedText(text: string): Promise<number[]> {
+  if (!GEMINI_API_KEY) {
+    throw new Error('Gemini API key is not configured.');
+  }
+
+  const response = await fetch(EMBED_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      content: { parts: [{ text }] },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.error?.message || `Embedding API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.embedding.values;
+}
