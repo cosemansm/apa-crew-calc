@@ -93,6 +93,7 @@ export function InvoicePage() {
   const detailedInvoice = true;
 
   const [vatRegistered, setVatRegistered] = useState(false);
+  const [clientOutsideUK, setClientOutsideUK] = useState(false);
 
   const [faConnected, setFaConnected] = useState<boolean | null>(null);
   const faDetailed = true;
@@ -278,6 +279,7 @@ export function InvoicePage() {
         invoiceNumber,
         days: selectedDays,
         vatRegistered,
+        clientOutsideUK,
         detailed: faDetailed,
       });
       setFaExportUrl(invoiceUrl);
@@ -308,6 +310,7 @@ export function InvoicePage() {
         invoiceNumber,
         days: selectedDays,
         vatRegistered,
+        clientOutsideUK,
         detailed: xeroDetailed,
       });
       setXeroExportUrl(invoiceUrl);
@@ -343,6 +346,7 @@ export function InvoicePage() {
         invoiceNumber,
         days: selectedDays,
         vatRegistered,
+        clientOutsideUK,
         detailed: qboDetailed,
       });
       setQboExportUrl(invoiceUrl);
@@ -378,7 +382,7 @@ export function InvoicePage() {
   const selectedProject = projects.find(p => p.id === selectedProjectId);
   const selectedDays = allDays.filter(d => selected.includes(d.id));
   const totalAmount = selectedDays.reduce((sum, d) => sum + (d.grand_total || 0), 0);
-  const vatAmount = vatNumber ? totalAmount * 0.2 : 0;
+  const vatAmount = (vatNumber && !clientOutsideUK) ? totalAmount * 0.2 : 0;
   const totalWithVat = totalAmount + vatAmount;
 
   const currencySymbol = getCurrencySymbol(selectedProject?.calc_engine);
@@ -562,7 +566,7 @@ export function InvoicePage() {
     setEmailTo(clientEmail);
     setEmailSubject(`Invoice ${invoiceNumber} – ${selectedProject?.name || 'Services Rendered'}`);
     setEmailMessage(
-      `Hi ${clientName || 'there'},\n\nPlease find attached invoice ${invoiceNumber} for ${selectedProject?.name || 'recent work'}.\n\nTotal amount due: ${currencySymbol}${(vatNumber ? totalWithVat : totalAmount).toFixed(2)}${vatNumber ? ' (inc. VAT)' : ''}\nPayment terms: 30 days from receipt.\n\nKind regards,\n${companyName || 'Your Name'}`
+      `Hi ${clientName || 'there'},\n\nPlease find attached invoice ${invoiceNumber} for ${selectedProject?.name || 'recent work'}.\n\nTotal amount due: ${currencySymbol}${(vatNumber ? totalWithVat : totalAmount).toFixed(2)}${vatNumber ? (clientOutsideUK ? '' : ' (inc. VAT)') : ''}\nPayment terms: 30 days from receipt.\n\nKind regards,\n${companyName || 'Your Name'}`
     );
     setEmailError('');
     setShowEmailModal(true);
@@ -791,6 +795,20 @@ export function InvoicePage() {
               <Label>Client Address <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <Input value={clientAddress} onChange={e => setClientAddress(e.target.value)} placeholder="456 Studio Road, London" />
             </div>
+            {vatRegistered && (
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="clientOutsideUK"
+                  checked={clientOutsideUK}
+                  onChange={e => setClientOutsideUK(e.target.checked)}
+                  className="h-4 w-4 rounded border-border"
+                />
+                <Label htmlFor="clientOutsideUK" className="text-sm font-normal cursor-pointer">
+                  Client is based outside the UK
+                </Label>
+              </div>
+            )}
 
             {/* Invoice-only fields */}
             {activeTab === 'invoice' && (
@@ -1257,13 +1275,18 @@ export function InvoicePage() {
                           <span style={{ color: '#9A9A9A', fontSize: '12px' }}>Subtotal (ex. VAT)</span>
                           <span style={{ color: '#FFFFFF', fontSize: '12px', fontFamily: 'monospace' }}>{currencySymbol}{totalAmount.toFixed(2)}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                          <span style={{ color: '#9A9A9A', fontSize: '12px' }}>VAT (20%)</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: clientOutsideUK ? '4px' : '10px' }}>
+                          <span style={{ color: '#9A9A9A', fontSize: '12px' }}>VAT ({clientOutsideUK ? '0' : '20'}%)</span>
                           <span style={{ color: '#FFFFFF', fontSize: '12px', fontFamily: 'monospace' }}>{currencySymbol}{vatAmount.toFixed(2)}</span>
                         </div>
+                        {clientOutsideUK && (
+                          <p style={{ color: '#9A9A9A', fontSize: '10px', margin: '0 0 10px', fontStyle: 'italic' }}>
+                            Outside the scope of UK VAT
+                          </p>
+                        )}
                         <div style={{ borderTop: '1px solid #3A3A3C', paddingTop: '10px', marginBottom: '6px' }}>
                           <p style={{ color: '#9A9A9A', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px' }}>
-                            Total Due (inc. VAT)
+                            Total Due {clientOutsideUK ? '' : '(inc. VAT)'}
                           </p>
                           <p style={{ color: '#FFD528', fontWeight: '800', fontSize: '26px', fontFamily: 'monospace', margin: '0' }}>
                             {currencySymbol}{totalWithVat.toFixed(2)}
