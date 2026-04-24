@@ -222,7 +222,11 @@ async function createInvoice(
     detailed: boolean;
   }
 ): Promise<string> {
-  const taxType = (payload.vatRegistered && !payload.clientOutsideUK) ? 'OUTPUT2' : 'NONE';
+  const taxType = !payload.vatRegistered
+    ? 'NONE'
+    : payload.clientOutsideUK
+      ? 'ZERORATEDOUTPUT'
+      : 'OUTPUT2';
   const today = new Date().toISOString().split('T')[0];
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + 30);
