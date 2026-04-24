@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
   Plus, FolderOpen, Star, StarOff, ChevronLeft, ChevronRight,
-  Calendar, Clock, X, TrendingUp, Sparkles, Edit3, Bell, Info, Trash2, Share
+  Calendar, Clock, X, TrendingUp, Sparkles, Edit3, Bell, Info, Trash2, Share, Link
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -659,19 +659,25 @@ export function DashboardPage() {
                       <Share className="h-4 w-4" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent align="end" className="w-64">
-                    <div className="space-y-2">
-                      <h4 className="font-semibold text-sm flex items-center gap-1.5">
-                        Calendar Feed
-                        {!isPremium && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">PRO</Badge>}
-                      </h4>
+                  <PopoverContent align="end" className="w-72">
+                    <div className="space-y-3">
+                      <div>
+                        <h4 className="font-semibold text-base flex items-center gap-2">
+                          <Link className="h-4 w-4" />
+                          Calendar Feed
+                          {!isPremium && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">PRO</Badge>}
+                        </h4>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Subscribe to your booked days from any calendar app
+                        </p>
+                      </div>
 
                       {!isPremium ? (
                         <p className="text-xs text-muted-foreground">
-                          Upgrade to Pro to subscribe to your booked days from any calendar app.
+                          Upgrade to Pro to generate a calendar feed URL.
                         </p>
                       ) : feedToken ? (
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           <div className="flex gap-2">
                             <input
                               type="text"
@@ -695,11 +701,11 @@ export function DashboardPage() {
                           </button>
                         </div>
                       ) : (
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-2">
-                            Sync your booked days with Google Calendar, Apple Calendar, or Outlook.
+                        <div className="text-center">
+                          <p className="text-xs text-muted-foreground mb-4">
+                            Generate a feed URL to sync your booked days with Google Calendar, Apple Calendar, or Outlook.
                           </p>
-                          <Button size="sm" onClick={generateFeedToken} disabled={feedLoading}>
+                          <Button className="w-full" onClick={generateFeedToken} disabled={feedLoading}>
                             {feedLoading ? 'Generating...' : 'Generate Feed URL'}
                           </Button>
                         </div>
