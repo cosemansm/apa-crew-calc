@@ -5,7 +5,7 @@ import { usePageTitle } from '@/hooks/usePageTitle';
 import { ProLockOverlay } from '@/components/ProLockOverlay';
 import {
   Sparkles, Send, Loader2, AlertCircle, ChevronLeft, ChevronRight,
-  CheckCircle2, Save, TriangleAlert, CalendarIcon, Star,
+  CheckCircle2, Save, TriangleAlert, CalendarIcon, Star, MessageSquare, RotateCcw,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,10 @@ import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { APA_CREW_ROLES, getRolesByDepartment } from '@/data/apa-rates';
 import { calculateCrewCost, type DayType, type DayOfWeek } from '@/data/calculation-engine';
-import { parseTimesheetWithGemini, type ParsedEntry } from '@/lib/gemini';
+import { parseTimesheetWithGemini, embedText, type ParsedEntry } from '@/lib/gemini';
+import { classifyInput } from '@/lib/classify-input';
+import { rankChunks, type TCChunk } from '@/lib/tc-search';
+import { askTCQuestion, type ChatMessage, type TCAnswer } from '@/lib/tc-chat';
 import { supabase } from '@/lib/supabase';
 import { useEngine } from '@/hooks/useEngine';
 import { useAuth } from '@/contexts/AuthContext';
@@ -30,6 +33,9 @@ import {
   addMonths, subMonths, isSameDay, isSameMonth, parseISO, getDay,
 } from 'date-fns';
 import { cn } from '@/lib/utils';
+import tcChunksData from '@/data/apa-tc-chunks.json';
+
+const tcChunks = tcChunksData as TCChunk[];
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -65,7 +71,7 @@ function addHoursToTime(time: string, hours: number): string {
   return `${String(Math.floor(totalMins / 60) % 24).padStart(2, '0')}:${String(totalMins % 60).padStart(2, '0')}`;
 }
 
-type Stage = 'input' | 'review';
+type Stage = 'input' | 'review' | 'chat';
 
 interface EditableEntry extends ParsedEntry {
   _id: string;
@@ -285,7 +291,7 @@ function FieldWrap({ label, missing, children, className }: {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function AIInputPage() {
-  usePageTitle('AI Input');
+  usePageTitle('AI Assistant');
   const navigate = useNavigate();
   const { user } = useAuth();
   const { defaultEngineId } = useEngine();
@@ -303,6 +309,11 @@ export function AIInputPage() {
   const [favouriteRoles, setFavouriteRoles] = useState<string[]>([]);
   const [userDepartment, setUserDepartment] = useState('');
 
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<(ChatMessage & { sections?: string[] })[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+
   useEffect(() => {
     if (!user) return;
     supabase.from('favourite_roles').select('role_name').eq('user_id', user.id)
@@ -311,35 +322,54 @@ export function AIInputPage() {
       .then(({ data }) => { if (data?.department) setUserDepartment(data.department); }, () => {});
   }, [user]);
 
-  // ── Parse ──────────────────────────────────────────────────────────────────
+  // ── Submit ─────────────────────────────────────────────────────────────────
 
-  const handleParse = async () => {
+  const handleSubmit = async () => {
     if (!input.trim()) return;
     setLoading(true);
     setError(null);
+
+    const intent = classifyInput(input);
+
+    if (intent === 'question') {
+      // Route to chat
+      setChatMessages([{ role: 'user', content: input }]);
+      setChatInput('');
+      setStage('chat');
+      setChatLoading(true);
+      setLoading(false);
+
+      try {
+        const queryEmbedding = await embedText(input);
+        const relevantChunks = rankChunks(queryEmbedding, tcChunks, 5);
+        const answer = await askTCQuestion(input, relevantChunks, []);
+        setChatMessages(prev => [...prev, { role: 'assistant', content: answer.content, sections: answer.sections }]);
+      } catch (err) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: `Sorry, I couldn't process that question. ${err instanceof Error ? err.message : 'Please try again.'}` }]);
+      } finally {
+        setChatLoading(false);
+      }
+      return;
+    }
+
+    // Timesheet flow (existing)
     try {
       const parsed = await parseTimesheetWithGemini(input);
       setEntries(parsed.map((e, i) => {
         const entry: EditableEntry = { ...e, _id: `entry-${i}-${Date.now()}` };
-
-        // Auto-default call time to 08:00 if not provided
         if (!entry.callTime) {
           entry.callTime = '08:00';
           entry.missingFields = entry.missingFields.filter(f => f !== 'callTime');
         }
-
-        // Rest days don't need times — remove both from missing
         if (entry.dayType === 'rest') {
           entry.missingFields = entry.missingFields.filter(f => f !== 'callTime' && f !== 'wrapTime');
         } else if (!entry.wrapTime) {
-          // Auto-calculate wrap time for a flat day
           const hours = DEFAULT_WRAP_HOURS[entry.dayType];
           if (hours !== undefined) {
             entry.wrapTime = addHoursToTime(entry.callTime, hours);
             entry.missingFields = entry.missingFields.filter(f => f !== 'wrapTime');
           }
         }
-
         return entry;
       }));
       setProjectName('');
@@ -348,6 +378,31 @@ export function AIInputPage() {
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleChatFollowUp = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+
+    const question = chatInput;
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', content: question }]);
+    setChatLoading(true);
+
+    try {
+      const history: ChatMessage[] = chatMessages.map(m => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      const queryEmbedding = await embedText(question);
+      const relevantChunks = rankChunks(queryEmbedding, tcChunks, 5);
+      const answer = await askTCQuestion(question, relevantChunks, history);
+      setChatMessages(prev => [...prev, { role: 'assistant', content: answer.content, sections: answer.sections }]);
+    } catch (err) {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: `Sorry, something went wrong. ${err instanceof Error ? err.message : 'Please try again.'}` }]);
+    } finally {
+      setChatLoading(false);
     }
   };
 
@@ -506,10 +561,10 @@ export function AIInputPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5" /> AI Timesheet Input
+              <Sparkles className="h-5 w-5" /> AI Assistant
             </CardTitle>
             <CardDescription>
-              Describe your shoot days in plain English — even partial info works. Missing fields can be filled in on the next screen.
+              Enter a timesheet in plain English or ask any question about the APA Terms &amp; Conditions.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -518,13 +573,13 @@ export function AIInputPage() {
               className="min-h-[180px] text-sm"
               value={input}
               onChange={e => setInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleParse(); }}
+              onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSubmit(); }}
             />
             <div className="flex gap-2 items-center">
-              <Button onClick={handleParse} disabled={loading || !input.trim()}>
+              <Button onClick={handleSubmit} disabled={loading || !input.trim()}>
                 {loading
-                  ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Parsing…</>
-                  : <><Send className="h-4 w-4 mr-1" /> Review</>
+                  ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Processing…</>
+                  : <><Send className="h-4 w-4 mr-1" /> Send</>
                 }
               </Button>
               <Button variant="outline" onClick={() => navigate('/calculator')}>Manual Calculator</Button>
@@ -543,24 +598,155 @@ export function AIInputPage() {
             <CardTitle className="text-base">Try an example</CardTitle>
             <CardDescription>Click any example to load it</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-2">
-            {[
-              'Call 0800 wrap 1700 + 2h OT',
-              'I was a Focus Puller on Monday at £558. Called at 7am, wrapped at 10pm.',
-              '2 day shoot as Gaffer at £568. Monday 0800–2100, Tuesday 0700–1900 continuous day.',
-              'Saturday night shoot as Sound Mixer at £649. Called 6pm, wrapped 5am.',
-              '5 day shoot as DoP at £1200. Mon–Fri, call 0730, wrap around 2000 each day.',
-            ].map((example, i) => (
-              <button
-                key={i}
-                className="w-full text-left p-3 rounded-xl border border-border text-sm text-muted-foreground hover:bg-muted/50 hover:border-[#1F1F21]/20 transition-all"
-                onClick={() => setInput(example)}
-              >
-                "{example}"
-              </button>
-            ))}
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Timesheet entries</p>
+              <div className="space-y-2">
+                {[
+                  'Call 0800 wrap 1700 + 2h OT',
+                  'I was a Focus Puller on Monday at £558. Called at 7am, wrapped at 10pm.',
+                  '2 day shoot as Gaffer at £568. Monday 0800\u20132100, Tuesday 0700\u20131900 continuous day.',
+                ].map((example, i) => (
+                  <button
+                    key={`ts-${i}`}
+                    className="w-full text-left p-3 rounded-xl border border-border text-sm text-muted-foreground hover:bg-muted/50 hover:border-[#1F1F21]/20 transition-all"
+                    onClick={() => setInput(example)}
+                  >
+                    &quot;{example}&quot;
+                  </button>
+                ))}
+              </div>
+            </div>
+            <Separator />
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Ask about APA T&amp;Cs</p>
+              <div className="space-y-2">
+                {[
+                  'What overtime grade is a Gaffer?',
+                  'How do cancellation fees work for a 4-day shoot?',
+                  'What happens if my first break is missed?',
+                  'How much mileage can I claim outside the M25?',
+                ].map((example, i) => (
+                  <button
+                    key={`qa-${i}`}
+                    className="w-full text-left p-3 rounded-xl border border-border text-sm text-muted-foreground hover:bg-muted/50 hover:border-[#1F1F21]/20 transition-all"
+                    onClick={() => setInput(example)}
+                  >
+                    &quot;{example}&quot;
+                  </button>
+                ))}
+              </div>
+            </div>
           </CardContent>
         </Card>
+        </div>
+      </ProLockOverlay>
+    );
+  }
+
+  // ─── Chat stage ──────────────────────────────────────────────────────────
+
+  if (stage === 'chat') {
+    return (
+      <ProLockOverlay
+        featureName="AI Assistant"
+        featureDescription="Ask questions about APA T&Cs or enter timesheets in plain text."
+      >
+        <div className="max-w-3xl mx-auto space-y-4">
+          {/* Header */}
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => { setStage('input'); setChatMessages([]); setInput(''); }}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex-1">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <MessageSquare className="h-5 w-5" /> APA T&amp;C Assistant
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Answers based on the APA Recommended Terms 2025
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setChatMessages([]); setChatInput(''); }}
+              className="gap-1.5"
+            >
+              <RotateCcw className="h-3.5 w-3.5" /> New chat
+            </Button>
+          </div>
+
+          {/* Messages */}
+          <div className="space-y-3">
+            {chatMessages.map((msg, i) => (
+              <div
+                key={i}
+                className={cn(
+                  'flex',
+                  msg.role === 'user' ? 'justify-start' : 'justify-end',
+                )}
+              >
+                <div
+                  className={cn(
+                    'max-w-[85%] rounded-2xl px-4 py-3 text-sm',
+                    msg.role === 'user'
+                      ? 'bg-muted text-foreground'
+                      : 'bg-[#1F1F21] text-white',
+                  )}
+                >
+                  <div className="whitespace-pre-wrap">{msg.content}</div>
+                  {msg.role === 'assistant' && msg.sections && msg.sections.length > 0 && (
+                    <div className="mt-3 pt-2 border-t border-white/10 flex flex-wrap gap-1.5">
+                      {msg.sections.map((s) => (
+                        <span
+                          key={s}
+                          className="inline-flex items-center px-2 py-0.5 rounded-md bg-white/10 text-[11px] font-medium text-white/70"
+                        >
+                          S.{s}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {/* Thinking indicator */}
+            {chatLoading && (
+              <div className="flex justify-end">
+                <div className="bg-[#1F1F21] rounded-2xl px-4 py-3 flex items-center gap-2">
+                  <div className="flex gap-1">
+                    <span className="h-2 w-2 rounded-full bg-[#FFD528] animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="h-2 w-2 rounded-full bg-[#FFD528] animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="h-2 w-2 rounded-full bg-[#FFD528] animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                  <span className="text-xs text-white/50">Checking the T&amp;Cs...</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Follow-up input */}
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex gap-2">
+                <Textarea
+                  placeholder="Ask a follow-up question..."
+                  className="min-h-[60px] text-sm flex-1 resize-none"
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleChatFollowUp(); }}
+                />
+                <Button
+                  onClick={handleChatFollowUp}
+                  disabled={chatLoading || !chatInput.trim()}
+                  className="self-end"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </ProLockOverlay>
     );
