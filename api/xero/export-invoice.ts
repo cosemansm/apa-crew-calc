@@ -140,6 +140,12 @@ type InvoiceDay = {
   expenses_notes?: string;
 };
 
+/** Format YYYY-MM-DD as DD/MM/YYYY for line item descriptions */
+function formatDate(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
 function buildDayLineItems(day: InvoiceDay, taxType: string, detailed: boolean): XeroLineItem[] {
   const items: XeroLineItem[] = [];
   const rj = day.result_json ?? {};
@@ -156,7 +162,7 @@ function buildDayLineItems(day: InvoiceDay, taxType: string, detailed: boolean):
       const timeStr = li.timeFrom && li.timeTo ? ` | ${li.timeFrom}–${li.timeTo}` : '';
       const hourly = isHourlyItem(li.hours, li.rate, li.total);
       items.push({
-        Description: `${li.description}${timeStr} | ${day.work_date}`,
+        Description: `${li.description}${timeStr} | ${formatDate(day.work_date)}`,
         Quantity: hourly ? li.hours! : 1,
         UnitAmount: hourly ? li.rate! : li.total,
         AccountCode: XERO_ACCOUNT_CODE,
@@ -166,7 +172,7 @@ function buildDayLineItems(day: InvoiceDay, taxType: string, detailed: boolean):
     for (const p of rj.penalties ?? []) {
       const hourly = isHourlyItem(p.hours, p.rate, p.total);
       items.push({
-        Description: `${p.description} | ${day.work_date}`,
+        Description: `${p.description} | ${formatDate(day.work_date)}`,
         Quantity: hourly ? p.hours! : 1,
         UnitAmount: hourly ? p.rate! : p.total,
         AccountCode: XERO_ACCOUNT_CODE,
@@ -174,16 +180,16 @@ function buildDayLineItems(day: InvoiceDay, taxType: string, detailed: boolean):
       });
     }
     if ((rj.travelPay ?? 0) > 0) {
-      items.push({ Description: `Travel Pay | ${day.work_date}`, Quantity: 1, UnitAmount: rj.travelPay!, AccountCode: XERO_ACCOUNT_CODE, TaxType: taxType });
+      items.push({ Description: `Travel Pay | ${formatDate(day.work_date)}`, Quantity: 1, UnitAmount: rj.travelPay!, AccountCode: XERO_ACCOUNT_CODE, TaxType: taxType });
     }
     if ((rj.mileage ?? 0) > 0) {
       const milesStr = rj.mileageMiles ? ` (${rj.mileageMiles} miles)` : '';
-      items.push({ Description: `Mileage${milesStr} | ${day.work_date}`, Quantity: 1, UnitAmount: rj.mileage!, AccountCode: XERO_ACCOUNT_CODE, TaxType: taxType });
+      items.push({ Description: `Mileage${milesStr} | ${formatDate(day.work_date)}`, Quantity: 1, UnitAmount: rj.mileage!, AccountCode: XERO_ACCOUNT_CODE, TaxType: taxType });
     }
   } else {
     const dayTotal = day.grand_total - equipmentNet - expensesAmount;
     items.push({
-      Description: `${day.role_name} — ${day.day_type.replace(/_/g, ' ')} | ${day.work_date} | Call: ${day.call_time} Wrap: ${day.wrap_time}`,
+      Description: `${day.role_name} — ${day.day_type.replace(/_/g, ' ')} | ${formatDate(day.work_date)} | Call: ${day.call_time} Wrap: ${day.wrap_time}`,
       Quantity: 1,
       UnitAmount: dayTotal,
       AccountCode: XERO_ACCOUNT_CODE,
@@ -192,13 +198,13 @@ function buildDayLineItems(day: InvoiceDay, taxType: string, detailed: boolean):
   }
 
   if (equipmentNet > 0) {
-    items.push({ Description: `Equipment | ${day.work_date}`, Quantity: 1, UnitAmount: equipmentNet, AccountCode: XERO_ACCOUNT_CODE, TaxType: taxType });
+    items.push({ Description: `Equipment | ${formatDate(day.work_date)}`, Quantity: 1, UnitAmount: equipmentNet, AccountCode: XERO_ACCOUNT_CODE, TaxType: taxType });
   }
 
   if (expensesAmount > 0) {
     const expDesc = day.expenses_notes
-      ? `Expenses — ${day.expenses_notes} | ${day.work_date}`
-      : `Expenses | ${day.work_date}`;
+      ? `Expenses — ${day.expenses_notes} | ${formatDate(day.work_date)}`
+      : `Expenses | ${formatDate(day.work_date)}`;
     items.push({ Description: expDesc, Quantity: 1, UnitAmount: expensesAmount, AccountCode: XERO_ACCOUNT_CODE, TaxType: taxType });
   }
 

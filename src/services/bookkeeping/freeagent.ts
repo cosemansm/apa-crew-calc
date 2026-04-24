@@ -149,6 +149,12 @@ type InvoiceItem = {
   sales_tax_rate: string;
 };
 
+/** Format YYYY-MM-DD as DD/MM/YYYY for line item descriptions */
+function formatDate(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
 function buildDayItems(day: InvoiceDay, taxRate: string, detailed: boolean): InvoiceItem[] {
   const items: InvoiceItem[] = [];
   const rj = day.result_json ?? {};
@@ -173,7 +179,7 @@ function buildDayItems(day: InvoiceDay, taxRate: string, detailed: boolean): Inv
       const timeStr = li.timeFrom && li.timeTo ? ` | ${li.timeFrom}–${li.timeTo}` : '';
       const hourly = isHourlyItem(li.hours, li.rate, li.total);
       items.push({
-        description: `${li.description}${timeStr} | ${day.work_date}`,
+        description: `${li.description}${timeStr} | ${formatDate(day.work_date)}`,
         item_type: hourly ? 'Hours' : 'Days',
         quantity: hourly ? li.hours!.toFixed(2) : '1.0',
         price: hourly ? li.rate!.toFixed(2) : (li.total ?? 0).toFixed(2),
@@ -184,7 +190,7 @@ function buildDayItems(day: InvoiceDay, taxRate: string, detailed: boolean): Inv
     for (const p of rj.penalties ?? []) {
       const hourly = isHourlyItem(p.hours, p.rate, p.total);
       items.push({
-        description: `${p.description} | ${day.work_date}`,
+        description: `${p.description} | ${formatDate(day.work_date)}`,
         item_type: hourly ? 'Hours' : 'Days',
         quantity: hourly ? p.hours!.toFixed(2) : '1.0',
         price: hourly ? p.rate!.toFixed(2) : (p.total ?? 0).toFixed(2),
@@ -194,7 +200,7 @@ function buildDayItems(day: InvoiceDay, taxRate: string, detailed: boolean): Inv
     // Travel pay
     if ((rj.travelPay ?? 0) > 0) {
       items.push({
-        description: `Travel Pay | ${day.work_date}`,
+        description: `Travel Pay | ${formatDate(day.work_date)}`,
         item_type: 'Days',
         quantity: '1.0',
         price: rj.travelPay!.toFixed(2),
@@ -205,7 +211,7 @@ function buildDayItems(day: InvoiceDay, taxRate: string, detailed: boolean): Inv
     if ((rj.mileage ?? 0) > 0) {
       const milesStr = rj.mileageMiles ? ` (${rj.mileageMiles} miles)` : '';
       items.push({
-        description: `Mileage${milesStr} | ${day.work_date}`,
+        description: `Mileage${milesStr} | ${formatDate(day.work_date)}`,
         item_type: 'Days',
         quantity: '1.0',
         price: rj.mileage!.toFixed(2),
@@ -216,7 +222,7 @@ function buildDayItems(day: InvoiceDay, taxRate: string, detailed: boolean): Inv
     // Basic: one item per day (day total minus equipment and expenses which are itemised below)
     const dayTotal = day.grand_total - equipmentNet - expensesAmount;
     items.push({
-      description: `${day.role_name} — ${day.day_type.replace(/_/g, ' ')} | ${day.work_date} | Call: ${day.call_time} Wrap: ${day.wrap_time}`,
+      description: `${day.role_name} — ${day.day_type.replace(/_/g, ' ')} | ${formatDate(day.work_date)} | Call: ${day.call_time} Wrap: ${day.wrap_time}`,
       item_type: 'Days',
       quantity: '1.0',
       price: dayTotal.toFixed(2),
@@ -227,7 +233,7 @@ function buildDayItems(day: InvoiceDay, taxRate: string, detailed: boolean): Inv
   // Equipment — always a separate line item
   if (equipmentNet > 0) {
     items.push({
-      description: `Equipment | ${day.work_date}`,
+      description: `Equipment | ${formatDate(day.work_date)}`,
       item_type: 'Days',
       quantity: '1.0',
       price: equipmentNet.toFixed(2),
@@ -238,8 +244,8 @@ function buildDayItems(day: InvoiceDay, taxRate: string, detailed: boolean): Inv
   // Expenses — always a separate line item, quantity=1 with no day/hour unit
   if (expensesAmount > 0) {
     const expDesc = day.expenses_notes
-      ? `Expenses — ${day.expenses_notes} | ${day.work_date}`
-      : `Expenses | ${day.work_date}`;
+      ? `Expenses — ${day.expenses_notes} | ${formatDate(day.work_date)}`
+      : `Expenses | ${formatDate(day.work_date)}`;
     items.push({
       description: expDesc,
       item_type: 'Expenses',

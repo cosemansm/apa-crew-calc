@@ -305,6 +305,12 @@ function makeLine(description: string, qty: number, unitPrice: number, itemId: s
   };
 }
 
+/** Format YYYY-MM-DD as DD/MM/YYYY for line item descriptions */
+function formatDate(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
 function buildDayLines(day: InvoiceDay, items: ItemIds, taxCode: string | null, detailed: boolean): QBOLine[] {
   const lines: QBOLine[] = [];
   const rj = day.result_json ?? {};
@@ -317,7 +323,7 @@ function buildDayLines(day: InvoiceDay, items: ItemIds, taxCode: string | null, 
       const timeStr = li.timeFrom && li.timeTo ? ` | ${li.timeFrom}–${li.timeTo}` : '';
       const hourly = isHourlyItem(li.hours, li.rate, li.total);
       lines.push(makeLine(
-        `${li.description}${timeStr} | ${day.work_date}`,
+        `${li.description}${timeStr} | ${formatDate(day.work_date)}`,
         hourly ? li.hours! : 1,
         hourly ? li.rate! : li.total,
         hourly ? items.hours : items.days,
@@ -327,7 +333,7 @@ function buildDayLines(day: InvoiceDay, items: ItemIds, taxCode: string | null, 
     for (const p of rj.penalties ?? []) {
       const hourly = isHourlyItem(p.hours, p.rate, p.total);
       lines.push(makeLine(
-        `${p.description} | ${day.work_date}`,
+        `${p.description} | ${formatDate(day.work_date)}`,
         hourly ? p.hours! : 1,
         hourly ? p.rate! : p.total,
         items.penalty,
@@ -335,16 +341,16 @@ function buildDayLines(day: InvoiceDay, items: ItemIds, taxCode: string | null, 
       ));
     }
     if ((rj.travelPay ?? 0) > 0) {
-      lines.push(makeLine(`Travel Pay | ${day.work_date}`, 1, rj.travelPay!, items.days, taxCode));
+      lines.push(makeLine(`Travel Pay | ${formatDate(day.work_date)}`, 1, rj.travelPay!, items.days, taxCode));
     }
     if ((rj.mileage ?? 0) > 0) {
       const milesStr = rj.mileageMiles ? ` (${rj.mileageMiles} miles)` : '';
-      lines.push(makeLine(`Mileage${milesStr} | ${day.work_date}`, 1, rj.mileage!, items.expenses, taxCode));
+      lines.push(makeLine(`Mileage${milesStr} | ${formatDate(day.work_date)}`, 1, rj.mileage!, items.expenses, taxCode));
     }
   } else {
     const dayTotal = day.grand_total - equipmentNet - expensesAmount;
     lines.push(makeLine(
-      `${day.role_name} — ${day.day_type.replace(/_/g, ' ')} | ${day.work_date} | Call: ${day.call_time} Wrap: ${day.wrap_time}`,
+      `${day.role_name} — ${day.day_type.replace(/_/g, ' ')} | ${formatDate(day.work_date)} | Call: ${day.call_time} Wrap: ${day.wrap_time}`,
       1,
       dayTotal,
       items.days,
@@ -353,12 +359,12 @@ function buildDayLines(day: InvoiceDay, items: ItemIds, taxCode: string | null, 
   }
 
   if (equipmentNet > 0) {
-    lines.push(makeLine(`Equipment | ${day.work_date}`, 1, equipmentNet, items.equipment, taxCode));
+    lines.push(makeLine(`Equipment | ${formatDate(day.work_date)}`, 1, equipmentNet, items.equipment, taxCode));
   }
   if (expensesAmount > 0) {
     const expDesc = day.expenses_notes
-      ? `Expenses — ${day.expenses_notes} | ${day.work_date}`
-      : `Expenses | ${day.work_date}`;
+      ? `Expenses — ${day.expenses_notes} | ${formatDate(day.work_date)}`
+      : `Expenses | ${formatDate(day.work_date)}`;
     lines.push(makeLine(expDesc, 1, expensesAmount, items.expenses, taxCode));
   }
 
