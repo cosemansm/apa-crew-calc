@@ -889,10 +889,6 @@ export function ProjectsPage() {
         </div>
       )}
 
-      <p className="text-xs text-muted-foreground text-center">
-        Data is retained for 6 months (free) or 3 years (Pro), in compliance with our data retention policy.
-      </p>
-
       <JobLimitDialog
         open={jobLimitOpen}
         onOpenChange={setJobLimitOpen}
