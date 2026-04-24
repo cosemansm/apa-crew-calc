@@ -10,8 +10,9 @@ import { Separator } from '@/components/ui/separator';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import {
   Plus, FolderOpen, Star, StarOff, ChevronLeft, ChevronRight,
-  Calendar, Clock, X, TrendingUp, Sparkles, Edit3, Bell, Info, Trash2
+  Calendar, Clock, X, TrendingUp, Sparkles, Edit3, Bell, Info, Trash2, Share
 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, getDay,
   addMonths, subMonths, isSameMonth, isSameDay, parseISO, addDays
@@ -120,6 +121,11 @@ export function DashboardPage() {
   const [bookkeepingPopupVisible, setBookkeepingPopupVisible] = useState(false);
   const unreadCount = useUnreadCount(notifications);
 
+  // Calendar feed
+  const [feedToken, setFeedToken] = useState<string | null>(null);
+  const [feedLoading, setFeedLoading] = useState(false);
+  const [feedCopied, setFeedCopied] = useState(false);
+
   // Keep sessionStorage cache in sync for stale-while-revalidate on next page load
   useEffect(() => { if (projects.length > 0) cacheSet(CACHE_KEY_PROJECTS, projects); }, [projects]);
   useEffect(() => { if (favourites.length > 0) cacheSet(CACHE_KEY_FAVOURITES, favourites); }, [favourites]);
@@ -190,6 +196,19 @@ export function DashboardPage() {
         setHasBookkeepingConnection(!!data);
       }, () => {});
   }, [user, isImpersonating]);
+
+  // Load existing calendar feed token
+  useEffect(() => {
+    if (!user || isImpersonating) return;
+    supabase
+      .from('calendar_feed_tokens')
+      .select('token')
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setFeedToken(data.token);
+      });
+  }, [user?.id, isImpersonating]);
 
   useEffect(() => {
     if (!subscription || isImpersonating) return;
@@ -307,6 +326,42 @@ export function DashboardPage() {
     await supabase.from('user_settings').update({
       bookkeeping_popup_dismissed_at: now,
     }).eq('user_id', user.id);
+  };
+
+  const generateFeedToken = async () => {
+    if (!user) return;
+    setFeedLoading(true);
+    const { data, error } = await supabase
+      .from('calendar_feed_tokens')
+      .insert({ user_id: user.id })
+      .select('token')
+      .single();
+    setFeedLoading(false);
+    if (data) setFeedToken(data.token);
+    if (error) toast.error('Failed to generate feed URL');
+  };
+
+  const regenerateFeedToken = async () => {
+    if (!user) return;
+    setFeedLoading(true);
+    await supabase.from('calendar_feed_tokens').delete().eq('user_id', user.id);
+    const { data, error } = await supabase
+      .from('calendar_feed_tokens')
+      .insert({ user_id: user.id })
+      .select('token')
+      .single();
+    setFeedLoading(false);
+    if (data) setFeedToken(data.token);
+    if (error) toast.error('Failed to regenerate feed URL');
+  };
+
+  const copyFeedUrl = () => {
+    if (!feedToken) return;
+    const url = `${window.location.origin}/api/calendar/${feedToken}`;
+    navigator.clipboard.writeText(url);
+    setFeedCopied(true);
+    toast.success('Feed URL copied to clipboard');
+    setTimeout(() => setFeedCopied(false), 2000);
   };
 
   const deleteProject = async (projectId: string) => {
@@ -596,6 +651,70 @@ export function DashboardPage() {
                 <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
+                <Separator orientation="vertical" className="h-5 mx-1" />
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" title="Calendar feed">
+                      <Share className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-80">
+                    <div className="space-y-3">
+                      <div>
+                        <h4 className="font-semibold text-sm flex items-center gap-1.5">
+                          Calendar Feed
+                          {!isPremium && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">PRO</Badge>}
+                        </h4>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Subscribe to your booked days from any calendar app
+                        </p>
+                      </div>
+
+                      {!isPremium ? (
+                        <p className="text-xs text-muted-foreground">
+                          Upgrade to Pro to generate a calendar feed URL.
+                        </p>
+                      ) : feedToken ? (
+                        <div className="space-y-2 rounded-lg border bg-muted/50 p-3">
+                          <label className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Your feed URL
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              readOnly
+                              value={`${window.location.origin}/api/calendar/${feedToken}`}
+                              className="flex-1 rounded-md border bg-background px-2 py-1.5 text-xs font-mono truncate"
+                            />
+                            <Button size="sm" onClick={copyFeedUrl}>
+                              {feedCopied ? 'Copied!' : 'Copy'}
+                            </Button>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            Paste this URL into your calendar app's "Subscribe by URL" option. Changes may take up to 24 hours to appear.
+                          </p>
+                          <button
+                            onClick={regenerateFeedToken}
+                            disabled={feedLoading}
+                            className="text-[11px] text-muted-foreground hover:text-foreground hover:underline"
+                          >
+                            {feedLoading ? 'Regenerating...' : 'Regenerate URL'}
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="text-center py-2">
+                          <p className="text-xs text-muted-foreground mb-3">
+                            Generate a feed URL to sync your booked days with Google Calendar, Apple Calendar, or Outlook.
+                          </p>
+                          <Button onClick={generateFeedToken} disabled={feedLoading}>
+                            {feedLoading ? 'Generating...' : 'Generate Feed URL'}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
           </CardHeader>
