@@ -33,9 +33,15 @@ import {
   addMonths, subMonths, isSameDay, isSameMonth, parseISO, getDay,
 } from 'date-fns';
 import { cn } from '@/lib/utils';
-import tcChunksData from '@/data/apa-tc-chunks.json';
-
-const tcChunks = tcChunksData as TCChunk[];
+// Lazy-load the 1.5MB embeddings JSON only when a T&C question is asked
+let tcChunksCache: TCChunk[] | null = null;
+async function getTCChunks(): Promise<TCChunk[]> {
+  if (!tcChunksCache) {
+    const { default: data } = await import('@/data/apa-tc-chunks.json');
+    tcChunksCache = data as TCChunk[];
+  }
+  return tcChunksCache;
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -341,7 +347,8 @@ export function AIInputPage() {
 
       try {
         const queryEmbedding = await embedText(input);
-        const relevantChunks = rankChunks(queryEmbedding, tcChunks, 5);
+        const chunks = await getTCChunks();
+        const relevantChunks = rankChunks(queryEmbedding, chunks, 5);
         const answer = await askTCQuestion(input, relevantChunks, []);
         setChatMessages(prev => [...prev, { role: 'assistant', content: answer.content, sections: answer.sections }]);
       } catch (err) {
@@ -396,7 +403,8 @@ export function AIInputPage() {
       }));
 
       const queryEmbedding = await embedText(question);
-      const relevantChunks = rankChunks(queryEmbedding, tcChunks, 5);
+      const chunks = await getTCChunks();
+      const relevantChunks = rankChunks(queryEmbedding, chunks, 5);
       const answer = await askTCQuestion(question, relevantChunks, history);
       setChatMessages(prev => [...prev, { role: 'assistant', content: answer.content, sections: answer.sections }]);
     } catch (err) {
