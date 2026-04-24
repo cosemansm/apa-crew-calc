@@ -659,7 +659,7 @@ export function DashboardPage() {
                       <Share className="h-4 w-4" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent align="end" className="w-72">
+                  <PopoverContent align="end" className="w-72 p-5">
                     <div className="space-y-3">
                       <div>
                         <h4 className="font-semibold text-base flex items-center gap-2">
