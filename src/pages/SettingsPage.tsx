@@ -258,6 +258,11 @@ export function SettingsPage() {
   const [editEquipmentRate, setEditEquipmentRate] = useState('');
   const [equipmentError, setEquipmentError] = useState<string | null>(null);
 
+  // Track whether user_settings have been loaded to avoid re-fetching
+  // (and overwriting unsaved user input) when the `user` object reference
+  // changes due to auth token refresh.
+  const detailsLoaded = useRef(false);
+
   // Integrations
   const [faConnected, setFaConnected] = useState<boolean | null>(null);
   const [vatRegistered, setVatRegistered] = useState(false);
@@ -302,7 +307,13 @@ export function SettingsPage() {
       return;
     }
 
+    // Skip re-fetching if details have already been loaded — prevents
+    // overwriting unsaved user input when the `user` object reference
+    // changes (e.g. due to auth token refresh).
+    if (detailsLoaded.current) return;
+
     supabase.from('user_settings').select('*').eq('user_id', user.id).single().then(({ data }) => {
+      detailsLoaded.current = true;
       if (data) {
         setDisplayName(data.display_name ?? '');
         setPhone(data.phone ?? '');
@@ -1493,7 +1504,7 @@ export function SettingsPage() {
               </SelectContent>
             </Select>
             <p className="text-sm text-muted-foreground">
-              This will affect all future projects. Existing projects keep their current T&Cs.
+              This will affect all future projects. Existing projects keep their current terms.
               You can also change the engine on individual projects from the project settings.
             </p>
           </div>
