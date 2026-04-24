@@ -180,17 +180,17 @@ export function WhatsNewDrawer({ open, onClose, onSeen }: WhatsNewDrawerProps) {
               )}
 
               {/* Body */}
-              <div className="p-3.5">
+              <div className="p-3.5 overflow-hidden">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[9px] font-black uppercase tracking-widest bg-[#FFD528]/15 text-[#FFD528] px-2 py-0.5 rounded-full">
+                  <span className="text-[9px] font-black uppercase tracking-widest bg-[#FFD528]/15 text-[#FFD528] px-2 py-0.5 rounded-full shrink-0">
                     {n.category}
                   </span>
-                  <span className="text-[10px] text-white/30 font-mono">
+                  <span className="text-[10px] text-white/30 font-mono shrink-0">
                     {new Date(n.published_at).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}
                   </span>
                 </div>
-                <h3 className="text-[13px] font-bold text-white font-mono leading-snug mb-1.5">{n.title}</h3>
-                <p className="text-[11px] text-white/50 font-mono leading-relaxed mb-3 whitespace-pre-wrap">{n.description}</p>
+                <h3 className="text-[13px] font-bold text-white font-mono leading-snug mb-1.5 break-words">{n.title}</h3>
+                <p className="text-[11px] text-white/50 font-mono leading-relaxed mb-3 whitespace-pre-wrap break-words">{n.description}</p>
                 <button
                   onClick={() => {
                     if (n.discover_link.startsWith('http')) {

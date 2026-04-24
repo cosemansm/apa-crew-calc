@@ -538,7 +538,7 @@ export function DashboardPage() {
   );
 
   return (
-    <div className={cn("space-y-6 transition-all duration-300", whatsNewOpen ? 'mr-[400px]' : 'mr-0')}>
+    <div className={cn("space-y-6 transition-all duration-300 overflow-hidden", whatsNewOpen ? 'xl:mr-[400px]' : 'mr-0')}>
       <TrialBanner />
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
@@ -665,7 +665,7 @@ export function DashboardPage() {
                         <h4 className="font-semibold text-base flex items-center gap-2">
                           <Link className="h-4 w-4" />
                           Calendar Feed
-                          {!isPremium && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">PRO</Badge>}
+                          {!isPremium && <span className="inline-flex items-center rounded-full bg-[#FFD528] px-2.5 py-0.5 text-[11px] font-bold text-[#1F1F21] tracking-wide">PRO</span>}
                         </h4>
                         <p className="text-xs text-muted-foreground mt-1">
                           Subscribe to your booked days from any calendar app
@@ -886,7 +886,7 @@ export function DashboardPage() {
         <div className="lg:col-span-2 flex flex-col gap-4">
 
           {/* Monthly donut */}
-          <Card>
+          <Card className="overflow-hidden">
             <CardContent className="p-5 relative">
               <div className="flex items-start justify-between mb-4">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -894,7 +894,7 @@ export function DashboardPage() {
                 </p>
                 {convertedMonth.isConverting && !convertedMonth.failed && !convertedMonth.loading && conversionInfoPopover(convertedMonth.targetSymbol)}
               </div>
-              <div className="flex items-center gap-5">
+              <div className="flex items-center gap-5 overflow-hidden">
                 {/* SVG Donut ring */}
                 <div className="relative shrink-0">
                   <svg width="96" height="96" viewBox="0 0 96 96">
@@ -926,9 +926,9 @@ export function DashboardPage() {
                     </text>
                   </svg>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-[11px] text-muted-foreground">Monthly earnings</p>
-                  <p className="text-2xl font-bold tracking-tight">
+                  <p className="text-2xl font-bold tracking-tight truncate">
                     {convertedMonth.isConverting && !convertedMonth.failed && convertedMonth.total != null
                       ? formatConverted(convertedMonth.targetSymbol, convertedMonth.total)
                       : formatMultiCurrencyTotal(groupByCurrency(monthProjects.map(d => ({ calc_engine: d.calc_engine, total: dayTotal(d) }))))
@@ -943,19 +943,19 @@ export function DashboardPage() {
           </Card>
 
           {/* Year total */}
-          <Card>
+          <Card className="overflow-hidden">
             <CardContent className="p-5">
               {convertedYear.isConverting && !convertedYear.failed && !convertedYear.loading && (
                 <div className="flex justify-end mb-1">
                   {conversionInfoPopover(convertedYear.targetSymbol)}
                 </div>
               )}
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-center justify-between gap-3 overflow-hidden">
+                <div className="min-w-0">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                     {currentYear} Total
                   </p>
-                  <p className="text-2xl font-bold tracking-tight mt-1">
+                  <p className="text-2xl font-bold tracking-tight mt-1 truncate">
                     {convertedYear.isConverting && !convertedYear.failed && convertedYear.total != null
                       ? formatConverted(convertedYear.targetSymbol, convertedYear.total)
                       : formatMultiCurrencyTotal(groupByCurrency(
@@ -977,7 +977,7 @@ export function DashboardPage() {
           </Card>
 
           {/* 6-month bar chart */}
-          <Card className="flex-1">
+          <Card className="flex-1 overflow-hidden">
             <CardContent className="p-5">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-4">
                 Income — last 6 months
