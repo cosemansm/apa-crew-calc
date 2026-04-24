@@ -672,6 +672,14 @@ export function ProjectsPage() {
                   <div className="flex items-center gap-2 shrink-0">
                         <Button
                           size="sm"
+                          onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
+                          className="gap-1.5"
+                        >
+                          <Edit3 className="h-3.5 w-3.5" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
                           variant="outline"
                           onClick={() => navigate('/invoices', { state: { projectId: selectedProject.id } })}
                           className="gap-1.5"
@@ -687,14 +695,6 @@ export function ProjectsPage() {
                         >
                           <FileText className="h-3.5 w-3.5" />
                           Invoice
-                        </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
-                          className="gap-1.5"
-                        >
-                          <Edit3 className="h-3.5 w-3.5" />
-                          Edit
                         </Button>
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={closeDetail}>
                       <X className="h-4 w-4" />
@@ -874,6 +874,13 @@ export function ProjectsPage() {
 
                         <div className="flex gap-2 mt-1">
                           <Button
+                            className="flex-1 gap-2"
+                            onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
+                          >
+                            <Edit3 className="h-4 w-4" />
+                            Edit
+                          </Button>
+                          <Button
                             variant="outline"
                             className="flex-1 gap-2"
                             onClick={() => navigate('/invoices', { state: { projectId: selectedProject.id } })}
@@ -888,13 +895,6 @@ export function ProjectsPage() {
                           >
                             <FileText className="h-4 w-4" />
                             Invoice
-                          </Button>
-                          <Button
-                            className="flex-1 gap-2"
-                            onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
-                          >
-                            <Edit3 className="h-4 w-4" />
-                            Edit
                           </Button>
                         </div>
                     </div>
