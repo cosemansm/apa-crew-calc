@@ -31,6 +31,7 @@ export interface QBOExportPayload {
   invoiceNumber: string;
   days: InvoiceDay[];
   vatRegistered: boolean;
+  clientOutsideUK: boolean;
   detailed: boolean;
 }
 

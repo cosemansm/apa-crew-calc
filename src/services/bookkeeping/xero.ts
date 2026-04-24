@@ -30,6 +30,7 @@ export interface XeroExportPayload {
   invoiceNumber: string;
   days: InvoiceDay[];
   vatRegistered: boolean;
+  clientOutsideUK: boolean;
   detailed: boolean;
 }
 

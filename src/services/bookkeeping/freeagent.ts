@@ -34,6 +34,7 @@ export interface FreeAgentExportPayload {
   invoiceNumber: string;
   days: InvoiceDay[];
   vatRegistered: boolean;
+  clientOutsideUK: boolean;
   detailed: boolean;
 }
 
@@ -258,7 +259,7 @@ async function createInvoice(
   contactUrl: string,
   payload: FreeAgentExportPayload
 ): Promise<string> {
-  const taxRate = payload.vatRegistered ? '20.0' : '0.0';
+  const taxRate = (payload.vatRegistered && !payload.clientOutsideUK) ? '20.0' : '0.0';
 
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + 30);
