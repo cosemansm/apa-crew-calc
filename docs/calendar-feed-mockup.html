@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calendar Feed — Popover Mockup</title>
+<style>
+  :root {
+    --yellow: #FFD528;
+    --charcoal: #1F1F21;
+    --radius: 14px;
+    --border: #e5e5e5;
+    --muted: #f5f5f5;
+    --muted-fg: #737373;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'JetBrains Mono', 'SF Mono', monospace;
+    background: #f5f5f5;
+    color: var(--charcoal);
+    padding: 40px 20px 80px;
+  }
+
+  .page-title {
+    text-align: center;
+    padding: 0 20px 6px;
+    font-size: 22px;
+    font-weight: 700;
+  }
+  .page-sub {
+    text-align: center;
+    padding: 0 20px 40px;
+    font-size: 13px;
+    color: #888;
+  }
+
+  .example {
+    max-width: 720px;
+    margin: 0 auto 50px;
+  }
+  .state-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted-fg);
+    margin-bottom: 12px;
+  }
+
+  /* ---------- Card ---------- */
+  .card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .card-header {
+    padding: 20px 24px 16px;
+  }
+  .header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-title {
+    font-size: 15px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .nav-group {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  /* ---------- Icon buttons ---------- */
+  .icon-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--charcoal);
+    transition: background 0.15s;
+  }
+  .icon-btn:hover {
+    background: var(--muted);
+  }
+  .icon-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+  .text-btn {
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--charcoal);
+  }
+  .text-btn:hover {
+    background: var(--muted);
+  }
+
+  /* ---------- Separator ---------- */
+  .sep {
+    width: 1px;
+    height: 20px;
+    background: var(--border);
+    margin: 0 4px;
+  }
+
+  /* ---------- Calendar grid (simplified) ---------- */
+  .cal-grid {
+    padding: 0 24px 20px;
+  }
+  .cal-header {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+  }
+  .cal-header span {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted-fg);
+    padding: 6px 0;
+  }
+  .cal-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+  }
+  .cal-day {
+    min-height: 48px;
+    padding: 4px;
+    font-size: 12px;
+    color: var(--charcoal);
+    border-radius: 6px;
+  }
+  .cal-day.today {
+    background: #f3f3f3;
+  }
+  .cal-day .num {
+    font-weight: 600;
+    font-size: 11px;
+  }
+  .cal-day .bar {
+    margin-top: 3px;
+    height: 4px;
+    border-radius: 2px;
+    background: #3B82F6;
+  }
+  .cal-day .bar.green { background: #22C55E; }
+  .cal-day .bar.purple { background: #8B5CF6; }
+  .cal-day.empty { color: transparent; }
+
+  /* ---------- Popover ---------- */
+  .popover-anchor {
+    position: relative;
+    display: inline-flex;
+  }
+  .popover {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 340px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+    z-index: 10;
+    overflow: hidden;
+  }
+  .popover-header {
+    padding: 16px 16px 0;
+  }
+  .popover-title {
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .popover-title svg {
+    width: 15px;
+    height: 15px;
+  }
+  .popover-desc {
+    font-size: 11px;
+    color: var(--muted-fg);
+    margin-top: 4px;
+    line-height: 1.5;
+  }
+  .popover-content {
+    padding: 12px 16px 16px;
+  }
+
+  /* ---------- Popover inner ---------- */
+  .feed-url-box {
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+  }
+  .feed-url-label {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted-fg);
+    margin-bottom: 8px;
+  }
+  .feed-url-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .feed-url-input {
+    flex: 1;
+    font-family: inherit;
+    font-size: 10px;
+    padding: 7px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--charcoal);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .btn-sm {
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 7px 12px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    background: var(--charcoal);
+    color: #fff;
+    white-space: nowrap;
+  }
+  .btn-sm:hover { background: #333; }
+  .feed-help {
+    font-size: 10px;
+    color: var(--muted-fg);
+    margin-top: 10px;
+    line-height: 1.6;
+  }
+  .feed-actions {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-ghost {
+    font-family: inherit;
+    background: transparent;
+    border: none;
+    font-size: 10px;
+    color: var(--muted-fg);
+    cursor: pointer;
+    padding: 2px 4px;
+  }
+  .btn-ghost:hover {
+    color: var(--charcoal);
+    text-decoration: underline;
+  }
+
+  /* Generate state */
+  .generate-state {
+    text-align: center;
+    padding: 8px 0;
+  }
+  .generate-state p {
+    font-size: 11px;
+    color: var(--muted-fg);
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+  .btn-generate {
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 8px 20px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    background: var(--charcoal);
+    color: #fff;
+  }
+  .btn-generate:hover { background: #333; }
+
+  .badge-pro {
+    font-family: inherit;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: var(--yellow);
+    color: var(--charcoal);
+    border: 1px solid #e6c024;
+    margin-left: 4px;
+    letter-spacing: 0.02em;
+  }
+
+  /* Share button highlight */
+  .share-btn-active {
+    background: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">Calendar Feed Popover</h1>
+<p class="page-sub">A share/link icon in the calendar header opens a popover with the feed URL</p>
+
+<!-- ────────────────────────────────────────────── -->
+<!-- STATE 1: Button in calendar header (not yet generated) -->
+<!-- ────────────────────────────────────────────── -->
+<div class="example">
+  <div class="state-label">State 1 -- Feed not yet generated (popover open)</div>
+  <div class="card">
+    <div class="card-header">
+      <div class="header-row">
+        <div class="card-title">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+          April 2026
+        </div>
+        <div class="nav-group">
+          <button class="icon-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <button class="text-btn">Today</button>
+          <button class="icon-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+
+          <div class="sep"></div>
+
+          <!-- The share button -->
+          <div class="popover-anchor">
+            <button class="icon-btn share-btn-active" title="Calendar feed">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/></svg>
+            </button>
+            <div class="popover">
+              <div class="popover-header">
+                <div class="popover-title">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                  Calendar Feed
+                  <span class="badge-pro">PRO</span>
+                </div>
+                <p class="popover-desc">Subscribe to your booked days from any calendar app</p>
+              </div>
+              <div class="popover-content">
+                <div class="generate-state">
+                  <p>Generate a feed URL to sync your booked days with Google Calendar, Apple Calendar, or Outlook.</p>
+                  <button class="btn-generate">Generate Feed URL</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Simplified calendar grid -->
+    <div class="cal-grid">
+      <div class="cal-header">
+        <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+      </div>
+      <div class="cal-days">
+        <div class="cal-day empty"></div>
+        <div class="cal-day empty"></div>
+        <div class="cal-day"><span class="num">1</span></div>
+        <div class="cal-day"><span class="num">2</span></div>
+        <div class="cal-day"><span class="num">3</span></div>
+        <div class="cal-day"><span class="num">4</span></div>
+        <div class="cal-day"><span class="num">5</span></div>
+        <div class="cal-day"><span class="num">6</span></div>
+        <div class="cal-day"><span class="num">7</span><div class="bar"></div></div>
+        <div class="cal-day"><span class="num">8</span><div class="bar"></div></div>
+        <div class="cal-day"><span class="num">9</span><div class="bar"></div></div>
+        <div class="cal-day"><span class="num">10</span><div class="bar"></div></div>
+        <div class="cal-day"><span class="num">11</span></div>
+        <div class="cal-day"><span class="num">12</span></div>
+        <div class="cal-day"><span class="num">13</span></div>
+        <div class="cal-day"><span class="num">14</span><div class="bar green"></div></div>
+        <div class="cal-day"><span class="num">15</span><div class="bar green"></div></div>
+        <div class="cal-day"><span class="num">16</span></div>
+        <div class="cal-day"><span class="num">17</span></div>
+        <div class="cal-day"><span class="num">18</span></div>
+        <div class="cal-day"><span class="num">19</span></div>
+        <div class="cal-day"><span class="num">20</span></div>
+        <div class="cal-day"><span class="num">21</span><div class="bar purple"></div></div>
+        <div class="cal-day"><span class="num">22</span><div class="bar purple"></div></div>
+        <div class="cal-day"><span class="num">23</span><div class="bar purple"></div></div>
+        <div class="cal-day today"><span class="num">24</span></div>
+        <div class="cal-day"><span class="num">25</span></div>
+        <div class="cal-day"><span class="num">26</span></div>
+        <div class="cal-day"><span class="num">27</span></div>
+        <div class="cal-day"><span class="num">28</span></div>
+        <div class="cal-day"><span class="num">29</span></div>
+        <div class="cal-day"><span class="num">30</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ────────────────────────────────────────────── -->
+<!-- STATE 2: Feed URL generated (popover open) -->
+<!-- ────────────────────────────────────────────── -->
+<div class="example">
+  <div class="state-label">State 2 -- Feed URL active (popover open)</div>
+  <div class="card">
+    <div class="card-header">
+      <div class="header-row">
+        <div class="card-title">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+          April 2026
+        </div>
+        <div class="nav-group">
+          <button class="icon-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <button class="text-btn">Today</button>
+          <button class="icon-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+
+          <div class="sep"></div>
+
+          <div class="popover-anchor">
+            <button class="icon-btn share-btn-active" title="Calendar feed">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" x2="12" y1="2" y2="15"/></svg>
+            </button>
+            <div class="popover">
+              <div class="popover-header">
+                <div class="popover-title">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                  Calendar Feed
+                  <span class="badge-pro">PRO</span>
+                </div>
+                <p class="popover-desc">Subscribe to your booked days from any calendar app</p>
+              </div>
+              <div class="popover-content">
+                <div class="feed-url-box">
+                  <div class="feed-url-label">Your feed URL</div>
+                  <div class="feed-url-row">
+                    <input class="feed-url-input" type="text" readonly value="https://crewdock.app/api/calendar/feed/a7f3c9e2-8b1d-4e5f..." />
+                    <button class="btn-sm" onclick="this.textContent='Copied!'; setTimeout(()=>this.textContent='Copy',1500)">Copy</button>
+                  </div>
+                  <p class="feed-help">
+                    Paste this URL into your calendar app's "Subscribe by URL" option. Changes may take up to 24 hours to appear.
+                  </p>
+                  <div class="feed-actions">
+                    <button class="btn-ghost">Regenerate URL</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Simplified calendar grid -->
+    <div class="cal-grid">
+      <div class="cal-header">
+        <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+      </div>
+      <div class="cal-days">
+        <div class="cal-day empty"></div>
+        <div class="cal-day empty"></div>
+        <div class="cal-day"><span class="num">1</span></div>
+        <div class="cal-day"><span class="num">2</span></div>
+        <div class="cal-day"><span class="num">3</span></div>
+        <div class="cal-day"><span class="num">4</span></div>
+        <div class="cal-day"><span class="num">5</span></div>
+        <div class="cal-day"><span class="num">6</span></div>
+        <div class="cal-day"><span class="num">7</span><div class="bar"></div></div>
+        <div class="cal-day"><span class="num">8</span><div class="bar"></div></div>
+        <div class="cal-day"><span class="num">9</span><div class="bar"></div></div>
+        <div class="cal-day"><span class="num">10</span><div class="bar"></div></div>
+        <div class="cal-day"><span class="num">11</span></div>
+        <div class="cal-day"><span class="num">12</span></div>
+        <div class="cal-day"><span class="num">13</span></div>
+        <div class="cal-day"><span class="num">14</span><div class="bar green"></div></div>
+        <div class="cal-day"><span class="num">15</span><div class="bar green"></div></div>
+        <div class="cal-day"><span class="num">16</span></div>
+        <div class="cal-day"><span class="num">17</span></div>
+        <div class="cal-day"><span class="num">18</span></div>
+        <div class="cal-day"><span class="num">19</span></div>
+        <div class="cal-day"><span class="num">20</span></div>
+        <div class="cal-day"><span class="num">21</span><div class="bar purple"></div></div>
+        <div class="cal-day"><span class="num">22</span><div class="bar purple"></div></div>
+        <div class="cal-day"><span class="num">23</span><div class="bar purple"></div></div>
+        <div class="cal-day today"><span class="num">24</span></div>
+        <div class="cal-day"><span class="num">25</span></div>
+        <div class="cal-day"><span class="num">26</span></div>
+        <div class="cal-day"><span class="num">27</span></div>
+        <div class="cal-day"><span class="num">28</span></div>
+        <div class="cal-day"><span class="num">29</span></div>
+        <div class="cal-day"><span class="num">30</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
