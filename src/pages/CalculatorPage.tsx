@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Save, RotateCcw, Calculator, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown, Trash2, Receipt, Info, Check, Cloud, Car, Send } from 'lucide-react';
+import { Save, RotateCcw, Calculator, CalendarDays, Star, Plus, FileText as InvoiceIcon, ChevronLeft, ChevronRight, Pencil, FolderOpen, Package, ChevronDown, Trash2, Receipt, Info, Check, Cloud, Car, Send, Link2 } from 'lucide-react';
 import { format, getDay, addDays, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, addMonths, subMonths } from 'date-fns';
 import { toast } from 'sonner';
 import { useEngine } from '@/hooks/useEngine';
@@ -25,6 +25,9 @@ import { useSubscription } from '@/contexts/SubscriptionContext';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { cn } from '@/lib/utils';
 import { getUKBankHolidays } from '@/lib/bankHolidays';
+import { isFreeAgentConnected } from '@/services/bookkeeping/freeagent';
+import { isXeroConnected } from '@/services/bookkeeping/xero';
+import { isQBOConnected } from '@/services/bookkeeping/quickbooks';
 
 const JS_DAY_TO_DOW = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
 
@@ -512,7 +515,7 @@ export function CalculatorPage() {
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set(['__current__']));
   const formTopRef = useRef<HTMLDivElement>(null);
-  const suppressDirtyRef = useRef(true); // Suppress initial dirty flag on mount
+  const suppressDirtyUntilRef = useRef(Date.now() + 2000); // Suppress dirty during initial mount/load
   const autoSaveNewDayRef = useRef(false);
   // When loadDayIntoForm runs before customRoles loads, store the pending role/rate here
   const pendingRoleNameRef = useRef<string | null>(null);
@@ -522,6 +525,9 @@ export function CalculatorPage() {
   const [isDirty, setIsDirty] = useState(false); // Never restore from session — always clean on load/refresh
   // Pending within-page navigation when user has unsaved changes
   const [pendingDayId, setPendingDayId] = useState<string | null>(null);
+
+  // Bookkeeping connection: null = loading, undefined = none, string = platform name
+  const [connectedPlatform, setConnectedPlatform] = useState<string | null | undefined>(null);
 
   // Miscalculation report
   const [reportOpen, setReportOpen] = useState(false);
@@ -556,7 +562,7 @@ export function CalculatorPage() {
       const resolved = customRoles.find(r => r.role === selectedRole.role)
         ?? activeEngine.getRole(selectedRole.role);
       if (resolved && resolved !== selectedRole) {
-        suppressDirtyRef.current = true;
+        suppressDirtyUntilRef.current = Date.now() + 2000;
         setSelectedRole(resolved);
       }
     } else {
@@ -565,7 +571,7 @@ export function CalculatorPage() {
       if (name) {
         const role = activeEngine.getRole(name);
         if (role) {
-          suppressDirtyRef.current = true;
+          suppressDirtyUntilRef.current = Date.now() + 2000;
           setSelectedRole(role);
         }
       }
@@ -629,6 +635,22 @@ export function CalculatorPage() {
     }
   }, [user, isImpersonating, impersonatedData]);
 
+  // Check bookkeeping connection (for pro users)
+  useEffect(() => {
+    if (!user || !isPremium) return;
+    const PLATFORM_NAMES: Record<string, string> = { freeagent: 'FreeAgent', xero: 'Xero', quickbooks: 'QuickBooks' };
+    Promise.all([
+      isFreeAgentConnected(user.id).catch(() => false),
+      isXeroConnected(user.id).catch(() => false),
+      isQBOConnected(user.id).catch(() => false),
+    ]).then(([fa, xero, qbo]) => {
+      if (fa) setConnectedPlatform(PLATFORM_NAMES.freeagent);
+      else if (xero) setConnectedPlatform(PLATFORM_NAMES.xero);
+      else if (qbo) setConnectedPlatform(PLATFORM_NAMES.quickbooks);
+      else setConnectedPlatform(undefined);
+    });
+  }, [user, isPremium]);
+
   // Close project picker on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -646,7 +668,7 @@ export function CalculatorPage() {
     // Navigate to this project — the useEffect on projectId will load its days
     setSearchParams({ project: proj.id, name: proj.name }, { replace: true });
     // Reset form for the new project (days will auto-load)
-    suppressDirtyRef.current = true;
+    suppressDirtyUntilRef.current = Date.now() + 2000;
     setIsDirty(false);
     setCurrentDayId(null);
     setSaveSuccess(false);
@@ -731,7 +753,7 @@ export function CalculatorPage() {
           if (pendingRoleNameRef.current && pendingAgreedRateRef.current) {
             const found = mapped.find(r => r.role === pendingRoleNameRef.current);
             if (found) {
-              suppressDirtyRef.current = true;
+              suppressDirtyUntilRef.current = Date.now() + 2000;
               setSelectedRole(found);
               setAgreedRate(pendingAgreedRateRef.current);
               pendingRoleNameRef.current = null;
@@ -743,7 +765,7 @@ export function CalculatorPage() {
           if (sessionRoleName && !selectedRole) {
             const found = mapped.find(r => r.role === sessionRoleName);
             if (found) {
-              suppressDirtyRef.current = true;
+              suppressDirtyUntilRef.current = Date.now() + 2000;
               setSelectedRole(found);
             }
           }
@@ -900,10 +922,7 @@ export function CalculatorPage() {
 
   // Mark dirty whenever the calculated result changes (but not during load/reset)
   useEffect(() => {
-    if (suppressDirtyRef.current) {
-      suppressDirtyRef.current = false;
-      return;
-    }
+    if (Date.now() < suppressDirtyUntilRef.current) return;
     if (result !== null) setIsDirty(true);
   }, [result]);
 
@@ -962,9 +981,10 @@ export function CalculatorPage() {
   };
 
   const loadDayIntoForm = (day: FullProjectDay) => {
-    suppressDirtyRef.current = true;
+    suppressDirtyUntilRef.current = Date.now() + 2000; // Suppress dirty during async load settle
     wrapManualRef.current = true; // saved day has a real wrap time — don't auto-override
     setIsDirty(false);
+    setLastSavedAt(new Date()); // Day is already saved — show "Saved" state
     setPendingDayId(null);
     setCurrentDayId(day.id);
     setWorkDate(day.work_date);
@@ -1111,7 +1131,7 @@ export function CalculatorPage() {
   };
 
   const handleReset = () => {
-    suppressDirtyRef.current = true;
+    suppressDirtyUntilRef.current = Date.now() + 2000;
     setIsDirty(false);
     setCurrentDayId(null);
     setSelectedRole(null);
@@ -1145,7 +1165,7 @@ export function CalculatorPage() {
 
   // Start a fresh day for a given date, carrying role/rate/project across
   const handleAddNewDay = (date: string) => {
-    suppressDirtyRef.current = true;
+    suppressDirtyUntilRef.current = Date.now() + 2000;
     wrapManualRef.current = false;
     setShowTravel(false);
     setShowExpensesSection(false);
@@ -1344,7 +1364,7 @@ export function CalculatorPage() {
     // After all state updates from handleAddNewDay settle, mark the new day dirty
     // so the "Unsaved changes" banner appears and the day won't be silently lost.
     setTimeout(() => {
-      suppressDirtyRef.current = false;
+      suppressDirtyUntilRef.current = 0;
       setIsDirty(true);
     }, 0);
   };
@@ -2554,6 +2574,24 @@ export function CalculatorPage() {
                       </Button>
                       {isDirty && (
                         <p className="text-xs text-center text-muted-foreground mt-1">Unsaved changes, please save first</p>
+                      )}
+                      {isPremium && connectedPlatform && (
+                        <Button
+                          className="w-full mt-1 bg-[#FFD528] text-[#1F1F21] hover:bg-[#FFD528]/90 font-semibold"
+                          disabled={isDirty}
+                          onClick={() => navigate('/invoices', { state: { dayId: currentDayId, sendTo: true } })}
+                        >
+                          <Send className="h-4 w-4 mr-2" /> Send to {connectedPlatform}
+                        </Button>
+                      )}
+                      {isPremium && connectedPlatform === undefined && (
+                        <Button
+                          variant="outline"
+                          className="w-full mt-1"
+                          onClick={() => navigate('/settings#bookkeeping')}
+                        >
+                          <Link2 className="h-4 w-4 mr-2" /> One click invoice — link your bookkeeping software
+                        </Button>
                       )}
                     </>
                   )}
