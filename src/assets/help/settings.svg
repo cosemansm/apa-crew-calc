@@ -1,50 +1,79 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 460" font-family="system-ui, -apple-system, sans-serif">
   <rect width="800" height="460" fill="#FAF8F4"/>
   <rect width="148" height="460" fill="#1F1F21"/>
+  <!-- Logo area -->
   <rect x="16" y="14" width="28" height="28" rx="6" fill="#FFD528"/>
-  <rect x="21" y="20" width="3" height="16" rx="1" fill="#1F1F21"/>
-  <rect x="19" y="18" width="7" height="4" rx="1" fill="#1F1F21"/>
-  <rect x="17" y="34" width="11" height="3" rx="1" fill="#1F1F21"/>
-  <rect x="26" y="24" width="6" height="3" rx="1" fill="#1F1F21"/>
+  <g fill="#1F1F21">
+    <rect x="28" y="17" width="4" height="2"/>
+    <rect x="26" y="19" width="8" height="2"/>
+    <rect x="25" y="21" width="10" height="3"/>
+    <rect x="27" y="22" width="2" height="1" fill="#FFD528"/>
+    <rect x="31" y="22" width="2" height="1" fill="#FFD528"/>
+    <rect x="23" y="24" width="14" height="2"/>
+    <rect x="25" y="26" width="10" height="4"/>
+    <rect x="28" y="27" width="4" height="2" fill="#FFD528"/>
+    <rect x="24" y="30" width="12" height="4"/>
+    <rect x="28" y="31" width="4" height="3" fill="#FFD528"/>
+    <rect x="22" y="34" width="16" height="3"/>
+    <rect x="20" y="37" width="20" height="2"/>
+  </g>
   <text x="54" y="33" fill="white" font-size="13" font-weight="600">Crew Dock</text>
+  <!-- Nav -->
   <text x="24" y="78" fill="#9A9A9A" font-size="11">Dashboard</text>
-  <text x="24" y="106" fill="#9A9A9A" font-size="11">Calculator</text>
-  <text x="24" y="134" fill="#9A9A9A" font-size="11">Jobs</text>
-  <text x="24" y="162" fill="#9A9A9A" font-size="11">AI Input</text>
-  <text x="24" y="190" fill="#9A9A9A" font-size="11">Invoices</text>
-  <text x="24" y="218" fill="#9A9A9A" font-size="11">Support</text>
+  <text x="24" y="106" fill="#9A9A9A" font-size="11">Projects</text>
+  <text x="24" y="134" fill="#9A9A9A" font-size="11">AI Input</text>
+  <text x="24" y="162" fill="#9A9A9A" font-size="11">Timesheets</text>
+  <text x="24" y="190" fill="#9A9A9A" font-size="11">Support</text>
   <rect x="10" y="374" width="128" height="30" rx="8" fill="#FFD528"/>
   <text x="24" y="394" fill="#1F1F21" font-size="11" font-weight="600">Settings</text>
   <!-- Header -->
-  <text x="168" y="36" fill="#1F1F21" font-size="16" font-weight="700">⚙ Settings</text>
+  <text x="168" y="36" fill="#1F1F21" font-size="16" font-weight="700">Settings</text>
   <!-- Settings sub-nav -->
-  <rect x="168" y="50" width="160" height="390" rx="12" fill="white" stroke="#E5E5E5" stroke-width="1"/>
+  <rect x="168" y="50" width="160" height="398" rx="12" fill="white" stroke="#E5E5E5" stroke-width="1"/>
   <rect x="178" y="60" width="140" height="28" rx="8" fill="#1F1F21"/>
-  <text x="248" y="79" text-anchor="middle" fill="white" font-size="10" font-weight="500">User Details</text>
-  <text x="194" y="110" fill="#555" font-size="10">Company Details</text>
-  <text x="194" y="134" fill="#555" font-size="10">Custom Rates</text>
-  <text x="194" y="158" fill="#555" font-size="10">My Equipment</text>
-  <text x="194" y="182" fill="#555" font-size="10">Password</text>
-  <text x="194" y="206" fill="#9A9A9A" font-size="10">Billing  <tspan fill="#9A9A9A" font-size="8">Soon</tspan></text>
-  <text x="194" y="230" fill="#555" font-size="10">Integrations</text>
-  <text x="194" y="260" fill="#E53E3E" font-size="10">⚠ Danger Zone</text>
+  <text x="248" y="79" text-anchor="middle" fill="white" font-size="10" font-weight="500">My Details</text>
+  <text x="194" y="110" fill="#555" font-size="10">My Rates</text>
+  <text x="194" y="134" fill="#555" font-size="10">My Equipment</text>
+  <text x="194" y="158" fill="#555" font-size="10">Password</text>
+  <text x="194" y="182" fill="#555" font-size="10">Plan &amp; Billing</text>
+  <text x="194" y="206" fill="#555" font-size="10">Integrations</text>
+  <text x="194" y="236" fill="#E53E3E" font-size="10">Danger Zone</text>
   <!-- Main settings panel -->
-  <rect x="342" y="50" width="440" height="390" rx="12" fill="white" stroke="#E5E5E5" stroke-width="1"/>
-  <text x="362" y="82" fill="#1F1F21" font-size="14" font-weight="600">👤 User Details</text>
+  <rect x="342" y="50" width="440" height="398" rx="12" fill="white" stroke="#E5E5E5" stroke-width="1"/>
+  <text x="362" y="82" fill="#1F1F21" font-size="14" font-weight="600">My Details</text>
   <text x="362" y="98" fill="#9A9A9A" font-size="9">Your personal information and primary department</text>
   <line x1="342" y1="108" x2="782" y2="108" stroke="#E5E5E5" stroke-width="1"/>
+  <!-- Form fields -->
   <text x="362" y="128" fill="#555" font-size="9" font-weight="600">EMAIL</text>
-  <rect x="362" y="134" width="400" height="26" rx="8" fill="#FAF8F4" stroke="#E5E5E5" stroke-width="1"/>
-  <text x="378" y="151" fill="#9A9A9A" font-size="9">support@crewdock.app</text>
-  <text x="362" y="178" fill="#555" font-size="9" font-weight="600">DISPLAY NAME</text>
-  <rect x="362" y="184" width="400" height="26" rx="8" fill="#FAF8F4" stroke="#E5E5E5" stroke-width="1"/>
-  <text x="378" y="201" fill="#9A9A9A" font-size="9">Your full name</text>
-  <text x="362" y="228" fill="#555" font-size="9" font-weight="600">PHONE</text>
-  <rect x="362" y="234" width="400" height="26" rx="8" fill="#FAF8F4" stroke="#E5E5E5" stroke-width="1"/>
-  <text x="378" y="251" fill="#9A9A9A" font-size="9">+44 7700 000000</text>
-  <text x="362" y="278" fill="#555" font-size="9" font-weight="600">MY DEPARTMENT</text>
-  <rect x="362" y="284" width="400" height="26" rx="8" fill="#FAF8F4" stroke="#E5E5E5" stroke-width="1"/>
-  <text x="378" y="301" fill="#9A9A9A" font-size="9">Select your primary department...</text>
-  <rect x="362" y="388" width="400" height="34" rx="17" fill="#FFD528"/>
-  <text x="562" y="410" text-anchor="middle" fill="#1F1F21" font-size="10" font-weight="600">💾 Save User Details</text>
+  <rect x="362" y="134" width="200" height="26" rx="8" fill="#FAF8F4" stroke="#E5E5E5" stroke-width="1"/>
+  <text x="378" y="151" fill="#9A9A9A" font-size="9">jane@example.com</text>
+  <text x="572" y="128" fill="#555" font-size="9" font-weight="600">DISPLAY NAME</text>
+  <rect x="572" y="134" width="200" height="26" rx="8" fill="#FAF8F4" stroke="#E5E5E5" stroke-width="1"/>
+  <text x="588" y="151" fill="#555" font-size="9">Jane Smith</text>
+  <text x="362" y="178" fill="#555" font-size="9" font-weight="600">PHONE</text>
+  <rect x="362" y="184" width="200" height="26" rx="8" fill="#FAF8F4" stroke="#E5E5E5" stroke-width="1"/>
+  <text x="378" y="201" fill="#555" font-size="9">+44 7700 123456</text>
+  <text x="572" y="178" fill="#555" font-size="9" font-weight="600">MY DEPARTMENT</text>
+  <rect x="572" y="184" width="200" height="26" rx="8" fill="#FAF8F4" stroke="#E5E5E5" stroke-width="1"/>
+  <text x="588" y="201" fill="#555" font-size="9">Camera</text>
+  <text x="362" y="228" fill="#555" font-size="9" font-weight="600">ADDRESS</text>
+  <rect x="362" y="234" width="410" height="26" rx="8" fill="#FAF8F4" stroke="#E5E5E5" stroke-width="1"/>
+  <text x="378" y="251" fill="#555" font-size="9">42 Camden High St, London NW1 0JH</text>
+  <!-- Company Details section -->
+  <line x1="362" y1="272" x2="762" y2="272" stroke="#E5E5E5" stroke-width="1"/>
+  <text x="362" y="296" fill="#1F1F21" font-size="12" font-weight="600">Company Details</text>
+  <text x="362" y="312" fill="#9A9A9A" font-size="9">Used on your invoices and timesheets</text>
+  <text x="362" y="336" fill="#555" font-size="9" font-weight="600">COMPANY NAME</text>
+  <rect x="362" y="342" width="200" height="26" rx="8" fill="#FAF8F4" stroke="#E5E5E5" stroke-width="1"/>
+  <text x="378" y="359" fill="#555" font-size="9">Jane Smith Productions</text>
+  <text x="572" y="336" fill="#555" font-size="9" font-weight="600">VAT NUMBER</text>
+  <rect x="572" y="342" width="200" height="26" rx="8" fill="#FAF8F4" stroke="#E5E5E5" stroke-width="1"/>
+  <text x="588" y="359" fill="#555" font-size="9">GB123456789</text>
+  <!-- Bank details (collapsed) -->
+  <text x="362" y="388" fill="#555" font-size="9" font-weight="600">BANK DETAILS</text>
+  <rect x="362" y="394" width="410" height="26" rx="8" fill="#FAF8F4" stroke="#E5E5E5" stroke-width="1"/>
+  <text x="378" y="411" fill="#555" font-size="9">Sort: 12-34-56 · Acc: 12345678 · Jane Smith Productions</text>
+  <!-- Save button -->
+  <rect x="362" y="430" width="410" height="34" rx="17" fill="#FFD528"/>
+  <text x="567" y="452" text-anchor="middle" fill="#1F1F21" font-size="10" font-weight="600">Save Details</text>
 </svg>
