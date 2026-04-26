@@ -512,7 +512,7 @@ export function DashboardPage() {
     const rough = maxVal / 3;
     const magnitude = Math.pow(10, Math.floor(Math.log10(Math.max(rough, 1))));
     const normalized = rough / magnitude;
-    const nice = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+    const nice = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 2.5 ? 2.5 : normalized <= 5 ? 5 : 10;
     return Math.max(nice * magnitude, 100);
   }
   const BAR_PX = 72; // pixel height of bar area
