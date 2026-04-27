@@ -72,6 +72,8 @@ interface ImpersonatedUserSettings {
   bank_account_name: string | null;
   bank_sort_code: string | null;
   bank_account_number: string | null;
+  bank_iban: string | null;
+  bank_bic: string | null;
 }
 
 export interface ImpersonatedUserData {

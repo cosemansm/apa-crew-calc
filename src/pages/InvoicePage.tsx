@@ -88,6 +88,8 @@ export function InvoicePage() {
   const [bankAccountName, setBankAccountName] = useState('');
   const [bankSortCode, setBankSortCode] = useState('');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [bankIban, setBankIban] = useState('');
+  const [bankBic, setBankBic] = useState('');
 
   const [clientEmail, setClientEmail] = useState('');
 
@@ -182,6 +184,8 @@ export function InvoicePage() {
         if (s.bank_account_name) setBankAccountName(s.bank_account_name);
         if (s.bank_sort_code) setBankSortCode(s.bank_sort_code);
         if (s.bank_account_number) setBankAccountNumber(s.bank_account_number);
+        if (s.bank_iban) setBankIban(s.bank_iban);
+        if (s.bank_bic) setBankBic(s.bank_bic);
         setVatRegistered(s.vat_registered ?? false);
       }
       return;
@@ -645,7 +649,9 @@ export function InvoicePage() {
     }
   };
 
-  const hasBankDetails = bankAccountName && bankSortCode && bankAccountNumber;
+  const projectEngine = selectedProject?.calc_engine ? getEngine(selectedProject.calc_engine) : null;
+  const isUkBank = !projectEngine || projectEngine.meta.country === 'GB';
+  const hasBankDetails = bankAccountName && (isUkBank ? (bankSortCode && bankAccountNumber) : (bankIban && bankBic));
 
   return (
     <div className="space-y-6">
@@ -1331,14 +1337,29 @@ export function InvoicePage() {
                         <p style={{ fontSize: '10px', color: '#9A9A9A', margin: '0 0 2px' }}>Account Name</p>
                         <p style={{ fontSize: '13px', fontWeight: '600', color: '#1F1F21', margin: '0' }}>{bankAccountName}</p>
                       </div>
-                      <div>
-                        <p style={{ fontSize: '10px', color: '#9A9A9A', margin: '0 0 2px' }}>Sort Code</p>
-                        <p style={{ fontSize: '13px', fontWeight: '600', color: '#1F1F21', margin: '0', fontFamily: 'monospace' }}>{bankSortCode}</p>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: '10px', color: '#9A9A9A', margin: '0 0 2px' }}>Account Number</p>
-                        <p style={{ fontSize: '13px', fontWeight: '600', color: '#1F1F21', margin: '0', fontFamily: 'monospace' }}>{bankAccountNumber}</p>
-                      </div>
+                      {isUkBank ? (
+                        <>
+                          <div>
+                            <p style={{ fontSize: '10px', color: '#9A9A9A', margin: '0 0 2px' }}>Sort Code</p>
+                            <p style={{ fontSize: '13px', fontWeight: '600', color: '#1F1F21', margin: '0', fontFamily: 'monospace' }}>{bankSortCode}</p>
+                          </div>
+                          <div>
+                            <p style={{ fontSize: '10px', color: '#9A9A9A', margin: '0 0 2px' }}>Account Number</p>
+                            <p style={{ fontSize: '13px', fontWeight: '600', color: '#1F1F21', margin: '0', fontFamily: 'monospace' }}>{bankAccountNumber}</p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <p style={{ fontSize: '10px', color: '#9A9A9A', margin: '0 0 2px' }}>IBAN</p>
+                            <p style={{ fontSize: '13px', fontWeight: '600', color: '#1F1F21', margin: '0', fontFamily: 'monospace' }}>{bankIban}</p>
+                          </div>
+                          <div>
+                            <p style={{ fontSize: '10px', color: '#9A9A9A', margin: '0 0 2px' }}>BIC</p>
+                            <p style={{ fontSize: '13px', fontWeight: '600', color: '#1F1F21', margin: '0', fontFamily: 'monospace' }}>{bankBic}</p>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}

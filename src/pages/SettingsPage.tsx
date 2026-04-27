@@ -226,6 +226,8 @@ export function SettingsPage() {
   const [bankAccountName, setBankAccountName] = useState('');
   const [bankSortCode, setBankSortCode] = useState('');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [bankIban, setBankIban] = useState('');
+  const [bankBic, setBankBic] = useState('');
   const [showBankDetails, setShowBankDetails] = useState(false);
 
   // Password
@@ -303,6 +305,8 @@ export function SettingsPage() {
       setBankAccountName(s.bank_account_name ?? '');
       setBankSortCode(s.bank_sort_code ?? '');
       setBankAccountNumber(s.bank_account_number ?? '');
+      setBankIban(s.bank_iban ?? '');
+      setBankBic(s.bank_bic ?? '');
       setCustomRoles(impersonatedData.customRoles as CustomRole[]);
       setEquipmentPackages(impersonatedData.equipmentPackages);
       return;
@@ -326,6 +330,8 @@ export function SettingsPage() {
         setBankAccountName(data.bank_account_name ?? '');
         setBankSortCode(data.bank_sort_code ?? '');
         setBankAccountNumber(data.bank_account_number ?? '');
+        setBankIban(data.bank_iban ?? '');
+        setBankBic(data.bank_bic ?? '');
         // Auto-enable VAT registered if user has a VAT number set
         const vatReg = data.vat_registered ?? (!!data.vat_number || false);
         setVatRegistered(vatReg);
@@ -484,6 +490,7 @@ export function SettingsPage() {
       company_name: companyName, company_address: companyAddress,
       vat_number: vatNumber, bank_account_name: bankAccountName,
       bank_sort_code: bankSortCode, bank_account_number: bankAccountNumber,
+      bank_iban: bankIban, bank_bic: bankBic,
     });
     setSavingDetails(false); setSavedDetails(true);
     setTimeout(() => setSavedDetails(false), 3000);
@@ -775,16 +782,29 @@ export function SettingsPage() {
                           <Label>Account Name</Label>
                           <Input value={bankAccountName} onChange={e => setBankAccountName(e.target.value)} placeholder="Your Name or Company Ltd" />
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-2">
-                            <Label>Sort Code</Label>
-                            <Input value={bankSortCode} onChange={e => setBankSortCode(e.target.value)} placeholder="12-34-56" maxLength={8} />
+                        {activeEngine.meta.country === 'GB' ? (
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                              <Label>Sort Code</Label>
+                              <Input value={bankSortCode} onChange={e => setBankSortCode(e.target.value)} placeholder="12-34-56" maxLength={8} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Account Number</Label>
+                              <Input value={bankAccountNumber} onChange={e => setBankAccountNumber(e.target.value)} placeholder="12345678" maxLength={8} />
+                            </div>
                           </div>
-                          <div className="space-y-2">
-                            <Label>Account Number</Label>
-                            <Input value={bankAccountNumber} onChange={e => setBankAccountNumber(e.target.value)} placeholder="12345678" maxLength={8} />
+                        ) : (
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-2">
+                              <Label>IBAN</Label>
+                              <Input value={bankIban} onChange={e => setBankIban(e.target.value)} placeholder="BE68 5390 0754 7034" maxLength={34} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>BIC</Label>
+                              <Input value={bankBic} onChange={e => setBankBic(e.target.value)} placeholder="BNGBBE2A" maxLength={11} />
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     )}
                   </div>
