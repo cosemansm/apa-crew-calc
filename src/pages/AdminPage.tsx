@@ -1902,6 +1902,34 @@ export function AdminPage() {
                                     {revokingTeam === u.user_id ? '...' : 'Revoke Team'}
                                   </button>
                                 </div>
+                              ) : teamIdInput[u.user_id] != null ? (
+                                <div className="flex items-center gap-1 justify-end">
+                                  <input
+                                    type="text"
+                                    placeholder="team-id"
+                                    autoFocus
+                                    value={teamIdInput[u.user_id] ?? ''}
+                                    onChange={e => setTeamIdInput(prev => ({ ...prev, [u.user_id]: e.target.value }))}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Escape') setTeamIdInput(prev => { const next = { ...prev }; delete next[u.user_id]; return next; });
+                                      if (e.key === 'Enter' && (teamIdInput[u.user_id] ?? '').trim()) grantTeam(u.user_id, teamIdInput[u.user_id]!);
+                                    }}
+                                    className="w-24 bg-[#1F1F21] text-white text-[10px] font-mono rounded-lg px-2 py-1 border border-[#0ea5e9]/40 placeholder:text-white/20 focus:outline-none"
+                                  />
+                                  <button
+                                    onClick={() => grantTeam(u.user_id, teamIdInput[u.user_id] ?? '')}
+                                    disabled={grantingTeam === u.user_id || !(teamIdInput[u.user_id] ?? '').trim()}
+                                    className="px-2.5 py-1 rounded-lg bg-[#0ea5e9]/10 hover:bg-[#0ea5e9]/20 text-[#0ea5e9] text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
+                                  >
+                                    {grantingTeam === u.user_id ? '...' : 'Assign'}
+                                  </button>
+                                  <button
+                                    onClick={() => setTeamIdInput(prev => { const next = { ...prev }; delete next[u.user_id]; return next; })}
+                                    className="px-1.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-white/30 hover:text-white/50 text-[10px] transition-all"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </div>
                               ) : (
                                 <div className="flex items-center gap-1.5 justify-end">
                                   <button
@@ -1911,22 +1939,12 @@ export function AdminPage() {
                                   >
                                     {grantingLifetime === u.user_id ? '...' : 'Lifetime'}
                                   </button>
-                                  <div className="flex items-center gap-1">
-                                    <input
-                                      type="text"
-                                      placeholder="team-id"
-                                      value={teamIdInput[u.user_id] ?? ''}
-                                      onChange={e => setTeamIdInput(prev => ({ ...prev, [u.user_id]: e.target.value }))}
-                                      className="w-20 bg-[#1F1F21] text-white text-[10px] font-mono rounded-lg px-2 py-1 border border-white/10 placeholder:text-white/20 focus:outline-none focus:border-[#38bdf8]/40"
-                                    />
-                                    <button
-                                      onClick={() => grantTeam(u.user_id, teamIdInput[u.user_id] ?? '')}
-                                      disabled={grantingTeam === u.user_id || !(teamIdInput[u.user_id] ?? '').trim()}
-                                      className="px-2.5 py-1 rounded-lg bg-[#38bdf8]/10 hover:bg-[#38bdf8]/20 text-[#38bdf8] text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
-                                    >
-                                      {grantingTeam === u.user_id ? '...' : 'Team'}
-                                    </button>
-                                  </div>
+                                  <button
+                                    onClick={() => setTeamIdInput(prev => ({ ...prev, [u.user_id]: '' }))}
+                                    className="px-2.5 py-1 rounded-lg bg-[#0ea5e9]/10 hover:bg-[#0ea5e9]/20 text-[#0ea5e9] text-[10px] font-bold uppercase tracking-wider transition-all"
+                                  >
+                                    Team
+                                  </button>
                                 </div>
                               )}
                           </td>
