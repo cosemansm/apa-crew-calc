@@ -269,14 +269,10 @@ Deno.serve(async (req) => {
     const calculatorToolCounts: Record<string, number> = {}
     const bookkeepingSoftwareCounts: Record<string, number> = {}
     let totalOnboarded = 0
-    let totalSkipped = 0
 
     userSettings.forEach(s => {
-      if (s.onboarding_completed) {
+      if (s.onboarding_completed && (s.calculator_tool || s.bookkeeping_software)) {
         totalOnboarded++
-        if (!s.calculator_tool && !s.bookkeeping_software) {
-          totalSkipped++
-        }
       }
       if (s.calculator_tool) {
         calculatorToolCounts[s.calculator_tool] = (calculatorToolCounts[s.calculator_tool] ?? 0) + 1
@@ -293,9 +289,6 @@ Deno.serve(async (req) => {
     const onboardingBookkeeping = Object.entries(bookkeepingSoftwareCounts)
       .map(([software, count]) => ({ software, count }))
       .sort((a, b) => b.count - a.count)
-
-    const totalAnswered = totalOnboarded - totalSkipped
-    const completionRate = totalOnboarded > 0 ? Math.round((totalAnswered / totalOnboarded) * 100) : 0
 
     // ── Build response ──────────────────────────────────────────────────────
     const stats = {
@@ -356,8 +349,6 @@ Deno.serve(async (req) => {
         calculatorTools: onboardingCalcTools,
         bookkeepingSoftware: onboardingBookkeeping,
         totalOnboarded,
-        totalSkipped,
-        completionRate,
       },
     }
 

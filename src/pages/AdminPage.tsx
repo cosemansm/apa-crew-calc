@@ -158,8 +158,6 @@ interface AdminStats {
     calculatorTools: { tool: string; count: number }[];
     bookkeepingSoftware: { software: string; count: number }[];
     totalOnboarded: number;
-    totalSkipped: number;
-    completionRate: number;
   };
 }
 
@@ -1732,21 +1730,11 @@ export function AdminPage() {
           {stats.onboarding && (
             <>
               <SectionTitle>Onboarding Insights</SectionTitle>
-              <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="grid grid-cols-1 gap-3 mb-4">
                 <div className="bg-[#2a2a2c] rounded-2xl p-4 border border-white/5">
-                  <span className="text-[10px] text-white/40 font-mono uppercase tracking-wider block mb-1">Onboarded</span>
+                  <span className="text-[10px] text-white/40 font-mono uppercase tracking-wider block mb-1">Survey Responses</span>
                   <span className="text-2xl font-bold font-mono text-[#FFD528]">{stats.onboarding.totalOnboarded}</span>
-                  <span className="text-[11px] text-white/30 block mt-1">completed wizard</span>
-                </div>
-                <div className="bg-[#2a2a2c] rounded-2xl p-4 border border-white/5">
-                  <span className="text-[10px] text-white/40 font-mono uppercase tracking-wider block mb-1">Skipped</span>
-                  <span className="text-2xl font-bold font-mono text-white">{stats.onboarding.totalSkipped}</span>
-                  <span className="text-[11px] text-white/30 block mt-1">skipped all steps</span>
-                </div>
-                <div className="bg-[#2a2a2c] rounded-2xl p-4 border border-white/5">
-                  <span className="text-[10px] text-white/40 font-mono uppercase tracking-wider block mb-1">Completion Rate</span>
-                  <span className="text-2xl font-bold font-mono text-[#4ade80]">{stats.onboarding.completionRate}%</span>
-                  <span className="text-[11px] text-white/30 block mt-1">answered at least 1 step</span>
+                  <span className="text-[11px] text-white/30 block mt-1">answered at least 1 question</span>
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
