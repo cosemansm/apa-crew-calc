@@ -8,7 +8,7 @@ export interface Subscription {
   user_id: string;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
-  status: 'trialing' | 'active' | 'lifetime' | 'past_due' | 'canceled' | 'unpaid';
+  status: 'trialing' | 'active' | 'lifetime' | 'team' | 'past_due' | 'canceled' | 'unpaid';
   trial_ends_at: string;
   current_period_end: string | null;
   trial_extended: boolean;
@@ -87,6 +87,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const isPremium =
     subscription?.status === 'active' ||
     subscription?.status === 'lifetime' ||
+    subscription?.status === 'team' ||
     isTrialing;
   const trialDaysLeft = trialEndsAt
     ? Math.max(0, Math.ceil((trialEndsAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
@@ -103,7 +104,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
     ? (impSub?.status === 'trialing' && impTrialEndsAt != null && impTrialEndsAt > new Date())
     : isTrialing;
   const effectiveIsPremium = isImpersonating
-    ? (impSub?.status === 'active' || impSub?.status === 'lifetime' || effectiveIsTrialing)
+    ? (impSub?.status === 'active' || impSub?.status === 'lifetime' || impSub?.status === 'team' || effectiveIsTrialing)
     : isPremium;
   const effectiveTrialDaysLeft = isImpersonating
     ? (impTrialEndsAt ? Math.max(0, Math.ceil((impTrialEndsAt.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))) : 0)
