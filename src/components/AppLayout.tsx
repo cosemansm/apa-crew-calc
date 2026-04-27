@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils';
 import logoSrc from '@/assets/logo.png';
 import { ImpersonationBanner } from '@/components/ImpersonationBanner';
 import { useImpersonation } from '@/contexts/ImpersonationContext';
+import { useEngine } from '@/hooks/useEngine';
+import { ShaderWallpaper } from '@/components/ShaderWallpaper';
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -24,9 +26,11 @@ export function AppLayout() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   const { isImpersonating } = useImpersonation();
+  const { activeEngine } = useEngine();
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen relative">
+      <ShaderWallpaper />
       <ImpersonationBanner />
       {/* ── Desktop Floating Sidebar ── */}
       <aside
@@ -185,17 +189,23 @@ export function AppLayout() {
             )}
           </div>
 
-          {/* APA T&Cs link */}
-          {sidebarExpanded && (
-            <a
-              href="https://www.a-p-a.net/apa-crew-terms/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-white/25 hover:text-white/50 transition-colors text-[10px] font-mono"
-              title="APA Recommended Terms for Crew 2025"
-            >
-              <span>APA T&Cs 2025 ↗</span>
-            </a>
+          {/* Engine terms link */}
+          {sidebarExpanded && activeEngine.meta.termsLabel && (
+            activeEngine.meta.termsUrl ? (
+              <a
+                href={activeEngine.meta.termsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-white/25 hover:text-white/50 transition-colors text-[10px] font-mono"
+                title={activeEngine.meta.termsLabel}
+              >
+                <span>{activeEngine.meta.termsLabel} ↗</span>
+              </a>
+            ) : (
+              <span className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-white/25 text-[10px] font-mono">
+                {activeEngine.meta.termsLabel}
+              </span>
+            )
           )}
 
           {/* Expand/Collapse toggle */}
@@ -217,7 +227,7 @@ export function AppLayout() {
 
       {/* ── Main Content ── */}
       <div className={cn(
-        "transition-all duration-300 print:ml-0",
+        "transition-all duration-300 print:ml-0 relative z-10",
         sidebarExpanded ? "md:ml-[236px]" : "md:ml-[88px]"
       )}>
         {/* Mobile — floating pill header */}
