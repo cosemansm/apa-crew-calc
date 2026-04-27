@@ -24,6 +24,7 @@ import { exportToFreeAgent, isFreeAgentConnected, FreeAgentAuthError } from '@/s
 import { exportToXero, isXeroConnected, XeroAuthError } from '@/services/bookkeeping/xero';
 import { exportToQBO, isQBOConnected, QBOAuthError } from '@/services/bookkeeping/quickbooks';
 import { BookkeepingCTA } from '@/components/BookkeepingCTA';
+import { ProUpgradeDialog } from '@/components/ProUpgradeDialog';
 import { getEngine } from '@/engines/index';
 import { TimesheetDocument } from '@/components/TimesheetDocument';
 import type { TimesheetDay } from '@/components/TimesheetDocument';
@@ -119,6 +120,8 @@ export function InvoicePage() {
 
   const [downloading, setDownloading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [upgradeFeature, setUpgradeFeature] = useState('');
 
   // Email compose modal
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -563,7 +566,8 @@ export function InvoicePage() {
 
   const openEmailModal = () => {
     if (!isPremium) {
-      navigate('/#pricing');
+      setUpgradeFeature('Sending invoices');
+      setShowUpgradeDialog(true);
       return;
     }
     setEmailTo(clientEmail);
@@ -854,13 +858,15 @@ export function InvoicePage() {
           <div className="flex gap-2">
             <Button
               className="flex-1 gap-2 bg-[#FFD528] text-[#1F1F21] hover:bg-[#FFD528]/90"
-              onClick={handleTimesheetDownload}
+              onClick={isPremium ? handleTimesheetDownload : () => { setUpgradeFeature('Timesheet export'); setShowUpgradeDialog(true); }}
               disabled={downloading || selectedDays.length === 0}
               title={selectedDays.length === 0 ? 'Select at least one day to download' : undefined}
             >
               {downloading
                 ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
-                : <><Download className="h-4 w-4" /> Download PDF</>
+                : isPremium
+                  ? <><Download className="h-4 w-4" /> Download PDF</>
+                  : <><Lock className="h-4 w-4" /> Download PDF</>
               }
             </Button>
             <Button
@@ -891,12 +897,14 @@ export function InvoicePage() {
           <div className="flex gap-2">
             <Button
               className="flex-1 gap-2"
-              onClick={handleDownload}
+              onClick={isPremium ? handleDownload : () => { setUpgradeFeature('Invoice export'); setShowUpgradeDialog(true); }}
               disabled={downloading || sending || selectedDays.length === 0}
             >
               {downloading
                 ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
-                : <><Download className="h-4 w-4" /> Download PDF</>
+                : isPremium
+                  ? <><Download className="h-4 w-4" /> Download PDF</>
+                  : <><Lock className="h-4 w-4" /> Download PDF</>
               }
             </Button>
             <Button
@@ -930,7 +938,7 @@ export function InvoicePage() {
           {/* FreeAgent export result */}
           {faExportUrl && (
             <p className="text-xs text-center">
-              <a href={faExportUrl} target="_blank" rel="noopener noreferrer" className="text-[#FFD528] underline">
+              <a href="https://login.freeagent.com/login" target="_blank" rel="noopener noreferrer" className="text-[#FFD528] underline">
                 View draft invoice in FreeAgent →
               </a>
             </p>
@@ -975,7 +983,7 @@ export function InvoicePage() {
           {/* Xero export result */}
           {xeroExportUrl && (
             <p className="text-xs text-center">
-              <a href={xeroExportUrl} target="_blank" rel="noopener noreferrer" className="text-[#FFD528] underline">
+              <a href="https://login.xero.com/" target="_blank" rel="noopener noreferrer" className="text-[#FFD528] underline">
                 View draft invoice in Xero →
               </a>
             </p>
@@ -1013,7 +1021,7 @@ export function InvoicePage() {
           {/* QBO export result */}
           {qboExportUrl && (
             <p className="text-xs text-center">
-              <a href={qboExportUrl} target="_blank" rel="noopener noreferrer" className="text-[#FFD528] underline">
+              <a href="https://accounts.intuit.com/app/sign-in?app=qbo" target="_blank" rel="noopener noreferrer" className="text-[#FFD528] underline">
                 View invoice in QuickBooks →
               </a>
             </p>
@@ -1444,6 +1452,12 @@ export function InvoicePage() {
           </div>
         </div>
       )}
+      <ProUpgradeDialog
+        open={showUpgradeDialog}
+        onOpenChange={setShowUpgradeDialog}
+        featureName={upgradeFeature}
+        description="Upgrade to Pro to download and send timesheets and invoices."
+      />
     </div>
   );
 }
