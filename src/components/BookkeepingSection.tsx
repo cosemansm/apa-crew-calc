@@ -4,6 +4,7 @@ import { BookOpen } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ProLockOverlay } from '@/components/ProLockOverlay';
 import { isFreeAgentConnected } from '@/services/bookkeeping/freeagent';
 import { isXeroConnected } from '@/services/bookkeeping/xero';
 import { isQBOConnected } from '@/services/bookkeeping/quickbooks';
@@ -64,48 +65,53 @@ export function BookkeepingSection({ userId, isPremium }: BookkeepingSectionProp
         Bookkeeping
       </h2>
 
-      <Card>
-        <CardContent className="p-0">
-          {connectedPlatform ? (
-            // Connected state — single platform row
-            <div className="flex items-center justify-between gap-4 p-4">
-              <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-lg border border-border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
-                  <img src={connectedPlatform.logo} alt={connectedPlatform.name} className="h-7 w-7 object-contain" />
-                </div>
-                <div>
-                  <p className="font-medium text-sm">{connectedPlatform.name}</p>
-                  <Badge className="bg-green-100 text-green-700 border-green-200 mt-1">Connected</Badge>
-                </div>
-              </div>
-              <Button variant="outline" size="sm" onClick={handleManage}>
-                Manage
-              </Button>
-            </div>
-          ) : (
-            // Not connected — all three platforms
-            PLATFORMS.map((platform, i) => (
-              <div
-                key={platform.id}
-                className={`flex items-center justify-between gap-4 p-4 ${i < PLATFORMS.length - 1 ? 'border-b border-border' : ''}`}
-              >
+      <ProLockOverlay
+        featureName="Bookkeeping"
+        featureDescription="Link your bookkeeping software and invoice in seconds."
+      >
+        <Card>
+          <CardContent className="p-0">
+            {connectedPlatform ? (
+              // Connected state — single platform row
+              <div className="flex items-center justify-between gap-4 p-4">
                 <div className="flex items-center gap-4">
                   <div className="h-10 w-10 rounded-lg border border-border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
-                    <img src={platform.logo} alt={platform.name} className="h-7 w-7 object-contain" />
+                    <img src={connectedPlatform.logo} alt={connectedPlatform.name} className="h-7 w-7 object-contain" />
                   </div>
                   <div>
-                    <p className="font-medium text-sm">{platform.name}</p>
-                    <p className="text-xs text-muted-foreground">{platform.description}</p>
+                    <p className="font-medium text-sm">{connectedPlatform.name}</p>
+                    <Badge className="bg-green-100 text-green-700 border-green-200 mt-1">Connected</Badge>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" onClick={handleConnect}>
-                  Connect
+                <Button variant="outline" size="sm" onClick={handleManage}>
+                  Manage
                 </Button>
               </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+            ) : (
+              // Not connected — all three platforms
+              PLATFORMS.map((platform, i) => (
+                <div
+                  key={platform.id}
+                  className={`flex items-center justify-between gap-4 p-4 ${i < PLATFORMS.length - 1 ? 'border-b border-border' : ''}`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-lg border border-border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
+                      <img src={platform.logo} alt={platform.name} className="h-7 w-7 object-contain" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">{platform.name}</p>
+                      <p className="text-xs text-muted-foreground">{platform.description}</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={handleConnect}>
+                    Connect
+                  </Button>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </ProLockOverlay>
     </div>
   );
 }
