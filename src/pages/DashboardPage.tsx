@@ -1134,6 +1134,7 @@ export function DashboardPage() {
         <BookkeepingSection
           userId={isImpersonating ? impersonatedData!.userId : user.id}
           isPremium={isPremium}
+          impersonatedConnections={isImpersonating ? impersonatedData!.bookkeepingConnections : undefined}
         />
       )}
 

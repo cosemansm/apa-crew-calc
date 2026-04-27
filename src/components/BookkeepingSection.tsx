@@ -14,6 +14,8 @@ import quickbooksLogo from '@/assets/integrations/quickbooks.svg';
 interface BookkeepingSectionProps {
   userId: string;
   isPremium: boolean;
+  /** Pre-resolved connection flags (used during admin impersonation to bypass RLS) */
+  impersonatedConnections?: { freeagent: boolean; xero: boolean; quickbooks: boolean };
 }
 
 type Platform = 'freeagent' | 'xero' | 'quickbooks';
@@ -24,12 +26,22 @@ const PLATFORMS: { id: Platform; name: string; description: string; logo: string
   { id: 'quickbooks',name: 'QuickBooks', description: 'Push invoices to QuickBooks Online', logo: quickbooksLogo },
 ];
 
-export function BookkeepingSection({ userId, isPremium }: BookkeepingSectionProps) {
+function resolveConnected(c: { freeagent: boolean; xero: boolean; quickbooks: boolean }): Platform | undefined {
+  if (c.freeagent)  return 'freeagent';
+  if (c.xero)       return 'xero';
+  if (c.quickbooks)  return 'quickbooks';
+  return undefined;
+}
+
+export function BookkeepingSection({ userId, isPremium, impersonatedConnections }: BookkeepingSectionProps) {
   const navigate = useNavigate();
   // null = still loading, undefined = none connected, Platform = connected platform id
-  const [connected, setConnected] = useState<Platform | null | undefined>(null);
+  const [connected, setConnected] = useState<Platform | null | undefined>(
+    impersonatedConnections ? resolveConnected(impersonatedConnections) : null
+  );
 
   useEffect(() => {
+    if (impersonatedConnections) return; // already resolved from snapshot
     Promise.all([
       isFreeAgentConnected(userId).catch(() => false),
       isXeroConnected(userId).catch(() => false),
@@ -40,7 +52,7 @@ export function BookkeepingSection({ userId, isPremium }: BookkeepingSectionProp
       else if (qbo)  setConnected('quickbooks');
       else           setConnected(undefined);
     });
-  }, [userId]);
+  }, [userId, impersonatedConnections]);
 
   const handleConnect = () => {
     navigate(isPremium ? '/settings#bookkeeping' : '/#pricing');
