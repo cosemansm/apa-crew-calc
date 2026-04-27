@@ -1,6 +1,6 @@
 import { Shield } from 'lucide-react';
 
-const sections = [
+export const privacySections = [
   {
     title: '1. Who We Are',
     body: 'Crew Dock is operated by Orbit Innovations Ltd ("we", "us", "our"). We are the data controller for personal data collected through this Service. Contact: support@crewdock.app.',
@@ -74,7 +74,7 @@ export function PrivacyPage() {
         <p className="text-sm text-muted-foreground mb-8">Last updated: April 2026 · GDPR compliant · Data controller: Orbit Innovations Ltd</p>
 
         <div className="space-y-4 text-sm leading-relaxed">
-          {sections.map(section => (
+          {privacySections.map(section => (
             <div key={section.title} className="rounded-xl border border-border px-5 py-4 space-y-1.5">
               <p className="font-semibold text-foreground">{section.title}</p>
               <p className="text-muted-foreground">{section.body}</p>
