@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
 
     const [usersResult, subscriptionsResult, profilesResult] = await Promise.allSettled([
       db.auth.admin.listUsers({ perPage: 1000, page: 1 }),
-      db.from('subscriptions').select('user_id, status, trial_ends_at, current_period_end'),
+      db.from('subscriptions').select('user_id, status, trial_ends_at, current_period_end, team_id'),
       db.from('profiles').select('id, signup_country, multi_engine_enabled, authorized_engines'),
     ])
 
@@ -63,6 +63,7 @@ Deno.serve(async (req) => {
         name: (u.user_metadata?.full_name as string | undefined) ?? '',
         status,
         trial_ends_at: sub?.trial_ends_at ?? null,
+        team_id: sub?.team_id ?? null,
         created_at: u.created_at,
         signup_country: profile?.signup_country ?? null,
         multi_engine_enabled: profile?.multi_engine_enabled ?? false,

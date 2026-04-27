@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
       .sort((a, b) => b.count - a.count)
 
     // ── Subscriptions ───────────────────────────────────────────────────────
-    let trialing = 0, free = 0, active = 0, lifetime = 0, pastDue = 0, canceled = 0, resubscribed = 0, trialExtended = 0
+    let trialing = 0, free = 0, active = 0, lifetime = 0, team = 0, pastDue = 0, canceled = 0, resubscribed = 0, trialExtended = 0
 
     subscriptions.forEach(s => {
       if (s.status === 'trialing') {
@@ -192,6 +192,8 @@ Deno.serve(async (req) => {
         }
       } else if (s.status === 'lifetime') {
         lifetime++
+      } else if (s.status === 'team') {
+        team++
       } else if (s.status === 'past_due' || s.status === 'unpaid') {
         pastDue++
       } else if (s.status === 'canceled') {
@@ -200,8 +202,8 @@ Deno.serve(async (req) => {
       if (s.trial_extended) trialExtended++
     })
 
-    const paidUsers = active + resubscribed + lifetime
-    const everConverted = subscriptions.filter(s => s.status === 'active' || s.status === 'lifetime' || s.status === 'past_due' || s.status === 'canceled').length
+    const paidUsers = active + resubscribed + lifetime + team
+    const everConverted = subscriptions.filter(s => s.status === 'active' || s.status === 'lifetime' || s.status === 'team' || s.status === 'past_due' || s.status === 'canceled').length
     const conversionRate = users.length > 0 ? Math.round((everConverted / users.length) * 100) : 0
 
     // ── Projects ────────────────────────────────────────────────────────────
@@ -310,6 +312,7 @@ Deno.serve(async (req) => {
         free,
         active,
         lifetime,
+        team,
         pastDue,
         canceled,
         resubscribed,
