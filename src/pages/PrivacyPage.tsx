@@ -14,6 +14,10 @@ const sections = [
     body: 'Your data is used to: provide and improve the Service; generate invoices on your behalf; send transactional emails (invoice delivery, account security); process payments via Stripe; respond to support requests. We do not sell your data to third parties.',
   },
   {
+    title: '3a. AI-Powered Features',
+    body: 'When you use AI-powered features such as timesheet import or the terms & conditions assistant, the text you provide is sent to Google Gemini for processing. Google acts as a data processor under our agreement and does not use your data to train its models. We do not store the raw text you submit to AI features beyond the duration of the request. The parsed results (structured timesheet data) are stored as part of your project data.',
+  },
+  {
     title: '4. Legal Basis for Processing (GDPR)',
     body: 'We process your data under the following legal bases: (a) Contract — processing necessary to provide the Service you have signed up for. (b) Legitimate interests — security monitoring, fraud prevention, and service improvement. (c) Consent — marketing emails (where applicable; you may withdraw consent at any time). (d) Legal obligation — where required by law.',
   },
@@ -23,7 +27,7 @@ const sections = [
   },
   {
     title: '6. Data Sharing',
-    body: 'We share data only with trusted sub-processors necessary to operate the Service: Supabase (database hosting, EU/US); Vercel (hosting, US); Resend (transactional email, US); Stripe (payment processing, US). All processors are bound by GDPR-compliant data processing agreements.',
+    body: 'We share data only with trusted sub-processors necessary to operate the Service: Supabase (database hosting, EU/US); Vercel (hosting, US); Resend (transactional email, US); Stripe (payment processing, US); Sentry (sentry.io — error monitoring and performance tracking, US; receives user identifiers and error context to help us diagnose and fix issues); Vercel Analytics & Speed Insights (anonymous, cookieless page-view and performance analytics; no personal data is collected beyond standard request metadata such as IP address, which is not stored); Google Gemini API (AI-powered timesheet parsing and terms & conditions chat; when you use AI features, the text you enter is sent to Google\'s servers for processing; Google does not use this data to train its models under our API terms); ipapi.co (IP geolocation used once at sign-up to detect your country for regional calculator defaults; your IP address is sent to ipapi.co and no other data is shared); FreeAgent, Xero, and QuickBooks (bookkeeping integrations, when connected; invoice data including descriptions, amounts, dates, and VAT is sent to the connected provider via their API; OAuth credentials are stored securely to maintain your connection). All processors are bound by GDPR-compliant data processing agreements.',
   },
   {
     title: '6a. Voluntarily Submitted Calculation Data',
@@ -67,7 +71,7 @@ export function PrivacyPage() {
           <Shield className="h-6 w-6 text-[#FFD528]" />
           <h1 className="text-2xl font-bold">Privacy Policy</h1>
         </div>
-        <p className="text-sm text-muted-foreground mb-8">Last updated: March 2026 · GDPR compliant · Data controller: Orbit Innovations Ltd</p>
+        <p className="text-sm text-muted-foreground mb-8">Last updated: April 2026 · GDPR compliant · Data controller: Orbit Innovations Ltd</p>
 
         <div className="space-y-4 text-sm leading-relaxed">
           {sections.map(section => (

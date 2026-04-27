@@ -135,6 +135,7 @@ async function handleReview(req: VercelRequest, res: VercelResponse) {
         <tr>
           <td style="background:#f5f5f5;border-radius:0 0 12px 12px;padding:20px 36px;text-align:center">
             <p style="margin:0;font-size:11px;color:#ABABAB">Sent by <a href="https://crewdock.app" style="color:#ABABAB">Crew Dock</a> · APA Crew Rate Calculator</p>
+            <p style="margin:4px 0 0 0;font-size:11px;color:#ABABAB">Don't want emails like this? <a href="https://crewdock.app/settings" style="color:#ABABAB">Manage email preferences</a></p>
           </td>
         </tr>
       </table>
@@ -148,6 +149,9 @@ async function handleReview(req: VercelRequest, res: VercelResponse) {
     to: [to],
     subject: `Your Crew Dock trial ends in ${days} day${days !== 1 ? 's' : ''} — get 14 more free`,
     html,
+    headers: {
+      'List-Unsubscribe': '<https://crewdock.app/settings>',
+    },
   });
   return res.status(200).json({ success: true, id: data.id });
 }
