@@ -46,16 +46,23 @@ Deno.serve(async (req) => {
     const subscriptions = subscriptionsResult.status === 'fulfilled' ? (subscriptionsResult.value.data ?? []) : []
     const profiles = profilesResult.status === 'fulfilled' ? (profilesResult.value.data ?? []) : []
 
+    const now = new Date()
     const subByUserId = new Map(subscriptions.map(s => [s.user_id, s]))
     const profileByUserId = new Map(profiles.map((p: { id: string; signup_country: string | null; multi_engine_enabled: boolean; authorized_engines: string[] }) => [p.id, p]))
     const userList = users.map(u => {
       const profile = profileByUserId.get(u.id)
+      const sub = subByUserId.get(u.id)
+      let status = sub?.status ?? 'trialing'
+      // If trial has expired and user never converted, show as free
+      if (status === 'trialing' && sub?.trial_ends_at && new Date(sub.trial_ends_at) < now) {
+        status = 'free'
+      }
       return {
         user_id: u.id,
         email: u.email ?? '',
         name: (u.user_metadata?.full_name as string | undefined) ?? '',
-        status: subByUserId.get(u.id)?.status ?? 'trialing',
-        trial_ends_at: subByUserId.get(u.id)?.trial_ends_at ?? null,
+        status,
+        trial_ends_at: sub?.trial_ends_at ?? null,
         created_at: u.created_at,
         signup_country: profile?.signup_country ?? null,
         multi_engine_enabled: profile?.multi_engine_enabled ?? false,

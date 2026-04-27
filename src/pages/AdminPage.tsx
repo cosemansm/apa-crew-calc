@@ -28,6 +28,10 @@ const PIE_COLORS: Record<string, string> = {
   resubscribed: '#38bdf8',
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  active: 'Pro',
+};
+
 const STATUS_COLORS: Record<string, string> = {
   ongoing: '#60a5fa',
   finished: '#4ade80',
@@ -1796,7 +1800,7 @@ export function AdminPage() {
                                 color: PIE_COLORS[u.status] ?? '#6b7280',
                               }}
                             >
-                              {u.status}
+                              {STATUS_LABELS[u.status] ?? u.status}
                             </span>
                           </td>
                           <td className="px-4 py-2.5 text-white/30">
