@@ -26,7 +26,7 @@ const PIE_COLORS: Record<string, string> = {
   pastDue: '#f97316',
   canceled: '#D45B5B',
   resubscribed: '#38bdf8',
-  team: '#38bdf8',
+  team: '#0ea5e9',
 };
 
 const STATUS_LABELS: Record<string, string> = {
