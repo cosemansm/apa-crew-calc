@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, Lock } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ProLockOverlay } from '@/components/ProLockOverlay';
 import { isFreeAgentConnected } from '@/services/bookkeeping/freeagent';
 import { isXeroConnected } from '@/services/bookkeeping/xero';
 import { isQBOConnected } from '@/services/bookkeeping/quickbooks';
@@ -65,10 +64,48 @@ export function BookkeepingSection({ userId, isPremium }: BookkeepingSectionProp
         Bookkeeping
       </h2>
 
-      <ProLockOverlay
-        featureName="Bookkeeping"
-        featureDescription="Link your bookkeeping software and invoice in seconds."
-      >
+      {!isPremium ? (
+        // Compact Pro lock for free users
+        <Card className="relative overflow-hidden">
+          <CardContent className="p-0">
+            {/* Blurred platform list */}
+            <div className="pointer-events-none select-none" style={{ filter: 'blur(4px)', opacity: 0.35 }}>
+              {PLATFORMS.map((platform, i) => (
+                <div
+                  key={platform.id}
+                  className={`flex items-center justify-between gap-4 p-4 ${i < PLATFORMS.length - 1 ? 'border-b border-border' : ''}`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-lg border border-border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
+                      <img src={platform.logo} alt={platform.name} className="h-7 w-7 object-contain" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">{platform.name}</p>
+                      <p className="text-xs text-muted-foreground">{platform.description}</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" size="sm" tabIndex={-1}>Connect</Button>
+                </div>
+              ))}
+            </div>
+
+            {/* Compact overlay */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4">
+              <div className="flex items-center gap-2">
+                <Lock className="h-4 w-4 text-[#FFD528]" />
+                <span className="text-sm font-semibold">Link your bookkeeping software and invoice in seconds</span>
+              </div>
+              <Button
+                size="sm"
+                className="bg-[#FFD528] text-[#1F1F21] font-bold hover:bg-[#FFD528]/90"
+                onClick={() => navigate('/settings', { state: { section: 'billing' } })}
+              >
+                Upgrade
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
         <Card>
           <CardContent className="p-0">
             {connectedPlatform ? (
@@ -111,7 +148,7 @@ export function BookkeepingSection({ userId, isPremium }: BookkeepingSectionProp
             )}
           </CardContent>
         </Card>
-      </ProLockOverlay>
+      )}
     </div>
   );
 }
