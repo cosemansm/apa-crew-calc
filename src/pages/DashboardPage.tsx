@@ -119,6 +119,7 @@ export function DashboardPage() {
   const [bookkeepingDismissedAt, setBookkeepingDismissedAt] = useState<string | null>(null);
   const [hasBookkeepingConnection, setHasBookkeepingConnection] = useState(true); // default true = don't show until checked
   const [bookkeepingPopupVisible, setBookkeepingPopupVisible] = useState(false);
+  const [hoveredBarIdx, setHoveredBarIdx] = useState<number | null>(null);
   const unreadCount = useUnreadCount(notifications);
 
   // Calendar feed
@@ -1004,20 +1005,27 @@ export function DashboardPage() {
                 <div className="absolute left-0 right-9 bottom-0 flex items-end gap-2" style={{ height: `${BAR_PX + 18}px` }}>
                   {monthlyBreakdown.map((m, idx) => {
                     const barPx = Math.max((m.total / chartMax) * BAR_PX, m.total > 0 ? 5 : 2);
+                    const tooltipText = m.total > 0
+                      ? (convertedMonth.isConverting && !convertedMonth.failed
+                        ? `${convertedMonth.targetSymbol}${m.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : (Object.keys(m.currencyGroups).length > 0 ? formatMultiCurrencyTotal(m.currencyGroups) : '—'))
+                      : null;
                     return (
-                      <div key={m.label} className="flex-1 flex flex-col items-center justify-end gap-1">
+                      <div key={m.label} className="flex-1 flex flex-col items-center justify-end gap-1 relative">
+                        {hoveredBarIdx === idx && tooltipText && (
+                          <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-foreground text-background text-[10px] font-mono font-medium px-2 py-1 rounded whitespace-nowrap z-10 pointer-events-none">
+                            {tooltipText}
+                          </div>
+                        )}
                         <div
-                          className="w-full rounded-t-sm transition-all duration-700"
+                          className="w-full rounded-t-sm transition-all duration-700 cursor-default"
                           style={{
                             height: `${barPx}px`,
                             background: m.isCurrent ? '#FFD528' : '#1F1F21',
                             opacity: m.isCurrent ? 1 : 0.15 + (idx / monthlyBreakdown.length) * 0.55,
                           }}
-                          title={m.total > 0
-                            ? (convertedMonth.isConverting && !convertedMonth.failed
-                              ? `${convertedMonth.targetSymbol}${m.total.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                              : (Object.keys(m.currencyGroups).length > 0 ? formatMultiCurrencyTotal(m.currencyGroups) : '—'))
-                            : '—'}
+                          onMouseEnter={() => setHoveredBarIdx(idx)}
+                          onMouseLeave={() => setHoveredBarIdx(null)}
                         />
                         <span className="text-[10px] text-muted-foreground font-medium font-mono">{m.label}</span>
                       </div>
