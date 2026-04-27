@@ -82,7 +82,7 @@ export function AppLayout() {
                   </span>
                 )}
                 {sidebarExpanded && isAIInput && !isPremium && (
-                  <span className="text-[10px] font-bold text-[#FFD528] opacity-80">✦</span>
+                  <span className="text-[9px] font-bold text-[#FFD528] bg-[#FFD528]/15 rounded px-1 py-0.5 leading-none tracking-wide">PRO</span>
                 )}
               </div>
             );
@@ -252,6 +252,7 @@ export function AppLayout() {
             <div className="mt-2 bg-[#1F1F21] rounded-2xl shadow-2xl p-2 space-y-0.5">
               {navItems.map(({ path, label, icon: Icon }) => {
                 const isActive = location.pathname === path;
+                const isAIInput = path === '/ai-input';
                 const isDisabled = false;
                 const innerDiv = (
                   <div className={cn(
@@ -263,7 +264,10 @@ export function AppLayout() {
                         : "text-white/60 hover:text-white hover:bg-white/10"
                   )}>
                     <Icon className="h-4.5 w-4.5" />
-                    <span className="text-sm font-medium">{label}</span>
+                    <span className="text-sm font-medium flex-1">{label}</span>
+                    {isAIInput && !isPremium && (
+                      <span className="text-[9px] font-bold text-[#FFD528] bg-[#FFD528]/15 rounded px-1 py-0.5 leading-none tracking-wide">PRO</span>
+                    )}
                   </div>
                 );
                 return isDisabled ? (
