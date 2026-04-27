@@ -80,10 +80,8 @@ export function EngineProvider({ children }: { children: ReactNode }) {
             const patch = {
               signup_country: country,
               default_engine: engineId,
-              multi_engine_enabled: country !== 'GB',
-              authorized_engines: country !== 'GB'
-                ? ['apa-uk', engineId]
-                : ['apa-uk'],
+              multi_engine_enabled: false,
+              authorized_engines: [engineId],
             }
             await supabase.from('profiles').update(patch).eq('id', user.id)
             setDefaultEngineId(patch.default_engine)

@@ -127,10 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             id: data.user!.id,
             signup_country: country,
             default_engine: engineId,
-            multi_engine_enabled: country !== 'GB',
-            authorized_engines: country !== 'GB'
-              ? ['apa-uk', engineId]
-              : ['apa-uk'],
+            authorized_engines: [engineId],
           }, { onConflict: 'id', ignoreDuplicates: false })
         } catch {
           // Silent fallback — profile keeps safe defaults (apa-uk, multi_engine_enabled: false)

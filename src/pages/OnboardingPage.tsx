@@ -59,8 +59,7 @@ export function OnboardingPage() {
       await supabase.from('profiles').update({
         signup_country: country,
         default_engine: engineId,
-        multi_engine_enabled: country !== 'GB',
-        authorized_engines: country !== 'GB' ? ['apa-uk', engineId] : ['apa-uk'],
+        authorized_engines: [engineId],
       }).eq('id', user.id)
     }
 
