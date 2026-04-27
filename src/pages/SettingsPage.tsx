@@ -201,7 +201,8 @@ export function SettingsPage() {
   const { section } = useParams<{ section?: string }>();
   const { subscription, isPremium, isTrialing, trialDaysLeft, trialExtended } = useSubscription();
   const isLifetime = subscription?.status === 'lifetime';
-  const isStripePro = isPremium && !isTrialing && !isLifetime;
+  const isTeam = subscription?.status === 'team';
+  const isStripePro = isPremium && !isTrialing && !isLifetime && !isTeam;
   const location = useLocation();
   const navigate = useNavigate();
   const activeSection: SectionId = (VALID_SETTINGS_SECTIONS.has(section ?? '') ? section : 'my-details') as SectionId;
@@ -1038,10 +1039,13 @@ export function SettingsPage() {
                   <div className="flex items-center justify-between p-4 bg-muted rounded-xl">
                     <div>
                       <p className="text-sm font-semibold">
-                        {isLifetime ? '✦ Crew Dock Pro — Lifetime' : isStripePro ? '✦ Crew Dock Pro' : isTrialing ? 'Crew Dock Pro (Trial)' : 'Free'}
+                        {isLifetime ? '✦ Crew Dock Pro — Lifetime' : isTeam ? '✦ Crew Dock Pro — Team' : isStripePro ? '✦ Crew Dock Pro' : isTrialing ? 'Crew Dock Pro (Trial)' : 'Free'}
                       </p>
                       {isLifetime && (
                         <p className="text-xs text-muted-foreground mt-0.5">Access never expires — no billing required</p>
+                      )}
+                      {isTeam && (
+                        <p className="text-xs text-muted-foreground mt-0.5">Access managed by your team — no individual billing required</p>
                       )}
                       {isTrialing && (
                         <p className="text-xs text-muted-foreground mt-0.5">
@@ -1059,13 +1063,15 @@ export function SettingsPage() {
                     </div>
                     <span className={cn('text-xs font-bold px-3 py-1 rounded-full border', isLifetime
                       ? 'bg-[#FFD528]/10 border-[#FFD528]/25 text-[#FFD528]'
+                      : isTeam
+                      ? 'bg-[#38bdf8]/10 border-[#38bdf8]/25 text-[#38bdf8]'
                       : isStripePro
                       ? 'bg-green-500/10 border-green-500/25 text-green-400'
                       : isTrialing
                       ? 'bg-[#FFD528]/10 border-[#FFD528]/25 text-[#FFD528]'
                       : 'bg-white/5 border-white/10 text-white/40'
                     )}>
-                      {isLifetime ? 'Lifetime' : isStripePro ? 'Active' : isTrialing ? 'Trial' : 'Free'}
+                      {isLifetime ? 'Lifetime' : isTeam ? 'Team' : isStripePro ? 'Active' : isTrialing ? 'Trial' : 'Free'}
                     </span>
                   </div>
 
@@ -1111,7 +1117,7 @@ export function SettingsPage() {
               </Card>
 
               {/* Upgrade card (trial and free users only, hidden during impersonation) */}
-              {(!isPremium || isTrialing) && !isLifetime && !isImpersonating && (
+              {(!isPremium || isTrialing) && !isLifetime && !isTeam && !isImpersonating && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base">

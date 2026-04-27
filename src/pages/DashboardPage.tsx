@@ -92,6 +92,7 @@ export function DashboardPage() {
   const { defaultEngineId, showEngineSelector } = useEngine();
   const { subscription, isPremium, isTrialing, trialDaysLeft, loading: subLoading } = useSubscription();
   const isLifetime = subscription?.status === 'lifetime';
+  const isTeam = subscription?.status === 'team';
   const navigate = useNavigate();
   const cachedProjects = cacheGet<Project[]>(CACHE_KEY_PROJECTS);
   const cachedFavourites = cacheGet<FavouriteRole[]>(CACHE_KEY_FAVOURITES);
@@ -564,7 +565,12 @@ export function DashboardPage() {
                 Lifetime
               </span>
             )}
-            {!subLoading && isPremium && !isTrialing && !isLifetime && (
+            {!subLoading && isTeam && (
+              <span className="hidden sm:inline text-[10px] font-bold text-sky-600 bg-sky-50 border border-sky-200 rounded-full px-2.5 py-0.5">
+                Team
+              </span>
+            )}
+            {!subLoading && isPremium && !isTrialing && !isLifetime && !isTeam && (
               <span className="hidden sm:inline text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5">
                 Pro Plan
               </span>

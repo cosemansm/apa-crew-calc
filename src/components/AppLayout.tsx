@@ -22,6 +22,7 @@ export function AppLayout() {
   const { user, signOut } = useAuth();
   const { subscription, isPremium, isTrialing, trialDaysLeft } = useSubscription();
   const isLifetime = subscription?.status === 'lifetime';
+  const isTeam = subscription?.status === 'team';
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
@@ -122,7 +123,14 @@ export function AppLayout() {
             </span>
           </div>
         )}
-        {sidebarExpanded && isPremium && !isTrialing && !isLifetime && (
+        {sidebarExpanded && isTeam && (
+          <div className="px-3 py-1">
+            <span className="text-[10px] font-bold text-[#38bdf8] bg-[#38bdf8]/10 border border-[#38bdf8]/25 rounded-full px-2.5 py-0.5">
+              Team
+            </span>
+          </div>
+        )}
+        {sidebarExpanded && isPremium && !isTrialing && !isLifetime && !isTeam && (
           <div className="px-3 py-1">
             <span className="text-[10px] font-bold text-[#4ade80] bg-[#4ade80]/10 border border-[#4ade80]/25 rounded-full px-2.5 py-0.5">
               Pro Plan
@@ -310,7 +318,12 @@ export function AppLayout() {
                     Lifetime
                   </span>
                 )}
-                {isPremium && !isTrialing && !isLifetime && (
+                {isTeam && (
+                  <span className="text-[10px] font-bold text-[#38bdf8] bg-[#38bdf8]/10 border border-[#38bdf8]/25 rounded-full px-2.5 py-0.5">
+                    Team
+                  </span>
+                )}
+                {isPremium && !isTrialing && !isLifetime && !isTeam && (
                   <span className="text-[10px] font-bold text-[#4ade80] bg-[#4ade80]/10 border border-[#4ade80]/25 rounded-full px-2.5 py-0.5">
                     Pro Plan
                   </span>
