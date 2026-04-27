@@ -211,20 +211,30 @@ export function AppLayout() {
             )
           )}
 
-          {/* Expand/Collapse toggle */}
-          <button
-            onClick={() => setSidebarExpanded(!sidebarExpanded)}
-            className={cn(
-              "flex items-center h-9 w-full rounded-2xl text-white/30 hover:text-white hover:bg-white/10 transition-all duration-200",
-              sidebarExpanded ? "gap-2 px-3 justify-start" : "justify-center px-0"
+          {/* Expand/Collapse toggle + Beta badge */}
+          <div className={cn(
+            "flex items-center",
+            sidebarExpanded ? "justify-between" : "justify-center"
+          )}>
+            <button
+              onClick={() => setSidebarExpanded(!sidebarExpanded)}
+              className={cn(
+                "flex items-center h-9 rounded-2xl text-white/30 hover:text-white hover:bg-white/10 transition-all duration-200",
+                sidebarExpanded ? "gap-2 px-3 justify-start" : "justify-center px-0 w-full"
+              )}
+              title={sidebarExpanded ? "Collapse menu" : "Expand menu"}
+            >
+              {sidebarExpanded
+                ? <><ChevronLeft className="h-4 w-4 shrink-0" /><span className="text-xs whitespace-nowrap">Collapse</span></>
+                : <ChevronRight className="h-4 w-4 shrink-0" />
+              }
+            </button>
+            {sidebarExpanded && (
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-white/30 border border-white/15 rounded-full px-2 py-0.5 leading-none">
+                Beta
+              </span>
             )}
-            title={sidebarExpanded ? "Collapse menu" : "Expand menu"}
-          >
-            {sidebarExpanded
-              ? <><ChevronLeft className="h-4 w-4 shrink-0" /><span className="text-xs whitespace-nowrap">Collapse</span></>
-              : <ChevronRight className="h-4 w-4 shrink-0" />
-            }
-          </button>
+          </div>
         </div>
       </aside>
 
