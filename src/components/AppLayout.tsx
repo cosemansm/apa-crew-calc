@@ -82,7 +82,10 @@ export function AppLayout() {
                   </span>
                 )}
                 {sidebarExpanded && (isAIInput || path === '/invoices') && !isPremium && (
-                  <span className="text-[9px] font-bold text-[#FFD528] bg-[#FFD528]/15 rounded px-1 py-0.5 leading-none tracking-wide">PRO</span>
+                  <span className={cn(
+                    "text-[9px] font-bold rounded px-1 py-0.5 leading-none tracking-wide",
+                    isActive ? "text-[#1F1F21] bg-[#1F1F21]/15" : "text-[#FFD528] bg-[#FFD528]/15"
+                  )}>PRO</span>
                 )}
               </div>
             );
@@ -266,7 +269,10 @@ export function AppLayout() {
                     <Icon className="h-4.5 w-4.5" />
                     <span className="text-sm font-medium flex-1">{label}</span>
                     {(isAIInput || path === '/invoices') && !isPremium && (
-                      <span className="text-[9px] font-bold text-[#FFD528] bg-[#FFD528]/15 rounded px-1 py-0.5 leading-none tracking-wide">PRO</span>
+                      <span className={cn(
+                        "text-[9px] font-bold rounded px-1 py-0.5 leading-none tracking-wide",
+                        isActive ? "text-[#1F1F21] bg-[#1F1F21]/15" : "text-[#FFD528] bg-[#FFD528]/15"
+                      )}>PRO</span>
                     )}
                   </div>
                 );
