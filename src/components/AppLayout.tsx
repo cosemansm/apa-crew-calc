@@ -81,7 +81,7 @@ export function AppLayout() {
                     {label}
                   </span>
                 )}
-                {sidebarExpanded && isAIInput && !isPremium && (
+                {sidebarExpanded && (isAIInput || path === '/invoices') && !isPremium && (
                   <span className="text-[9px] font-bold text-[#FFD528] bg-[#FFD528]/15 rounded px-1 py-0.5 leading-none tracking-wide">PRO</span>
                 )}
               </div>
@@ -265,7 +265,7 @@ export function AppLayout() {
                   )}>
                     <Icon className="h-4.5 w-4.5" />
                     <span className="text-sm font-medium flex-1">{label}</span>
-                    {isAIInput && !isPremium && (
+                    {(isAIInput || path === '/invoices') && !isPremium && (
                       <span className="text-[9px] font-bold text-[#FFD528] bg-[#FFD528]/15 rounded px-1 py-0.5 leading-none tracking-wide">PRO</span>
                     )}
                   </div>
