@@ -26,6 +26,7 @@ const PIE_COLORS: Record<string, string> = {
   pastDue: '#f97316',
   canceled: '#D45B5B',
   resubscribed: '#38bdf8',
+  team: '#38bdf8',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -100,6 +101,7 @@ interface UserListEntry {
   name: string;
   status: string;
   trial_ends_at: string | null;
+  team_id: string | null;
   created_at: string;
 }
 
@@ -117,6 +119,7 @@ interface AdminStats {
     free: number;
     active: number;
     lifetime: number;
+    team: number;
     pastDue: number;
     canceled: number;
     resubscribed: number;
@@ -1025,6 +1028,9 @@ export function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [grantingLifetime, setGrantingLifetime] = useState<string | null>(null);
   const [revokingLifetime, setRevokingLifetime] = useState<string | null>(null);
+  const [grantingTeam, setGrantingTeam] = useState<string | null>(null);
+  const [revokingTeam, setRevokingTeam] = useState<string | null>(null);
+  const [teamIdInput, setTeamIdInput] = useState<Record<string, string>>({});
   const [userSearch, setUserSearch] = useState('');
   const [userList, setUserList] = useState<UserListEntry[] | null>(null);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -1284,6 +1290,56 @@ export function AdminPage() {
     }
   }
 
+  async function grantTeam(userId: string, teamId: string) {
+    if (!session?.access_token || !teamId.trim()) return;
+    setGrantingTeam(userId);
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+      const resp = await fetch(`${supabaseUrl}/functions/v1/grant-team`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'apikey': anonKey,
+        },
+        body: JSON.stringify({ user_id: userId, team_id: teamId.trim() }),
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
+      setUserList(prev => prev ? prev.map(u => u.user_id === userId ? { ...u, status: 'team', team_id: teamId.trim() } : u) : prev);
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setGrantingTeam(null);
+    }
+  }
+
+  async function revokeTeam(userId: string) {
+    if (!session?.access_token) return;
+    setRevokingTeam(userId);
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+      const resp = await fetch(`${supabaseUrl}/functions/v1/revoke-team`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'apikey': anonKey,
+        },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json.error || `HTTP ${resp.status}`);
+      setUserList(prev => prev ? prev.map(u => u.user_id === userId ? { ...u, status: 'trialing', trial_ends_at: new Date().toISOString(), team_id: null } : u) : prev);
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setRevokingTeam(null);
+    }
+  }
+
   if (!user || user.email !== ADMIN_EMAIL) return null;
 
   return (
@@ -1483,6 +1539,7 @@ export function AdminPage() {
                       { name: 'Free churned', value: stats.subscriptions.free, key: 'free' },
                       { name: 'Pro', value: stats.subscriptions.active, key: 'active' },
                       { name: 'Lifetime', value: stats.subscriptions.lifetime, key: 'lifetime' },
+                      { name: 'Team', value: stats.subscriptions.team, key: 'team' },
                       { name: 'Past Due', value: stats.subscriptions.pastDue, key: 'pastDue' },
                       { name: 'Churned', value: stats.subscriptions.canceled, key: 'canceled' },
                       { name: 'Re-subscribed', value: stats.subscriptions.resubscribed, key: 'resubscribed' },
@@ -1496,9 +1553,9 @@ export function AdminPage() {
                   >
                     {[
                       { key: 'trialing' }, { key: 'free' }, { key: 'active' },
-                      { key: 'lifetime' }, { key: 'pastDue' }, { key: 'canceled' }, { key: 'resubscribed' }
+                      { key: 'lifetime' }, { key: 'team' }, { key: 'pastDue' }, { key: 'canceled' }, { key: 'resubscribed' }
                     ].filter((_, i) => {
-                      const vals = [stats.subscriptions.trialing, stats.subscriptions.free, stats.subscriptions.active, stats.subscriptions.lifetime, stats.subscriptions.pastDue, stats.subscriptions.canceled, stats.subscriptions.resubscribed];
+                      const vals = [stats.subscriptions.trialing, stats.subscriptions.free, stats.subscriptions.active, stats.subscriptions.lifetime, stats.subscriptions.team, stats.subscriptions.pastDue, stats.subscriptions.canceled, stats.subscriptions.resubscribed];
                       return vals[i] > 0;
                     }).map((entry) => (
                       <Cell key={entry.key} fill={PIE_COLORS[entry.key]} />
@@ -1517,6 +1574,7 @@ export function AdminPage() {
                 { label: 'Free churned', value: stats.subscriptions.free, color: '#6b7280' },
                 { label: 'Pro', value: stats.subscriptions.active, color: '#4ade80' },
                 { label: 'Lifetime', value: stats.subscriptions.lifetime, color: '#c084fc' },
+                { label: 'Team', value: stats.subscriptions.team, color: '#38bdf8' },
                 { label: 'Past Due', value: stats.subscriptions.pastDue, color: '#f97316' },
                 { label: 'Churned', value: stats.subscriptions.canceled, color: '#D45B5B' },
                 { label: 'Re-subscribed', value: stats.subscriptions.resubscribed, color: '#38bdf8' },
@@ -1831,16 +1889,45 @@ export function AdminPage() {
                                   disabled={revokingLifetime === u.user_id}
                                   className="px-2.5 py-1 rounded-lg bg-[#D45B5B]/10 hover:bg-[#D45B5B]/20 text-[#D45B5B] text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
                                 >
-                                  {revokingLifetime === u.user_id ? '…' : 'Revoke Lifetime'}
+                                  {revokingLifetime === u.user_id ? '...' : 'Revoke Lifetime'}
                                 </button>
+                              ) : u.status === 'team' ? (
+                                <div className="flex items-center gap-1.5 justify-end">
+                                  <span className="text-[10px] text-white/30">{u.team_id}</span>
+                                  <button
+                                    onClick={() => revokeTeam(u.user_id)}
+                                    disabled={revokingTeam === u.user_id}
+                                    className="px-2.5 py-1 rounded-lg bg-[#D45B5B]/10 hover:bg-[#D45B5B]/20 text-[#D45B5B] text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
+                                  >
+                                    {revokingTeam === u.user_id ? '...' : 'Revoke Team'}
+                                  </button>
+                                </div>
                               ) : (
-                                <button
-                                  onClick={() => grantLifetime(u.user_id)}
-                                  disabled={grantingLifetime === u.user_id}
-                                  className="px-2.5 py-1 rounded-lg bg-[#c084fc]/10 hover:bg-[#c084fc]/20 text-[#c084fc] text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
-                                >
-                                  {grantingLifetime === u.user_id ? '…' : 'Grant Lifetime'}
-                                </button>
+                                <div className="flex items-center gap-1.5 justify-end">
+                                  <button
+                                    onClick={() => grantLifetime(u.user_id)}
+                                    disabled={grantingLifetime === u.user_id}
+                                    className="px-2.5 py-1 rounded-lg bg-[#c084fc]/10 hover:bg-[#c084fc]/20 text-[#c084fc] text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
+                                  >
+                                    {grantingLifetime === u.user_id ? '...' : 'Lifetime'}
+                                  </button>
+                                  <div className="flex items-center gap-1">
+                                    <input
+                                      type="text"
+                                      placeholder="team-id"
+                                      value={teamIdInput[u.user_id] ?? ''}
+                                      onChange={e => setTeamIdInput(prev => ({ ...prev, [u.user_id]: e.target.value }))}
+                                      className="w-20 bg-[#1F1F21] text-white text-[10px] font-mono rounded-lg px-2 py-1 border border-white/10 placeholder:text-white/20 focus:outline-none focus:border-[#38bdf8]/40"
+                                    />
+                                    <button
+                                      onClick={() => grantTeam(u.user_id, teamIdInput[u.user_id] ?? '')}
+                                      disabled={grantingTeam === u.user_id || !(teamIdInput[u.user_id] ?? '').trim()}
+                                      className="px-2.5 py-1 rounded-lg bg-[#38bdf8]/10 hover:bg-[#38bdf8]/20 text-[#38bdf8] text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40"
+                                    >
+                                      {grantingTeam === u.user_id ? '...' : 'Team'}
+                                    </button>
+                                  </div>
+                                </div>
                               )}
                           </td>
                         </tr>
