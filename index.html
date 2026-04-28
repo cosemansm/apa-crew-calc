@@ -81,10 +81,34 @@
     }
     </script>
 
-    <!-- Fonts — preconnect then load -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Structured Data: FAQPage (SEO — captures common misspellings) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is it Crew Doc or Crew Dock?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The correct name is Crew Dock — a crew rate calculator and invoicing tool for UK film and TV freelancers. Crew Dock calculates APA rates, overtime, and penalties based on APA Recommended Terms 2025."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What is Crew Dock?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Crew Dock is a web-based rate calculator, job tracker, and invoicing tool for UK commercials crew. It automates APA rate calculations including day rates, overtime, travel pay, meal break penalties, and equipment hire."
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!-- Fonts — self-hosted, preload the primary latin subset -->
+    <link rel="preload" href="/fonts/JetBrainsMono-latin.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
     <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:rounded-xl focus:bg-[#FFD528] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-[#1F1F21]">

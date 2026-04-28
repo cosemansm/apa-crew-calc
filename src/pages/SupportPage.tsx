@@ -101,6 +101,16 @@ const HELP_SECTIONS: {
   items: { heading: string; body: string }[];
 }[] = [
   {
+    id: 'general',
+    title: 'General',
+    icon: LifeBuoy,
+    items: [
+      { heading: 'Is it Crew Doc or Crew Dock?', body: 'The correct name is Crew Dock — as in a dock where your crew data lands. If you searched for "Crew Doc", you\'re in the right place.' },
+      { heading: 'What is Crew Dock?', body: 'Crew Dock is a rate calculator, job tracker, and invoicing tool built for UK film and TV freelancers. It automates APA rate calculations including day rates, overtime, travel pay, meal break penalties, and equipment hire.' },
+      { heading: 'Who is Crew Dock for?', body: 'Crew Dock is designed for freelance film and TV crew working on UK commercials under APA Recommended Terms. If you\'re a camera operator, gaffer, sound recordist, or any other crew role — it\'s built for you.' },
+    ],
+  },
+  {
     id: 'getting-started',
     title: 'Getting Started',
     icon: LayoutDashboard,
