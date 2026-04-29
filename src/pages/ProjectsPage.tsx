@@ -653,8 +653,8 @@ export function ProjectsPage() {
             <div className="lg:col-span-3">
               <Card className="sticky top-6">
                 {/* Detail header */}
-                <div className="flex items-start justify-between p-6 pb-4 border-b border-border">
-                  <div>
+                <div className="flex flex-col sm:flex-row items-start justify-between p-6 pb-4 border-b border-border gap-3">
+                  <div className="min-w-0">
                     <h2 className="text-xl font-bold">{selectedProject.name}</h2>
                     {selectedProject.client_name && (
                       <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
@@ -703,7 +703,7 @@ export function ProjectsPage() {
                 </div>
 
                 {/* Status selector */}
-                <div className="px-6 py-3 border-b border-border flex items-center gap-2">
+                <div className="px-6 py-3 border-b border-border flex items-center gap-2 flex-wrap">
                   <span className="text-xs font-medium text-muted-foreground mr-1">Status:</span>
                   {(['ongoing', 'finished', 'invoiced', 'paid'] as ProjectStatus[]).map(s => {
                     const cfg = STATUS_CONFIG[s];
@@ -872,9 +872,9 @@ export function ProjectsPage() {
                         </span>
                       </div>
 
-                        <div className="flex gap-2 mt-1">
+                        <div className="flex flex-wrap gap-2 mt-1">
                           <Button
-                            className="flex-1 gap-2"
+                            className="flex-1 min-w-[120px] gap-2"
                             onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
                           >
                             <Edit3 className="h-4 w-4" />
@@ -882,7 +882,7 @@ export function ProjectsPage() {
                           </Button>
                           <Button
                             variant="outline"
-                            className="flex-1 gap-2"
+                            className="flex-1 min-w-[120px] gap-2"
                             onClick={() => navigate('/invoices', { state: { projectId: selectedProject.id } })}
                           >
                             <Clock className="h-4 w-4" />
@@ -890,7 +890,7 @@ export function ProjectsPage() {
                           </Button>
                           <Button
                             variant="outline"
-                            className="flex-1 gap-2"
+                            className="flex-1 min-w-[120px] gap-2"
                             onClick={() => navigate('/invoices', { state: { projectId: selectedProject.id, tab: 'invoice' } })}
                           >
                             <FileText className="h-4 w-4" />
