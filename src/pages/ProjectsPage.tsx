@@ -513,6 +513,262 @@ export function ProjectsPage() {
       )
     : projects;
 
+  const renderProjectDetail = () => {
+    if (!selectedProject) return null;
+    return (
+      <Card className="sticky top-6">
+        {/* Detail header */}
+        <div className="flex flex-col sm:flex-row items-start justify-between p-6 pb-4 border-b border-border gap-3">
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold">{selectedProject.name}</h2>
+            {selectedProject.client_name && (
+              <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
+                <User className="h-3.5 w-3.5" />
+                {selectedProject.client_name}
+              </p>
+            )}
+            {dateRange && (
+              <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5" />
+                {dateRange}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              size="sm"
+              onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
+              className="gap-1.5"
+            >
+              <Edit3 className="h-3.5 w-3.5" />
+              Edit
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate('/invoices', { state: { projectId: selectedProject.id } })}
+              className="gap-1.5"
+            >
+              <Clock className="h-3.5 w-3.5" />
+              Timesheet
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate('/invoices', { state: { projectId: selectedProject.id, tab: 'invoice' } })}
+              className="gap-1.5"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Invoice
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={closeDetail}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Status selector */}
+        <div className="px-6 py-3 border-b border-border flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-medium text-muted-foreground mr-1 hidden sm:inline">Status:</span>
+          {(['ongoing', 'finished', 'invoiced', 'paid'] as ProjectStatus[]).map(s => {
+            const cfg = STATUS_CONFIG[s];
+            const isActive = (selectedProject.status ?? 'ongoing') === s;
+            return (
+              <button
+                key={s}
+                disabled={statusUpdating || isImpersonating}
+                onClick={() => updateStatus(s)}
+                style={{
+                  backgroundColor: isActive ? cfg.badgeBg : 'transparent',
+                  color: isActive ? cfg.badgeText : '#6B7280',
+                  border: `1px solid ${isActive ? cfg.badgeBorder : '#E5E7EB'}`,
+                  borderRadius: '999px',
+                  fontSize: '12px',
+                  fontWeight: isActive ? 600 : 400,
+                  padding: '4px 12px',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: isActive ? cfg.calendarBg : '#D1D5DB', display: 'inline-block' }} />
+                {cfg.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <CardContent className="p-6">
+          {daysLoading ? (
+            <p className="text-sm text-muted-foreground">Loading days…</p>
+          ) : projectDays.length === 0 ? (
+            <div className="text-center py-8">
+              <Clock className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
+              <p className="text-sm text-muted-foreground">No days saved yet</p>
+              <Button
+                size="sm"
+                className="mt-3 gap-1.5"
+                onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
+              >
+                <Edit3 className="h-3.5 w-3.5" />
+                Open in Calculator
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {projectDays.map((day, idx) => {
+                const lineItems = day.result_json?.lineItems || [];
+                const penalties = day.result_json?.penalties || [];
+                const travelPay = day.result_json?.travelPay || 0;
+                const mileagePay = day.result_json?.mileage || 0;
+                const sym = getCurrencySymbol(day.calc_engine || selectedProject?.calc_engine);
+                return (
+                  <div key={day.id} className="rounded-xl border border-border overflow-hidden">
+                    {/* Day header */}
+                    <div className="flex items-center justify-between px-4 py-3 bg-muted/40">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-black uppercase tracking-widest text-foreground">Day {idx + 1}</span>
+                          <span className="text-xs text-muted-foreground">{format(parseISO(day.work_date), 'EEE dd MMM yyyy')}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span className="text-[10px] font-bold tracking-widest uppercase text-[#FFD528] bg-[#1F1F21] px-1.5 py-0.5 rounded">
+                            {DAY_TYPE_SHORT[day.day_type] || DAY_TYPE_LABELS[day.day_type] || day.day_type}
+                          </span>
+                          <span className="text-xs text-muted-foreground">{day.role_name}</span>
+                          {day.call_time && day.wrap_time && (
+                            <span className="text-xs text-muted-foreground font-mono">{day.call_time} – {day.wrap_time}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-3">
+                        <p className="text-sm font-bold tabular-nums">{sym}{(day.grand_total || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                        {!isImpersonating && (
+                          <button
+                            onClick={() => removeDay(day.id)}
+                            disabled={deletingDayId === day.id}
+                            className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-red-500 hover:bg-red-50 transition-colors"
+                            title="Remove day"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Line items */}
+                    {(lineItems.length > 0 || penalties.length > 0 || travelPay > 0 || mileagePay > 0) && (
+                      <div className="px-4 py-2">
+                        <div className="grid gap-x-3" style={{ gridTemplateColumns: '1fr auto auto' }}>
+                          {lineItems.filter(Boolean).map((item, i) => {
+                            const isFlatRate = !!(item.rate && Math.abs((item.total ?? 0) - item.rate) < 1);
+                            const isDayRate = item.isDayRate || isFlatRate;
+                            const timePart = item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : '';
+                            let ratePart = '';
+                            if (item.rate && item.hours) {
+                              ratePart = isDayRate
+                                ? `${sym}${item.total ?? 0} × 1`
+                                : `${sym}${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
+                            }
+                            const detail = [timePart, ratePart].filter(Boolean).join(' · ');
+                            return (
+                              <Fragment key={i}>
+                                <p className="text-xs text-muted-foreground leading-tight py-[3px] self-center">{item.description}</p>
+                                <span className="text-[10px] text-muted-foreground/50 font-mono text-right self-center py-[3px]">{detail}</span>
+                                <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">{sym}{(item.total ?? 0).toFixed(2)}</span>
+                              </Fragment>
+                            );
+                          })}
+                          {penalties.length > 0 && (
+                            <>
+                              <div className="col-span-3 border-t border-border/40 my-1" />
+                              {penalties.filter(Boolean).map((item, i) => {
+                                const pIsFlatRate = !!(item.rate && Math.abs((item.total ?? 0) - item.rate) < 1);
+                                let pDetail = '';
+                                if (item.rate && item.hours) {
+                                  pDetail = pIsFlatRate
+                                    ? `${sym}${item.rate} × 1`
+                                    : `${sym}${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
+                                }
+                                return (
+                                  <Fragment key={`pen-${i}`}>
+                                    <p className="text-xs text-muted-foreground leading-tight py-[3px] self-center">{item.description}</p>
+                                    <span className="text-[10px] text-muted-foreground/50 font-mono text-right self-center py-[3px]">{pDetail}</span>
+                                    <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">{sym}{(item.total ?? 0).toFixed(2)}</span>
+                                  </Fragment>
+                                );
+                              })}
+                            </>
+                          )}
+                          {travelPay > 0 && (
+                            <Fragment key="travel">
+                              <p className="text-xs text-muted-foreground py-[3px] self-center">Travel pay</p>
+                              <span />
+                              <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">{sym}{travelPay.toFixed(2)}</span>
+                            </Fragment>
+                          )}
+                          {mileagePay > 0 && (() => {
+                            const eng = selectedProject?.calc_engine ? getEngine(selectedProject.calc_engine) : null;
+                            const unit = eng?.meta.mileageUnit ?? 'km';
+                            const dist = day.result_json?.mileageDistance ?? day.result_json?.mileageMiles ?? 0;
+                            const label = unit === 'km' ? 'Travel' : 'Mileage';
+                            return (
+                              <Fragment key="mileage">
+                                <p className="text-xs text-muted-foreground py-[3px] self-center">{label} ({dist} {unit})</p>
+                                <span />
+                                <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">{sym}{mileagePay.toFixed(2)}</span>
+                              </Fragment>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Project total */}
+              <div className="flex items-center justify-between rounded-xl bg-[#1F1F21] px-4 py-3 mt-2">
+                <span className="text-sm font-bold text-white">Job Total</span>
+                <span className="text-lg font-bold text-[#FFD528]">
+                  {getCurrencySymbol(selectedProject?.calc_engine)}{projectTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mt-1">
+                <Button
+                  className="flex-1 min-w-[120px] gap-2"
+                  onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
+                >
+                  <Edit3 className="h-4 w-4" />
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 min-w-[120px] gap-2"
+                  onClick={() => navigate('/invoices', { state: { projectId: selectedProject.id } })}
+                >
+                  <Clock className="h-4 w-4" />
+                  Timesheet
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 min-w-[120px] gap-2"
+                  onClick={() => navigate('/invoices', { state: { projectId: selectedProject.id, tab: 'invoice' } })}
+                >
+                  <FileText className="h-4 w-4" />
+                  Invoice
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -568,339 +824,97 @@ export function ProjectsPage() {
               ) : filteredProjects.map(project => {
                 const isSelected = selectedProject?.id === project.id;
                 return (
-                  <div
-                    key={project.id}
-                    onClick={() => isSelected ? closeDetail() : selectProject(project)}
-                    className={`rounded-2xl border p-4 cursor-pointer transition-all duration-200 ${
-                      isSelected
-                        ? 'border-[#FFD528] bg-[#FFD528]/5 shadow-[0_0_0_2px_#FFD528]'
-                        : 'bg-white border-border hover:shadow-md hover:border-[#1F1F21]/20'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <p className="font-semibold truncate">{project.name}</p>
-                          {sharedProjectIds.has(project.id) && (
-                            <span className="shrink-0 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
-                              Shared
-                            </span>
+                  <Fragment key={project.id}>
+                    <div
+                      onClick={() => isSelected ? closeDetail() : selectProject(project)}
+                      className={`rounded-2xl border p-4 cursor-pointer transition-all duration-200 ${
+                        isSelected
+                          ? 'border-[#FFD528] bg-[#FFD528]/5 shadow-[0_0_0_2px_#FFD528]'
+                          : 'bg-white border-border hover:shadow-md hover:border-[#1F1F21]/20'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <p className="font-semibold truncate">{project.name}</p>
+                            {sharedProjectIds.has(project.id) && (
+                              <span className="shrink-0 text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-2 py-0.5">
+                                Shared
+                              </span>
+                            )}
+                            {showEngineSelector && project.calc_engine && project.calc_engine !== defaultEngineId && (() => {
+                              try {
+                                const e = getEngine(project.calc_engine!)
+                                return <Badge variant="outline" className="text-xs shrink-0">{e.meta.shortName}</Badge>
+                              } catch {
+                                return null
+                              }
+                            })()}
+                          </div>
+                          {project.client_name && (
+                            <p className="text-sm text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                              <User className="h-3 w-3 shrink-0" />
+                              {project.client_name}
+                            </p>
                           )}
-                          {showEngineSelector && project.calc_engine && project.calc_engine !== defaultEngineId && (() => {
-                            try {
-                              const e = getEngine(project.calc_engine!)
-                              return <Badge variant="outline" className="text-xs shrink-0">{e.meta.shortName}</Badge>
-                            } catch {
-                              return null
-                            }
-                          })()}
                         </div>
-                        {project.client_name && (
-                          <p className="text-sm text-muted-foreground truncate flex items-center gap-1 mt-0.5">
-                            <User className="h-3 w-3 shrink-0" />
-                            {project.client_name}
-                          </p>
-                        )}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {!isImpersonating && (
+                            <>
+                              <button
+                                onClick={(e) => openShareDialog(project.id, e)}
+                                className={`p-1.5 rounded-lg transition-colors ${
+                                  sharedProjectIds.has(project.id)
+                                    ? 'text-green-600 hover:bg-green-50'
+                                    : 'text-muted-foreground/40 hover:text-blue-500 hover:bg-blue-50'
+                                }`}
+                                title={isPremium ? 'Share project' : 'Upgrade to Pro to share projects'}
+                              >
+                                {isPremium ? <Send className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                              </button>
+                              <button
+                                onClick={(e) => duplicateProject(project, e)}
+                                className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                                title="Duplicate job"
+                              >
+                                <Copy className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={(e) => deleteProject(project.id, e)}
+                                className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                title="Delete job"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </>
+                          )}
+                          <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isSelected ? 'rotate-90' : ''}`} />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {!isImpersonating && (
-                          <>
-                            <button
-                              onClick={(e) => openShareDialog(project.id, e)}
-                              className={`p-1.5 rounded-lg transition-colors ${
-                                sharedProjectIds.has(project.id)
-                                  ? 'text-green-600 hover:bg-green-50'
-                                  : 'text-muted-foreground/40 hover:text-blue-500 hover:bg-blue-50'
-                              }`}
-                              title={isPremium ? 'Share project' : 'Upgrade to Pro to share projects'}
-                            >
-                              {isPremium ? <Send className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-                            </button>
-                            <button
-                              onClick={(e) => duplicateProject(project, e)}
-                              className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-blue-500 hover:bg-blue-50 transition-colors"
-                              title="Duplicate job"
-                            >
-                              <Copy className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              onClick={(e) => deleteProject(project.id, e)}
-                              className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-red-500 hover:bg-red-50 transition-colors"
-                              title="Delete job"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </>
-                        )}
-                        <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isSelected ? 'rotate-90' : ''}`} />
+                      <div className="flex items-center justify-between mt-2">
+                        <p className="text-xs text-muted-foreground">
+                          <Calendar className="h-3 w-3 inline mr-1" />
+                          Created {format(parseISO(project.created_at), 'dd MMM yyyy')}
+                        </p>
+                        <StatusBadge status={project.status ?? 'ongoing'} />
                       </div>
                     </div>
-                    <div className="flex items-center justify-between mt-2">
-                      <p className="text-xs text-muted-foreground">
-                        <Calendar className="h-3 w-3 inline mr-1" />
-                        Created {format(parseISO(project.created_at), 'dd MMM yyyy')}
-                      </p>
-                      <StatusBadge status={project.status ?? 'ongoing'} />
-                    </div>
-                  </div>
+                    {/* Inline detail — mobile only */}
+                    {isSelected && (
+                      <div className="lg:hidden col-span-full">
+                        {renderProjectDetail()}
+                      </div>
+                    )}
+                  </Fragment>
                 );
               })}
             </div>
           </div>
 
-          {/* Project detail — right */}
+          {/* Project detail — desktop side panel */}
           {selectedProject && (
-            <div className="lg:col-span-3">
-              <Card className="sticky top-6">
-                {/* Detail header */}
-                <div className="flex flex-col sm:flex-row items-start justify-between p-6 pb-4 border-b border-border gap-3">
-                  <div className="min-w-0">
-                    <h2 className="text-xl font-bold">{selectedProject.name}</h2>
-                    {selectedProject.client_name && (
-                      <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
-                        <User className="h-3.5 w-3.5" />
-                        {selectedProject.client_name}
-                      </p>
-                    )}
-                    {dateRange && (
-                      <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1">
-                        <Calendar className="h-3.5 w-3.5" />
-                        {dateRange}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                        <Button
-                          size="sm"
-                          onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
-                          className="gap-1.5"
-                        >
-                          <Edit3 className="h-3.5 w-3.5" />
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => navigate('/invoices', { state: { projectId: selectedProject.id } })}
-                          className="gap-1.5"
-                        >
-                          <Clock className="h-3.5 w-3.5" />
-                          Timesheet
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => navigate('/invoices', { state: { projectId: selectedProject.id, tab: 'invoice' } })}
-                          className="gap-1.5"
-                        >
-                          <FileText className="h-3.5 w-3.5" />
-                          Invoice
-                        </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={closeDetail}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Status selector */}
-                <div className="px-6 py-3 border-b border-border flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-medium text-muted-foreground mr-1">Status:</span>
-                  {(['ongoing', 'finished', 'invoiced', 'paid'] as ProjectStatus[]).map(s => {
-                    const cfg = STATUS_CONFIG[s];
-                    const isActive = (selectedProject.status ?? 'ongoing') === s;
-                    return (
-                      <button
-                        key={s}
-                        disabled={statusUpdating || isImpersonating}
-                        onClick={() => updateStatus(s)}
-                        style={{
-                          backgroundColor: isActive ? cfg.badgeBg : 'transparent',
-                          color: isActive ? cfg.badgeText : '#6B7280',
-                          border: `1px solid ${isActive ? cfg.badgeBorder : '#E5E7EB'}`,
-                          borderRadius: '999px',
-                          fontSize: '12px',
-                          fontWeight: isActive ? 600 : 400,
-                          padding: '4px 12px',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          transition: 'all 0.15s',
-                        }}
-                      >
-                        <span style={{ width: 7, height: 7, borderRadius: '50%', backgroundColor: isActive ? cfg.calendarBg : '#D1D5DB', display: 'inline-block' }} />
-                        {cfg.label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <CardContent className="p-6">
-                  {daysLoading ? (
-                    <p className="text-sm text-muted-foreground">Loading days…</p>
-                  ) : projectDays.length === 0 ? (
-                    <div className="text-center py-8">
-                      <Clock className="h-10 w-10 mx-auto text-muted-foreground/30 mb-3" />
-                      <p className="text-sm text-muted-foreground">No days saved yet</p>
-                        <Button
-                          size="sm"
-                          className="mt-3 gap-1.5"
-                          onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
-                        >
-                          <Edit3 className="h-3.5 w-3.5" />
-                          Open in Calculator
-                        </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {projectDays.map((day, idx) => {
-                        const lineItems = day.result_json?.lineItems || [];
-                        const penalties = day.result_json?.penalties || [];
-                        const travelPay = day.result_json?.travelPay || 0;
-                        const mileagePay = day.result_json?.mileage || 0;
-                        const sym = getCurrencySymbol(day.calc_engine || selectedProject?.calc_engine);
-                        return (
-                          <div key={day.id} className="rounded-xl border border-border overflow-hidden">
-                            {/* Day header */}
-                            <div className="flex items-center justify-between px-4 py-3 bg-muted/40">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-xs font-black uppercase tracking-widest text-foreground">Day {idx + 1}</span>
-                                  <span className="text-xs text-muted-foreground">{format(parseISO(day.work_date), 'EEE dd MMM yyyy')}</span>
-                                </div>
-                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                  <span className="text-[10px] font-bold tracking-widest uppercase text-[#FFD528] bg-[#1F1F21] px-1.5 py-0.5 rounded">
-                                    {DAY_TYPE_SHORT[day.day_type] || DAY_TYPE_LABELS[day.day_type] || day.day_type}
-                                  </span>
-                                  <span className="text-xs text-muted-foreground">{day.role_name}</span>
-                                  {day.call_time && day.wrap_time && (
-                                    <span className="text-xs text-muted-foreground font-mono">{day.call_time} – {day.wrap_time}</span>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0 ml-3">
-                                <p className="text-sm font-bold tabular-nums">{sym}{(day.grand_total || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                                {!isImpersonating && (
-                                  <button
-                                    onClick={() => removeDay(day.id)}
-                                    disabled={deletingDayId === day.id}
-                                    className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-red-500 hover:bg-red-50 transition-colors"
-                                    title="Remove day"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Line items */}
-                            {(lineItems.length > 0 || penalties.length > 0 || travelPay > 0 || mileagePay > 0) && (
-                              <div className="px-4 py-2">
-                                <div className="grid gap-x-3" style={{ gridTemplateColumns: '1fr auto auto' }}>
-                                  {lineItems.filter(Boolean).map((item, i) => {
-                                    const isFlatRate = !!(item.rate && Math.abs((item.total ?? 0) - item.rate) < 1);
-                                    const isDayRate = item.isDayRate || isFlatRate;
-                                    const timePart = item.timeFrom && item.timeTo ? `${item.timeFrom}–${item.timeTo}` : '';
-                                    let ratePart = '';
-                                    if (item.rate && item.hours) {
-                                      ratePart = isDayRate
-                                        ? `${sym}${item.total ?? 0} × 1`
-                                        : `${sym}${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
-                                    }
-                                    const detail = [timePart, ratePart].filter(Boolean).join(' · ');
-                                    return (
-                                      <Fragment key={i}>
-                                        <p className="text-xs text-muted-foreground leading-tight py-[3px] self-center">{item.description}</p>
-                                        <span className="text-[10px] text-muted-foreground/50 font-mono text-right self-center py-[3px]">{detail}</span>
-                                        <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">{sym}{(item.total ?? 0).toFixed(2)}</span>
-                                      </Fragment>
-                                    );
-                                  })}
-                                  {penalties.length > 0 && (
-                                    <>
-                                      <div className="col-span-3 border-t border-border/40 my-1" />
-                                      {penalties.filter(Boolean).map((item, i) => {
-                                        const pIsFlatRate = !!(item.rate && Math.abs((item.total ?? 0) - item.rate) < 1);
-                                        let pDetail = '';
-                                        if (item.rate && item.hours) {
-                                          pDetail = pIsFlatRate
-                                            ? `${sym}${item.rate} × 1`
-                                            : `${sym}${item.rate} × ${parseFloat(item.hours.toFixed(2))}`;
-                                        }
-                                        return (
-                                          <Fragment key={`pen-${i}`}>
-                                            <p className="text-xs text-muted-foreground leading-tight py-[3px] self-center">{item.description}</p>
-                                            <span className="text-[10px] text-muted-foreground/50 font-mono text-right self-center py-[3px]">{pDetail}</span>
-                                            <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">{sym}{(item.total ?? 0).toFixed(2)}</span>
-                                          </Fragment>
-                                        );
-                                      })}
-                                    </>
-                                  )}
-                                  {travelPay > 0 && (
-                                    <Fragment key="travel">
-                                      <p className="text-xs text-muted-foreground py-[3px] self-center">Travel pay</p>
-                                      <span />
-                                      <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">{sym}{travelPay.toFixed(2)}</span>
-                                    </Fragment>
-                                  )}
-                                  {mileagePay > 0 && (() => {
-                                    const eng = selectedProject?.calc_engine ? getEngine(selectedProject.calc_engine) : null;
-                                    const unit = eng?.meta.mileageUnit ?? 'km';
-                                    const dist = day.result_json?.mileageDistance ?? day.result_json?.mileageMiles ?? 0;
-                                    const label = unit === 'km' ? 'Travel' : 'Mileage';
-                                    return (
-                                      <Fragment key="mileage">
-                                        <p className="text-xs text-muted-foreground py-[3px] self-center">{label} ({dist} {unit})</p>
-                                        <span />
-                                        <span className="font-mono text-xs font-semibold tabular-nums text-right self-center py-[3px]">{sym}{mileagePay.toFixed(2)}</span>
-                                      </Fragment>
-                                    );
-                                  })()}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-
-                      {/* Project total */}
-                      <div className="flex items-center justify-between rounded-xl bg-[#1F1F21] px-4 py-3 mt-2">
-                        <span className="text-sm font-bold text-white">Job Total</span>
-                        <span className="text-lg font-bold text-[#FFD528]">
-                          {getCurrencySymbol(selectedProject?.calc_engine)}{projectTotal.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </span>
-                      </div>
-
-                        <div className="flex flex-wrap gap-2 mt-1">
-                          <Button
-                            className="flex-1 min-w-[120px] gap-2"
-                            onClick={() => navigate(`/calculator?project=${selectedProject.id}`)}
-                          >
-                            <Edit3 className="h-4 w-4" />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="flex-1 min-w-[120px] gap-2"
-                            onClick={() => navigate('/invoices', { state: { projectId: selectedProject.id } })}
-                          >
-                            <Clock className="h-4 w-4" />
-                            Timesheet
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="flex-1 min-w-[120px] gap-2"
-                            onClick={() => navigate('/invoices', { state: { projectId: selectedProject.id, tab: 'invoice' } })}
-                          >
-                            <FileText className="h-4 w-4" />
-                            Invoice
-                          </Button>
-                        </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+            <div className="hidden lg:block lg:col-span-3">
+              {renderProjectDetail()}
             </div>
           )}
         </div>
