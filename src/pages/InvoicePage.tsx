@@ -138,7 +138,8 @@ export function InvoicePage() {
   const invoiceRef = useRef<HTMLDivElement>(null);
   const timesheetRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<'timesheet' | 'invoice'>(() => {
-    const state = location.state as { tab?: 'timesheet' | 'invoice' } | null;
+    const state = location.state as { tab?: 'timesheet' | 'invoice'; sendTo?: boolean } | null;
+    if (state?.sendTo) return 'invoice';
     return state?.tab ?? 'timesheet';
   });
 
