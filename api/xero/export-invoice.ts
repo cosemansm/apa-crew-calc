@@ -239,7 +239,8 @@ async function createInvoice(
 
   const reference = [payload.invoiceNumber, payload.projectName, payload.jobReference]
     .filter(Boolean)
-    .join(' | ');
+    .join(' | ')
+    + ' | Calculation made with CrewDock.app';
 
   const lineItems = payload.days.flatMap(day => buildDayLineItems(day, taxType, payload.detailed));
 

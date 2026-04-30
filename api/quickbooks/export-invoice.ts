@@ -410,6 +410,7 @@ async function createInvoice(
         CustomerRef: { value: customerId },
         EmailStatus: 'NotSet',
         PrivateNote: privateNote,
+        CustomerMemo: { value: 'Calculation made with CrewDock.app' },
         Line: lines,
       }),
       signal: AbortSignal.timeout(15_000),

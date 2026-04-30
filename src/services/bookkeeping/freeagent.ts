@@ -270,9 +270,12 @@ async function createInvoice(
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + 30);
 
-  const comments = payload.jobReference
-    ? `${payload.projectName} | ${payload.jobReference}`
-    : payload.projectName;
+  const comments = [
+    payload.jobReference
+      ? `${payload.projectName} | ${payload.jobReference}`
+      : payload.projectName,
+    'Calculation made with CrewDock.app',
+  ].join('\n\n');
 
   const invoiceItems = payload.days.flatMap(day => buildDayItems(day, taxRate, payload.detailed));
 
