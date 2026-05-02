@@ -594,6 +594,9 @@ export function AIInputPage() {
               </Button>
               <Button variant="outline" onClick={() => navigate('/calculator')}>Manual Calculator</Button>
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              This feature is still in development and may produce inaccurate information. Always verify answers yourself.
+            </p>
             {error && (
               <div className="p-4 bg-destructive/10 border border-destructive/20 text-destructive rounded-xl text-sm flex items-start gap-2">
                 <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
