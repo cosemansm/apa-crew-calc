@@ -686,14 +686,6 @@ export function AIInputPage() {
             </Button>
           </div>
 
-          {/* Disclaimer */}
-          <div className="flex items-start gap-2.5 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
-            <TriangleAlert className="h-4 w-4 shrink-0 mt-0.5" />
-            <p>
-              This feature is still in development and may produce inaccurate information. Always verify answers against the official APA Terms &amp; Conditions yourself.
-            </p>
-          </div>
-
           {/* Messages */}
           <div className="space-y-3">
             {chatMessages.map((msg, i) => (
@@ -763,6 +755,9 @@ export function AIInputPage() {
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
+              <p className="text-[11px] text-muted-foreground mt-2 text-center">
+                This feature is still in development and may produce inaccurate information. Always verify answers yourself.
+              </p>
             </CardContent>
           </Card>
         </div>
