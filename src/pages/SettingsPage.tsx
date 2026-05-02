@@ -1174,7 +1174,7 @@ export function SettingsPage() {
                     {/* Feature list */}
                     <ul className="space-y-1.5 text-sm text-muted-foreground">
                       {[
-                        'AI Input — describe your day, auto-fills the calculator',
+                        'AI Assistant — describe your day, auto-fills the calculator',
                         'Invoice direct — send PDF invoices by email',
                         '3 years data retention',
                         'Bookkeeping integrations (coming soon)',

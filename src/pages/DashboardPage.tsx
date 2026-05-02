@@ -579,7 +579,7 @@ export function DashboardPage() {
         </div>
         <div className="flex items-center gap-2 shrink-0 mt-1">
           <Button variant="outline" onClick={() => navigate('/ai-input')} className="gap-2">
-            <Sparkles className="h-4 w-4" /><span className="hidden sm:inline"> AI Input</span>
+            <Sparkles className="h-4 w-4" /><span className="hidden sm:inline"> AI Assistant</span>
           </Button>
           <Button
             onClick={() => {
@@ -886,6 +886,18 @@ export function DashboardPage() {
                 return <div key={date.toISOString()}>{dayCell}</div>;
               })}
             </div>
+            {monthProjects.length === 0 && (
+              <div className="text-center py-6 border-t border-dashed">
+                <p className="text-sm text-muted-foreground mb-2">No jobs added for {format(currentMonth, 'MMMM')} yet</p>
+                <button
+                  onClick={() => setShowNewProject(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#FFD528] text-[#1F1F21] hover:bg-[#e6c024] px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  <Plus className="h-3 w-3" />
+                  Add your first job
+                </button>
+              </div>
+            )}
           </CardContent>
         </Card>
 

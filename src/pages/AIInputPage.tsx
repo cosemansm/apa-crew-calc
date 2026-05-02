@@ -564,7 +564,7 @@ export function AIInputPage() {
   if (stage === 'input') {
     return (
       <ProLockOverlay
-        featureName="AI Input"
+        featureName="AI Assistant"
         featureDescription="Describe your day in plain text and let AI fill in the calculator automatically."
       >
         <div className="max-w-3xl mx-auto space-y-6">
@@ -772,7 +772,7 @@ export function AIInputPage() {
 
   return (
     <ProLockOverlay
-      featureName="AI Input"
+      featureName="AI Assistant"
       featureDescription="Describe your day in plain text and let AI fill in the calculator automatically."
     >
       <div className="max-w-3xl mx-auto space-y-4">

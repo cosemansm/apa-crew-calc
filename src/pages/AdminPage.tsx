@@ -72,13 +72,13 @@ interface AdminNotification {
 
 const NOTIFICATION_CATEGORIES = [
   'General', 'Dashboard', 'Calculator', 'Projects', 'Invoices',
-  'Timesheets', 'Bookkeeping', 'AI Input', 'Integrations',
+  'Timesheets', 'Bookkeeping', 'AI Assistant', 'Integrations',
   'Projects', 'Equipment', 'Expenses', 'PDF / Export',
   'Feature Requests', 'Settings', 'Subscription', 'Mobile',
 ];
 
 const FEATURE_TAGS = [
-  'General', 'Bug Report', 'Calculator', 'Invoices', 'AI Input', 'Projects',
+  'General', 'Bug Report', 'Calculator', 'Invoices', 'AI Assistant', 'Projects',
   'Integrations', 'Equipment', 'Expenses', 'Mobile', 'Settings',
   'Custom Rates', 'PDF / Export', 'Performance',
 ];
@@ -563,7 +563,7 @@ function AdminNotificationsPanel({ reloadRef }: { reloadRef: React.MutableRefObj
     { path: '/invoices',         label: 'Invoices' },
     { path: '/support',          label: 'Support' },
     { path: '/settings',         label: 'Settings' },
-    { path: '/ai-input',         label: 'AI Input' },
+    { path: '/ai-input',         label: 'AI Assistant' },
     { path: '/admin',            label: 'Admin' },
     { path: '/login',            label: 'Login' },
     { path: '/terms',            label: 'Terms of Service' },

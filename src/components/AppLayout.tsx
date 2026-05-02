@@ -13,7 +13,7 @@ import { ShaderWallpaper } from '@/components/ShaderWallpaper';
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/projects', label: 'Projects', icon: FolderOpen },
-  { path: '/ai-input', label: 'AI Input', icon: Sparkles },
+  { path: '/ai-input', label: 'AI Assistant', icon: Sparkles },
   { path: '/invoices', label: 'Timesheets', icon: FileText },
   { path: '/support', label: 'Support', icon: LifeBuoy },
 ];
